@@ -28,41 +28,75 @@ src/qwenpaw/cli/
 
 ### 核心组件
 
-#### LazyGroup 命令加载
+#### LazyGroup 命令加载 (`cli/__init__.py:47-80`)
 
 ```python
-# main.py 核心结构
 class LazyGroup(click.Group):
     """支持延迟加载子命令的 Click Group"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, lazy_subcommands=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.lazy_subcommands = {}
+        self.lazy_subcommands = lazy_subcommands or {}
 
-    def add_lazy_subcommand(self, name, module_path, attr_name, help_text):
-        """注册延迟加载的命令"""
-        self.lazy_subcommands[name] = (module_path, attr_name, help_text)
+    def list_commands(self, ctx):
+        """返回所有命令名（ eager + lazy ）"""
+        base = super().list_commands(ctx)
+        return sorted(set(base) | set(self.lazy_subcommands.keys()))
 
-    def resolve_command(self, ctx, args):
-        # 动态解析并加载子命令
+    def get_command(self, ctx, cmd_name):
+        """获取命令，按需懒加载"""
+        # 先尝试 eager 命令
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+        # 懒加载命令
+        if cmd_name in self.lazy_subcommands:
+            module_path, attr_name, label = self.lazy_subcommands[cmd_name]
+            module = __import__(module_path, fromlist=[attr_name])
+            cmd = getattr(module, attr_name)
+            self.add_command(cmd, cmd_name)  # 缓存
+            return cmd
+        return None
+```
+
+**懒加载命令注册** (`cli/__init__.py:83-144`):
+
+```python
+@click.group(
+    cls=LazyGroup,
+    lazy_subcommands={
+        "acp": ("qwenpaw.cli.acp_cmd", "acp_cmd", ".acp_cmd"),
+        "app": ("qwenpaw.cli.app_cmd", "app_cmd", ".app_cmd"),
+        "agents": ("qwenpaw.cli.agents_cmd", "agents_group", ".agents_cmd"),
+        "channels": ("qwenpaw.cli.channels_cmd", "channels_group", ".channels_cmd"),
+        "chats": ("qwenpaw.cli.chats_cmd", "chats_group", ".chats_cmd"),
+        "cron": ("qwenpaw.cli.cron_cmd", "cron_group", ".cron_cmd"),
+        "daemon": ("qwenpaw.cli.daemon_cmd", "daemon_group", ".daemon_cmd"),
+        "init": ("qwenpaw.cli.init_cmd", "init_cmd", ".init_cmd"),
+        "mission": ("qwenpaw.cli.mission_cmd", "mission_group", ".mission_cmd"),
+        "models": ("qwenpaw.cli.providers_cmd", "models_group", ".providers_cmd"),
+        "skills": ("qwenpaw.cli.skills_cmd", "skills_group", ".skills_cmd"),
+        "task": ("qwenpaw.cli.task_cmd", "task_cmd", ".task_cmd"),
         ...
+    },
+)
 ```
 
 ### 常用命令
 
 #### 应用管理
 
-| 命令 | 说明 |
-|------|------|
-| `qwenpaw app` | 启动 FastAPI 服务器 |
-| `qwenpaw desktop` | 启动桌面 Webview 模式 |
-| `qwenpaw daemon status` | 查看守护进程状态 |
-| `qwenpaw daemon restart` | 重启守护进程 |
-| `qwenpaw shutdown` | 关闭运行中的实例 |
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw app` | `cli/app_cmd.py:1` | 启动 FastAPI 服务器 |
+| `qwenpaw desktop` | `cli/desktop_cmd.py` | 启动桌面 Webview 模式 |
+| `qwenpaw daemon status` | `cli/daemon_cmd.py:1` | 查看守护进程状态 |
+| `qwenpaw daemon restart` | `cli/daemon_cmd.py:1` | 重启守护进程 |
+| `qwenpaw shutdown` | `cli/shutdown_cmd.py` | 关闭运行中的实例 |
 
 ```bash
 # 启动 API 服务器
-qwenpaw app --host 127.0.0.1 --port 8088
+qwenpaw app --host 127.0.0.1 --port 8088 --reload
 
 # 启动桌面模式（自动打开 Webview 窗口）
 qwenpaw desktop
@@ -74,29 +108,34 @@ qwenpaw daemon status
 qwenpaw daemon restart
 ```
 
-#### 智能体管理
+#### 智能体管理 (`cli/agents_cmd.py:1`)
 
 | 命令 | 说明 |
 |------|------|
 | `qwenpaw agents list` | 列出所有智能体 |
 | `qwenpaw agents create` | 创建新智能体 |
-| `qwenpaw agents configure` | 配置智能体 |
+| `qwenpaw agents chat` | 与另一个代理通信 |
+| `qwenpaw agents delete` | 删除代理配置 |
 
 ```bash
 # 列出所有智能体
 qwenpaw agents list
 
 # 创建新智能体
-qwenpaw agents create --name my_agent --type assistant
+qwenpaw agents create --name my_agent
+
+# 与代理通信
+qwenpaw agents chat --from-agent agent1 --to-agent agent2 --text "Hello"
 ```
 
-#### 渠道管理
+#### 渠道管理 (`cli/channels_cmd.py:1`)
 
 | 命令 | 说明 |
 |------|------|
 | `qwenpaw channels list` | 列出配置的渠道 |
 | `qwenpaw channels configure` | 配置渠道 |
 | `qwenpaw channels install` | 安装渠道依赖 |
+| `qwenpaw channels send` | 通过渠道发送消息 |
 
 ```bash
 # 列出所有渠道
@@ -237,32 +276,107 @@ class ChannelConfig(BaseModel):
 #### 智能体配置
 
 ```python
+#### AgentsConfig 智能体配置
+
+```python
 class AgentsConfig(BaseModel):
     """多智能体配置"""
 
-    profiles: Dict[str, AgentProfileConfig] = {}
-    running: AgentsRunningConfig = AgentsRunningConfig()
+    active_agent: str = "default"              # 当前活跃智能体 ID
+    agent_order: List[str] = ["default"]       # 智能体加载顺序
+    profiles: Dict[str, AgentProfileRef] = {}  # 智能体配置引用
+    running: AgentsRunningConfig               # 运行时配置
+    language: str = "zh"                       # 默认语言
+```
 
+#### AgentProfileConfig 智能体配置 (config.py 第859-926行)
+
+```python
 class AgentProfileConfig(BaseModel):
-    """单个智能体配置"""
+    """单个智能体完整配置"""
 
-    name: str
-    model: str
-    provider: str
-    temperature: float = 0.7
-    max_tokens: int = 4096
-    system_prompt: Optional[str] = None
-    skills: List[str] = []
-    tools: List[str] = []
+    id: str                                    # 唯一智能体 ID
+    name: str                                  # 人类可读名称
+    description: str = ""                      # 智能体描述
+    workspace_dir: str = ""                     # 工作区目录
+    template_id: Optional[str] = None         # 创建时使用的模板
+    channels: Optional[ChannelConfig] = None  # 渠道配置
+    mcp: Optional[MCPConfig] = None            # MCP 客户端配置
+    heartbeat: Optional[HeartbeatConfig] = None # 心跳配置
+    running: AgentsRunningConfig               # 运行时配置
+    llm_routing: AgentsLLMRoutingConfig       # LLM 路由设置
+    active_model: Optional[ModelSlotConfig] = None  # 活跃模型配置
+    language: str = "zh"                       # 语言设置
+    system_prompt_files: List[str] = ["AGENTS.md", "SOUL.md", "PROFILE.md"]
+    tools: Optional[ToolsConfig] = None         # 工具配置
+    security: Optional[SecurityConfig] = None   # 安全配置
+    acp: Optional[ACPConfig] = None            # ACP 配置
+```
 
+#### AgentsRunningConfig 运行时配置 (config.py 第647-811行)
+
+```python
 class AgentsRunningConfig(BaseModel):
     """运行时行为配置"""
 
-    max_iters: int = 100
-    retry: bool = True
-    retry_limit: int = 3
-    backoff: float = 1.0
-    concurrency: int = 5
+    # 迭代控制
+    max_iters: int = 100                       # 最大推理-行动迭代次数
+    auto_continue_on_text_only: bool = False   # 纯文本回复时自动继续
+
+    # LLM 重试配置
+    llm_retry_enabled: bool = True            # 启用 LLM 重试
+    llm_max_retries: int = 3                  # 最大重试次数
+    llm_backoff_base: float = 1.0              # 指数退避基础值
+    llm_backoff_cap: float = 10.0             # 指数退避上限
+
+    # LLM 并发控制
+    llm_max_concurrent: int = 10               # 最大并发 LLM 调用
+    llm_max_qpm: int = 600                    # 每分钟最大请求
+    llm_rate_limit_pause: float = 5.0          # 速率限制暂停时间
+    llm_rate_limit_jitter: float = 1.0         # 速率限制抖动
+    llm_acquire_timeout: float = 300.0         # 获取超时(秒)
+
+    # 上下文管理
+    max_input_length: int = 128*1024           # 最大输入长度
+    history_max_length: int = 10000            # 历史最大长度
+
+    # 子配置
+    context_compact: ContextCompactConfig      # 上下文压缩配置
+    tool_result_compact: ToolResultCompactConfig  # 工具结果压缩
+    memory_summary: MemorySummaryConfig        # 记忆摘要配置
+    embedding_config: EmbeddingConfig          # Embedding 配置
+
+    # 记忆管理器
+    memory_manager_backend: Literal["remelight"] = "remelight"
+
+    # 计算属性
+    @property
+    def memory_compact_reserve(self) -> int: ...   # 记忆压缩保留大小
+    @property
+    def memory_compact_threshold(self) -> int: ...  # 记忆压缩阈值
+
+    # 验证方法
+    def validate_llm_retry_backoff(self) -> None: ...
+```
+
+**计算属性详解** (第799-811行):
+
+| 属性 | 公式 | 说明 |
+|------|------|------|
+| `memory_compact_reserve` | `max_input_length * memory_reserve_ratio` | 上下文保留阈值 |
+| `memory_compact_threshold` | `max_input_length * memory_compact_ratio` | 压缩触发阈值 |
+
+**ContextCompactConfig** (config.py 第474-526行):
+
+```python
+class ContextCompactConfig(BaseModel):
+    token_count_model: str = "default"         # Token 计数模型
+    token_count_use_mirror: bool = False       # 使用 HF 镜像
+    token_count_estimate_divisor: float = 4.0  # Token 估算除数
+    context_compact_enabled: bool = True        # 启用自动压缩
+    memory_compact_ratio: float = 0.75          # 压缩触发阈值 (75%)
+    memory_reserve_ratio: float = 0.1          # 上下文保留阈值 (10%)
+    compact_with_thinking_block: bool = True    # 压缩时包含思考块
 ```
 
 #### 安全配置
@@ -285,23 +399,113 @@ class ToolGuardConfig(BaseModel):
 
 ### 配置加载
 
+**源码路径**: `src/qwenpaw/config/utils.py`
+
+**`load_config` 函数** (第491-530行):
+
 ```python
-# src/qwenpaw/config/utils.py
+def load_config(config_path: Optional[Path] = None) -> Config:
+    """加载配置文件。如果文件不存在，返回默认 Config。"""
+    if config_path is None:
+        config_path = get_config_path()  # WORKING_DIR / "config.json"
+    
+    if not config_path.is_file():
+        return Config()
+    
+    data = _read_config_data(config_path)
+    if data is None:
+        return Config()
+    
+    data = _normalize_working_dir_bound_paths(data)
+    
+    # 验证配置
+    try:
+        return Config.model_validate(data)
+    except ValidationError as exc:
+        # 尝试修复常见错误
+        for err in exc.errors():
+            loc = list(err.get("loc", []))
+            if loc and _remove_bad_field(data, loc):
+                fixed_any = True
+        if not fixed_any:
+            _backup_config_file(config_path, "validation error")
+            return Config()
+```
 
-def load_config(config_path: str) -> Config:
-    """加载并验证配置文件"""
-    with open(config_path, 'r') as f:
+**`_read_config_data` 函数** (第456-488行):
+
+```python
+def _read_config_data(config_path: Path) -> Optional[dict]:
+    """读取并解析配置文件。
+    
+    使用 json_repair 处理常见语法问题（尾随逗号、引号缺失、注释、BOM 等）。"""
+    try:
+        with open(config_path, "r", encoding="utf-8") as file:
+            raw = file.read()
+    except UnicodeDecodeError:
+        _backup_config_file(config_path, "encoding error")
+        return None
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        data = repair_json(raw, return_objects=True)  # 自动修复 JSON
+        if not isinstance(data, dict):
+            _backup_config_file(config_path, "JSON syntax error, repair failed")
+            return None
+```
+
+**Agent 配置加载** (config.py 第1508-1553行):
+
+```python
+def load_agent_config(agent_id: str) -> AgentProfileConfig:
+    """从 workspace/agent.json 加载智能体完整配置"""
+    config = load_config()
+
+    if agent_id not in config.agents.profiles:
+        raise ConfigurationException(
+            config_key="agent",
+            message=f"Agent '{agent_id}' not found in config",
+        )
+
+    agent_ref = config.agents.profiles[agent_id]
+    workspace_dir = Path(agent_ref.workspace_dir).expanduser()
+    agent_config_path = workspace_dir / "agent.json"
+
+    if not agent_config_path.exists():
+        fallback_config = build_fallback_agent_profile_config(agent_id, config)
+        save_agent_config(agent_id, fallback_config)
+        return fallback_config
+
+    with open(agent_config_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return Config(**data)
 
-def save_config(config: Config, config_path: str) -> None:
-    """保存配置到文件"""
-    with open(config_path, 'w') as f:
-        json.dump(config.model_dump(), f, indent=2)
+    data = _normalize_working_dir_bound_paths(data)
+    return AgentProfileConfig(**data)
+```
 
-def get_config_path() -> str:
-    """获取配置路径"""
-    return os.path.join(WORKING_DIR, "config.json")
+**严格验证** (第533-570行):
+
+```python
+def strict_validate_config_file(config_path: Optional[Path] = None) -> tuple[bool, str]:
+    """严格验证配置文件（不自动修复）"""
+    if not config_path.is_file():
+        return True, f"(no file) defaults — {config_path}"
+
+    data = _read_config_data(config_path)
+    if data is None:
+        return False, f"unreadable or invalid JSON — {config_path}"
+
+    try:
+        Config.model_validate(data)
+    except ValidationError as exc:
+        lines = [f"{config_path}:"]
+        for err in exc.errors():
+            loc = ".".join(str(x) for x in err.get("loc", ()))
+            msg = err.get("msg", "")
+            lines.append(f"  {loc}: {msg}")
+        return False, "\n".join(lines)
+    return True, str(config_path)
 ```
 
 ### 配置迁移
@@ -349,249 +553,1329 @@ src/qwenpaw/security/
     └── rules/              # 安全规则定义
 ```
 
-### 3.1 敏感信息存储 (Secret Store)
+### 3.1 SecretStore 密钥加密存储
 
-#### 加密机制
+**源码路径**: `src/qwenpaw/security/secret_store.py`
 
-使用 **Fernet** 对称加密（AES-128-CBC + HMAC-SHA256）保护敏感配置。
-
-```python
-# secret_store.py
-
-class SecretStore:
-    """敏感信息加密存储"""
-
-    def encrypt(self, plaintext: str) -> str:
-        """加密敏感数据"""
-        encrypted = self.fernet.encrypt(plaintext.encode())
-        return f"ENC:{base64.b64encode(encrypted).decode()}"
-
-    def decrypt(self, value: str) -> str:
-        """解密敏感数据（支持未加密值透明返回）"""
-        if not self.is_encrypted(value):
-            return value
-        # 解密逻辑...
-        return decrypted
-
-    def is_encrypted(self, value: str) -> bool:
-        """检查值是否已加密"""
-        return value.startswith("ENC:")
-```
-
-#### 密钥管理
-
-主密钥存储优先级：
-1. **OS Keychain** - 通过 `keyring` 库访问系统密钥链
-2. **本地文件** - `SECRET_DIR/.master_key`（权限 `0o600`）
+**核心常量** (第33-37行):
 
 ```python
-def _get_master_key():
-    """获取主密钥（优先从 Keychain）"""
-    # 1. 尝试从 Keychain 获取
-    key = keyring.get_password("qwenpaw", "master_key")
-    if key:
-        return key
-
-    # 2. 从本地文件获取
-    key_file = os.path.join(SECRET_DIR, ".master_key")
-    if os.path.exists(key_file):
-        with open(key_file, 'r') as f:
-            return f.read().strip()
-
-    # 3. 生成新密钥
-    key = secrets.token_hex(32)
-    keyring.set_password("qwenpaw", "master_key", key)
-    return key
+_ENC_PREFIX = "ENC:"           # 加密值前缀
+_KEYRING_SERVICE = "qwenpaw"   # OS Keychain 服务名
+_LEGACY_SERVICE = "copaw"     # 兼容旧版服务名
+_KEYRING_ACCOUNT = "master_key"  # Keychain 账户名
 ```
 
-#### 受保护字段
+**Fernet 加密机制**:
 
-以下配置字段会自动加密：
-- `api_key` - 提供商 API 密钥
-- `jwt_secret` - 认证 JWT 密钥
+| 函数 | 行号 | 功能 |
+|------|------|------|
+| `encrypt()` | 162-169 | 加密，返回 `ENC:<base64-ciphertext>` |
+| `decrypt()` | 171-187 | 解密，自动识别前缀 |
+| `is_encrypted()` | 192-193 | 检查是否已加密 |
+| `_get_fernet()` | 196-205 | 获取缓存的 Fernet 实例 |
 
-### 3.2 工具调用守卫 (Tool Guard)
+```python
+def encrypt(plaintext: str) -> str:
+    """加密敏感数据，返回格式: ENC:<base64-ciphertext>"""
+    fernet = _get_fernet()
+    encrypted = fernet.encrypt(plaintext.encode())
+    return f"ENC:{base64.b64encode(encrypted).decode()}"
 
-#### 架构
+def decrypt(value: str) -> str:
+    """解密：自动识别 ENC: 前缀，未加密值直接返回"""
+    if not is_encrypted(value):
+        return value  # graceful degradation
+    fernet = _get_fernet()
+    encrypted_bytes = base64.b64decode(value[4:])
+    return fernet.decrypt(encrypted_bytes).decode()
+
+def is_encrypted(value: str) -> bool:
+    """检查是否已加密"""
+    return isinstance(value, str) and value.startswith("ENC:")
+```
+
+**主密钥管理**:
+
+| 函数 | 行号 | 功能 |
+|------|------|------|
+| `_get_master_key()` | 130-156 | 双重检查锁定获取主密钥 |
+| `_generate_master_key()` | 126 | 生成 32 字节随机密钥 |
+| `_should_skip_keyring()` | 68-82 | 判断是否跳过 OS Keychain |
+| `_try_keyring_get()` | 87-101 | 从 Keychain 获取密钥 |
+| `_try_keyring_set()` | 106-117 | 存入 Keychain |
+| `_master_key_file()` | 122-123 | 获取密钥文件路径 |
+| `reload_master_key_from_disk()` | 215-249 | 从磁盘重新加载密钥 |
+
+**密钥获取优先级** (`_get_master_key()`):
 
 ```
-ToolGuardEngine
-├── FilePathToolGuardian     # 文件路径保护
-├── RuleBasedToolGuardian    # 规则匹配保护
-└── ShellEvasionGuardian     # Shell 逃逸检测
+1. 进程内缓存 (_cached_master_key) — 快速路径
+2. OS Keychain (keyring 库) — 持久化存储
+3. 本地文件 SECRET_DIR/.master_key — 兜底
+4. 生成新密钥 — 从未存在
 ```
 
-#### 核心引擎
+**Keychain 跳过条件** (`_should_skip_keyring()`):
+
+```python
+def _should_skip_keyring() -> bool:
+    """以下环境跳过 OS Keychain:"""
+    return (
+        os.environ.get("QWENPAW_RUNNING_IN_CONTAINER") or  # Docker
+        (platform.system() == "Linux" and (
+            os.environ.get("CI") or  # CI 环境
+            not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY")  # headless
+        ))
+    )
+```
+
+**密钥轮换机制**:
+
+```python
+def reload_master_key_from_disk() -> None:
+    """从磁盘重新加载主密钥（用于备份恢复后）"""
+    # 1. 使进程内缓存失效
+    global _cached_master_key, _cached_fernet
+    _cached_master_key = None
+    _cached_fernet = None
+
+    # 2. 从 SECRET_DIR/.master_key 读取
+    # 3. 同步到 OS Keychain
+```
+
+**主密钥冲突处理** (`restore_helpers.py:108-156`):
+
+备份恢复时如果检测到主密钥不同，会自动备份当前密钥：
+
+**handle_master_key_conflict()** (`restore_helpers.py:108-156`):
+
+```python
+def handle_master_key_conflict(
+    zf: zipfile.ZipFile,
+    bak_dir: Path | None = None,
+) -> Path | None:
+    """当备份的密钥与当前不同时，备份当前主密钥。
+
+    如果备份包含的 .master_key 与当前磁盘上的不同，
+    则将现有密钥复制到
+    BACKUP_DIR/_pre_restore_keys/<UTC-timestamp>.master_key.bak，
+    以便需要时仍能用旧密钥解密之前加密的凭证。
+
+    备份文件故意写在 SECRET_DIR 外，
+    以免被后续的 extract_to_tmp + commit_tmp 影响。"""
+    master_key_zip_entry = f"{PREFIX_SECRETS}{_MASTER_KEY}"
+    current_master_key = SECRET_DIR / _MASTER_KEY
+
+    if not (
+        current_master_key.is_file() and master_key_zip_entry in zf.namelist()
+    ):
+        return None
+
+    with zf.open(master_key_zip_entry) as f:
+        backup_mk_bytes = f.read()
+    with open(current_master_key, "rb") as f:
+        current_mk_bytes = f.read()
+
+    if backup_mk_bytes == current_mk_bytes:
+        return None  # 密钥相同，无需处理
+
+    # 备份当前密钥
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    bak = bak_dir / f"{ts}.master_key.bak"
+    bak_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(current_master_key, bak)
+    return bak
+```
+
+**密钥冲突处理流程**:
+
+```
+检测到备份中的 .master_key 与当前不同
+         │
+         ▼
+备份当前密钥到 BACKUP_DIR/_pre_restore_keys/<timestamp>.master_key.bak
+         │
+         ▼
+用备份中的密钥替换当前密钥
+         │
+         ▼
+恢复后自动同步到 OS Keychain
+```
+
+**完整密钥生命周期流程**:
+
+```
+_get_master_key() 调用
+         │
+         ▼
+   ┌─────────────────┐
+   │ _cached_master_key │───存在?──是──► 返回缓存密钥 (快速路径)
+   │    是否为 None?  │
+   └────────┬─────────┘
+            │ 否
+            ▼
+   ┌─────────────────┐
+   │  获取锁          │
+   └────────┬─────────┘
+            ▼
+   ┌─────────────────────────┐
+   │ _cached_master_key      │───存在?──是──► 返回缓存密钥
+   │    是否为 None? (二次检查) │         (另一线程已初始化)
+   └────────┬────────────────┘
+            │ 否
+            ▼
+   ┌───────────────────────────────────┐
+   │ _try_keyring_get()                │───成功?──是──► 使用 keyring 值
+   │ (keyring + 旧版 copaw 支持)       │
+   └───────────────┬───────────────────┘
+                    │ 否 / 跳过 (容器/CI)
+                    ▼
+   ┌───────────────────────────────────┐
+   │ _read_key_file()                  │───成功?──是──► 提升到 keyring
+   │ (.master_key, 0o600 权限)        │                  _try_keyring_set()
+   └───────────────┬───────────────────┘
+                    │ 否
+                    ▼
+   ┌───────────────────────────────────┐
+   │ _generate_master_key()            │ secrets.token_hex(32)
+   │ (创建新的 32 字节密钥)            │
+   └───────────────┬───────────────────┘
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+   _try_keyring_set()   _write_key_file()
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+           缓存密钥并返回
+```
+
+**双重检查锁定模式** (`_get_master_key()`, 第154-188行):
+
+```python
+def _get_master_key() -> bytes:
+    # 快速路径：进程内缓存
+    if _cached_master_key is not None:
+        return _cached_master_key
+
+    with _master_key_lock:  # 加锁
+        if _cached_master_key is not None:  # 双重检查
+            return _cached_master_key
+        # ... 初始化逻辑
+```
+
+**reload_master_key_from_disk()** (secret_store.py 第249-289行):
+
+恢复后重新加载密钥到进程:
+
+```python
+def reload_master_key_from_disk() -> None:
+    """使进程内缓存失效并重新同步 OS Keyring。
+
+    在备份恢复替换 SECRET_DIR/.master_key 后调用，
+    以便运行中的进程和 OS Keyring 都能使用恢复的新密钥。"""
+    global _cached_master_key, _cached_fernet
+    try:
+        with _master_key_lock:
+            _cached_master_key = None
+            _cached_fernet = None
+
+            key_hex = _read_key_file()
+            if not key_hex:
+                logger.warning("reload_master_key_from_disk: .master_key 文件未找到")
+                return
+
+            _try_keyring_set(key_hex)  # 同步 keyring
+            logger.info("reload_master_key_from_disk: 缓存已失效，keyring 已更新")
+    except Exception:
+        logger.warning("reload_master_key_from_disk: 意外错误", exc_info=True)
+```
+
+**文件权限**:
+- `.master_key` 文件: `0o600` (仅所有者读写)
+- `SECRET_DIR` 目录: `0o700` (仅所有者读写执行)
+
+**Keyring 跳过条件** `_should_skip_keyring()` (第49-68行):
+
+在以下环境跳过 OS Keyring，直接使用文件存储：
+
+| 条件 | 说明 |
+|------|------|
+| `QWENPAW_RUNNING_IN_CONTAINER=true` | 容器环境 |
+| Linux 无 DISPLAY/WAYLAND | 无头服务器 |
+| `CI=true` | CI/CD 环境 |
+
+**迁移机制** (自动从明文迁移):
+
+```python
+# 首次访问时检测明文字段，自动加密
+if has_plaintext:
+    _rewrite_encrypted(path, decrypted)  # 写回加密版本
+
+# _maybe_migrate_plaintext() 检查任一字段是否为明文
+# 如果是，返回 True 触发重写
+```
+
+**字典字段加密** (第267-296行):
+
+```python
+PROVIDER_SECRET_FIELDS: frozenset[str] = frozenset({"api_key"})
+AUTH_SECRET_FIELDS: frozenset[str] = frozenset({"jwt_secret"})
+
+def encrypt_dict_fields(data: dict, secret_fields: frozenset[str]) -> dict:
+    """加密字典中指定的敏感字段"""
+    for field in secret_fields:
+        if field in data and data[field] and not is_encrypted(data[field]):
+            data[field] = encrypt(data[field])
+
+def decrypt_dict_fields(data: dict, secret_fields: frozenset[str]) -> dict:
+    """解密字典中指定的敏感字段"""
+    for field in secret_fields:
+        if field in data and is_encrypted(data[field]):
+            data[field] = decrypt(data[field])
+```
+
+**使用场景**:
+
+| 文件 | 加密字段 |
+|------|---------|
+| `src/qwenpaw/envs/store.py` | 环境变量 `envs.json` |
+| `src/qwenpaw/app/auth.py` | `jwt_secret` |
+| `src/qwenpaw/providers/provider_manager.py` | `api_key` |
+| `src/qwenpaw/backup/_ops/restore.py` | 调用 `reload_master_key_from_disk()` |
+
+### 3.2 ToolGuardEngine 核心引擎
+
+**源码路径**: `src/qwenpaw/security/tool_guard/engine.py`
+
+**`ToolGuardEngine` 类** (第44-165行):
 
 ```python
 class ToolGuardEngine:
-    """工具调用安全扫描引擎"""
+    """单例编排器，运行所有注册的守卫"""
 
-    def __init__(self, config: ToolGuardConfig):
-        self.guardians = [
-            FilePathToolGuardian(config.file_guard),
-            RuleBasedToolGuardian(),
-            ShellEvasionGuardian(),
+    def __init__(self, guardians: list[BaseToolGuardian] | None = None) -> None:
+        self._guardians: list[BaseToolGuardian] = [
+            FilePathToolGuardian(),      # 路径守卫（always_run=True）
+            RuleBasedToolGuardian(),     # 规则守卫
+            ShellEvasionGuardian(),      # 混淆检测
         ]
 
-    def guard(self, tool_name: str, params: Dict[str, Any]) -> ToolGuardResult:
-        """扫描工具调用参数，返回扫描结果"""
-        findings = []
-
-        for guardian in self.guardians:
-            result = guardian.check(tool_name, params)
-            if result:
-                findings.append(result)
-
-        return ToolGuardResult(findings=findings)
+    def guard(
+        self,
+        tool_name: str,
+        params: Any,
+        *,
+        only_always_run: bool = False,
+    ) -> ToolGuardResult:
+        """守卫工具调用的参数"""
 
     def is_denied(self, tool_name: str) -> bool:
-        """检查工具是否被无条件拒绝"""
-        return tool_name in self.config.denied_tools
+        """检查工具是否在拒绝列表"""
 
     def is_guarded(self, tool_name: str) -> bool:
-        """检查工具是否在保护范围内"""
-        return tool_name in self.config.scope
+        """检查工具是否在守卫范围内"""
+
+    def reload_rules(self) -> None:
+        """重新加载守卫规则"""
 ```
 
-#### 文件路径守卫
-
-检测对敏感文件的访问尝试：
+**守卫注册** (第89行):
 
 ```python
-class FilePathToolGuardian:
-    """文件路径访问保护"""
-
-    SENSITIVE_PATHS = [
-        "~/.ssh/",
-        "~/.aws/",
-        "~/.config/gcloud",
-        "/etc/passwd",
-        "/etc/shadow",
-        ".env",
-        ".git/config",
-    ]
-
-    def check(self, tool_name: str, params: Dict) -> Optional[GuardFinding]:
-        """检查文件路径是否敏感"""
-        file_path = params.get("path") or params.get("file_path")
-        if not file_path:
-            return None
-
-        # 展开 ~ 和环境变量
-        expanded = os.path.expanduser(os.path.expandvars(file_path))
-
-        for sensitive in self.SENSITIVE_PATHS:
-            if expanded.startswith(sensitive):
-                return GuardFinding(
-                    severity="high",
-                    message=f"访问敏感路径: {file_path}",
-                    pattern=sensitive
-                )
-        return None
+def register_guardian(self, guardian: BaseToolGuardian) -> None:
+    """注册额外的守卫"""
+    self._guardians.append(guardian)
 ```
 
-#### Shell 逃逸守卫
+### 3.3 Guard 数据模型
 
-检测 Shell 命令注入和逃逸尝试：
+**源码路径**: `src/qwenpaw/security/tool_guard/models.py`
+
+**`GuardSeverity` 枚举** (第31行):
 
 ```python
-class ShellEvasionGuardian:
-    """Shell 命令逃逸检测"""
-
-    EVASION_PATTERNS = [
-        r"'\s*;\s*'",        # 分号分隔
-        r"`.*`",              # 命令替换
-        r"\$\(.*\)",          # $(command) 替换
-        r"\|\s*\w+",          # 管道注入
-        r"&&\s*\w+",          # 条件注入
-    ]
-
-    def check(self, tool_name: str, params: Dict) -> Optional[GuardFinding]:
-        """检测 Shell 逃逸模式"""
-        if tool_name != "bash":
-            return None
-
-        command = params.get("command", "")
-        for pattern in self.EVASION_PATTERNS:
-            if re.search(pattern, command):
-                return GuardFinding(
-                    severity="high",
-                    message=f"检测到 Shell 逃逸模式: {pattern}",
-                    pattern=pattern
-                )
-        return None
+class GuardSeverity(StrEnum):
+    CRITICAL = "critical"  # 立即阻止
+    HIGH = "high"          # 需要确认
+    MEDIUM = "medium"      # 警告
+    LOW = "low"            # 提示
+    INFO = "info"          # 信息
+    SAFE = "safe"          # 安全
 ```
 
-#### 规则守卫
+**`GuardThreatCategory` 枚举** (第45行):
 
-支持 YAML 自定义规则 (`security/tool_guard/rules/dangerous_shell_commands.yaml`)：
+```python
+class GuardThreatCategory(StrEnum):
+    COMMAND_INJECTION = "command_injection"        # 命令注入
+    DATA_EXFILTRATION = "data_exfiltration"      # 数据泄露
+    PATH_TRAVERSAL = "path_traversal"          # 路径遍历
+    SENSITIVE_FILE_ACCESS = "sensitive_file_access"  # 敏感文件访问
+    NETWORK_ABUSE = "network_abuse"            # 网络滥用
+    CREDENTIAL_EXPOSURE = "credential_exposure"  # 凭证暴露
+    RESOURCE_ABUSE = "resource_abuse"          # 资源滥用
+    PROMPT_INJECTION = "prompt_injection"      # 提示注入
+    CODE_EXECUTION = "code_execution"          # 代码执行
+    PRIVILEGE_ESCALATION = "privilege_escalation"  # 权限提升
+```
+
+**`GuardFinding` 数据结构** (第72行):
+
+```python
+@dataclass
+class GuardFinding:
+    id: str                    # 唯一标识
+    rule_id: str              # 触发规则ID
+    category: GuardThreatCategory
+    severity: GuardSeverity
+    title: str                # 发现标题
+    description: str          # 详细描述
+    tool_name: str            # 工具名
+    param_name: str          # 参数名
+    matched_value: str        # 匹配的值
+    snippet: str             # 代码片段
+    remediation: str         # 修复建议
+    metadata: dict = field(default_factory=dict)
+```
+
+**`ToolGuardResult` 聚合结果** (第106行):
+
+```python
+@dataclass
+class ToolGuardResult:
+    findings: list[GuardFinding]
+
+    @property
+    def is_safe(self) -> bool: ...
+    @property
+    def max_severity(self) -> GuardSeverity | None: ...
+    @property
+    def findings_count(self) -> int: ...
+
+    def get_findings_by_severity(self, severity: GuardSeverity) -> list[GuardFinding]: ...
+    def get_findings_by_category(self, category: GuardThreatCategory) -> list[GuardFinding]: ...
+```
+
+### 3.4 三大守卫实现
+
+#### FilePathToolGuardian - 敏感文件守卫
+
+**源码路径**: `src/qwenpaw/security/tool_guard/guardians/file_guardian.py`
+
+```python
+class FilePathToolGuardian(BaseToolGuardian):
+    """基于路径的敏感文件守卫（always_run=True）"""
+
+    def guard(self, tool_name: str, params: Any) -> list[GuardFinding]:
+        """检测对敏感路径的访问"""
+        # Shell 命令：从 token 中提取路径（使用 shlex.split）
+        # 已知文件工具：检查 file_path、path 等特定参数
+        # 其他工具：扫描字符串参数中"看起来像路径"的值
+
+    # 默认保护路径：
+    # - ~/.qwenpaw/.secret/
+    # - ~/.copaw.secret/（兼容旧版）
+```
+
+#### RuleBasedToolGuardian - 规则守卫
+
+**源码路径**: `src/qwenpaw/security/tool_guard/guardians/rule_guardian.py`
+
+**`GuardRule` 规则类** (第169行):
+
+```python
+@dataclass
+class GuardRule:
+    id: str
+    tools: list[str]           # 适用的工具列表
+    params: list[str]          # 适用的参数名
+    category: GuardThreatCategory
+    severity: GuardSeverity
+    patterns: list[re.Pattern]  # 预编译的正则
+    exclude_patterns: list[re.Pattern]
+    description: str
+    remediation: str
+
+    def applies_to_tool(self, tool_name: str) -> bool: ...
+    def applies_to_param(self, param_name: str) -> bool: ...
+    def match(self, value: str) -> bool: ...
+```
+
+**`rm` 命令特殊处理** (第360-420行):
+- 检查删除目标是否在工作区外
+- 生成中英文详细警告
+
+#### ShellEvasionGuardian - 混淆检测守卫
+
+**源码路径**: `src/qwenpaw/security/tool_guard/guardians/shell_evasion_guardian.py`
+
+**核心逻辑** (第241-289行):
+
+```python
+class ShellEvasionGuardian(BaseToolGuardian):
+    """检测命令混淆/逃避技术"""
+
+    def guard(self, tool_name: str, params: dict[str, Any]) -> list[GuardFinding]:
+        if tool_name != "execute_shell_command":
+            return []
+        # 运行 7 项检查，收集所有 findings
+        return (
+            self._check_command_substitution(command) +
+            self._check_obfuscated_flags(command) +
+            self._check_backslash_escaped_whitespace(command) +
+            self._check_backslash_escaped_operators(command) +
+            self._check_newlines(command) +
+            self._check_comment_quote_desync(command) +
+            self._check_quoted_newline(command)
+        )
+```
+
+**7 项检测函数** (`shell_evasion_guardian.py` 第384-391行):
+
+| 检测函数 | 行号 | 检测内容 | 示例 |
+|---------|------|---------|------|
+| `_check_command_substitution()` | 106-144 | 反引号、`$()`、`<()`、`>()、`$[]` | `` `ls` ``, `$(whoami)`, `<(cmd)` |
+| `_check_obfuscated_flags()` | 147-199 | ANSI-C `$'...'`, locale `$"..."`, 空 flag | `$'echo \x61'` |
+| `_check_backslash_escaped_whitespace()` | 202-222 | 反斜杠逃逸空白符 `\ `、`\t`、`\n` | `echo\ hello` |
+| `_check_backslash_escaped_operators()` | 225-257 | 反斜杠逃逸操作符 `\；`、`\|`、`\&` | `ls \; rm -rf` |
+| `_check_newlines()` | 260-299 | 隐藏新行 `\n`、回车 `\r`、分号分隔 | `echo "a\nb"` |
+| `_check_comment_quote_desync()` | 312-340 | `#` 注释内引号导致状态机去同步 | `echo "done" # comment"` |
+| `_check_quoted_newline()` | 343-374 | 引号内新行后跟 `#` 注释的攻击 | `"a\nb" # comment` |
+
+**检测执行顺序** (第384-391行):
+
+```python
+_CHECKS: tuple[_ShellCheckFn, ...] = (
+    _check_command_substitution,
+    _check_obfuscated_flags,
+    _check_backslash_escaped_whitespace,
+    _check_backslash_escaped_operators,
+    _check_newlines,
+    _check_comment_quote_desync,
+    _check_quoted_newline,
+)
+```
+
+**`_QuoteState` 类** (第55-75行) - 字符级引号状态机:
+
+```python
+class _QuoteState:
+    """Tracks shell quoting context character-by-character."""
+    __slots__ = ("in_single", "in_double", "escaped")
+
+    def update(self, char: str) -> None:
+        """处理每个字符并更新状态"""
+
+    def is_outside_quotes(self) -> bool:
+        """当前位置是否在引号外部"""
+```
+
+**关键方法**:
+
+| 方法 | 行号 | 功能 |
+|------|------|------|
+| `_extract_outside_single_quotes()` | 80-94 | 移除单引号内容，保留双引号内容（双引号内仍展开变量替换） |
+
+**Shell 命令解析辅助函数** (`shell_evasion_guardian.py` 第92-103行):
+
+```python
+def _extract_paths_from_shell_command(command: str) -> list[str]:
+    """从 shell 命令中提取路径 token"""
+    # 使用 shlex.split() 进行 token 化
+    # 处理重定向操作符: >, >>, 1>, 2>, <, <<, <<<
+    # 处理附着重定向: >out.txt, 2>err.log
+    # 通过 _looks_like_path_token() 启发式判断路径 token
+```
+
+**`log_findings()` 工具函数** (`utils.py` 第130-150行):
+
+```python
+def log_findings(findings: list[GuardFinding]) -> None:
+    """将安全发现记录到日志"""
+    for f in findings:
+        logger.log(
+            level=severity_to_log_level(f.severity),
+            msg=f"[{f.guardian}] {f.category.value}: {f.title}",
+            extra={"findings": f.to_dict()},
+        )
+```
+
+### 3.4.6 `_extract_rm_targets()` rm 目标提取
+
+**源码**: `rule_guardian.py` 第113-169行
+
+此函数专门处理危险的 `rm` 命令，提取实际删除目标：
+
+```python
+def _extract_rm_targets(command: str) -> list[str]:
+    """从 rm 命令中提取要删除的文件/目录路径"""
+    # 处理转义模式: \\rm, \/bin/rm, $(which rm)
+    # 处理命令替换: $(echo foo), `echo bar`
+    # 处理通配符: *.txt, **/*.log
+    # 返回实际的文件路径列表
+```
+
+**检测逻辑**:
+1. 解析命令参数，分离选项和路径
+2. 跳过选项（如 `-rf`, `-r`, `-f`）
+3. 识别真实路径（排除命令名、选项等）
+4. 返回有效路径列表供后续检查
+
+### 3.4.7 守卫单例管理
+
+**`get_guard_engine()`** (`engine.py` 第188-200行):
+
+```python
+_GUARD_ENGINE: ToolGuardEngine | None = None
+_GUARD_ENGINE_LOCK = asyncio.Lock()
+
+def get_guard_engine() -> ToolGuardEngine:
+    """获取 ToolGuardEngine 单例（线程安全）"""
+    global _GUARD_ENGINE
+    if _GUARD_ENGINE is None:
+        async with _GUARD_ENGINE_LOCK:
+            if _GUARD_ENGINE is None:
+                _GUARD_ENGINE = ToolGuardEngine()
+    return _GUARD_ENGINE
+```
+
+**特点**:
+- 双重检查锁定（Double-Checked Locking）模式
+- 线程安全初始化
+- 全局单例，节省资源
+
+### 3.4.1 危险命令 YAML 规则
+
+**规则文件**: `src/qwenpaw/security/tool_guard/rules/dangerous_shell_commands.yaml`
+
+**完整规则表**:
+
+| 规则 ID | 严重度 | 类别 | 检测内容 |
+|---------|--------|------|----------|
+| `TOOL_CMD_DANGEROUS_RM` | HIGH | command_injection | `rm -rf`, `del`, `Remove-Item` |
+| `TOOL_CMD_DANGEROUS_MV` | HIGH | command_injection | `mv` 移动/重命名外部文件 |
+| `TOOL_CMD_FS_DESTRUCTION` | CRITICAL | command_injection | `mkfs`, `mke2fs`, `dd of=/dev/*` |
+| `TOOL_CMD_DOS_FORK_BOMB` | CRITICAL | resource_abuse | `:(){ :|:& };:`, `kill -9 -1` |
+| `TOOL_CMD_PIPE_TO_SHELL` | CRITICAL | code_execution | `curl\|bash`, `wget\|bash` |
+| `TOOL_CMD_REVERSE_SHELL` | CRITICAL | network_abuse | `/dev/tcp`, `nc -e`, `socat` |
+| `TOOL_CMD_SYSTEM_TAMPERING` | HIGH | sensitive_file_access | `crontab -e`, `authorized_keys`, `/etc/sudoers` |
+| `TOOL_CMD_UNSAFE_PERMISSIONS` | HIGH | privilege_escalation | `chmod 777`, `chattr +i` |
+| `TOOL_CMD_OBFUSCATED_EXEC` | HIGH | code_execution | `base64 -d \| bash`, `openssl enc -aes` |
+| `TOOL_CMD_SYSTEM_REBOOT` | CRITICAL | resource_abuse | `reboot`, `shutdown -h now` |
+| `TOOL_CMD_SERVICE_RESTART` | HIGH | resource_abuse | `systemctl restart`, `service ... restart` |
+| `TOOL_CMD_PROCESS_KILL` | HIGH | resource_abuse | `pkill -9`, `killall`, `taskkill /f` |
+| `TOOL_CMD_PRIVILEGE_ESCALATION` | CRITICAL | privilege_escalation | `sudo su`, `su -`, `doas`, `pkexec` |
+| `TOOL_CMD_IFS_INJECTION` | HIGH | code_execution | `$IFS` 变量注入 |
+| `TOOL_CMD_CONTROL_CHARS` | CRITICAL | code_execution | 控制字符 0x00-0x08 |
+| `TOOL_CMD_UNICODE_WHITESPACE` | HIGH | code_execution | Unicode NBSP (0xCA), ideographic space |
+| `TOOL_CMD_PROC_ENVIRON` | HIGH | sensitive_file_access | `/proc/*/environ` 读取 |
+| `TOOL_CMD_JQ_SYSTEM` | HIGH | code_execution | `jq` 的 `system()` 函数 |
+| `TOOL_CMD_JQ_FILE_FLAGS` | HIGH | code_execution | `jq -f`, `--slurpfile`, `-L` 标志 |
+| `TOOL_CMD_ZSH_DANGEROUS` | HIGH | code_execution | `zmodload`, `emulate -c`, `zf_*` 文件操作 |
+
+**`rm` 命令特殊处理** (`rule_guardian.py` 第113-137行):
+
+```python
+def _check_rm_targets_outside_workspace(
+    command: str,
+) -> tuple[bool, list[str]]:
+    """检查 rm 命令是否针对工作区外的文件"""
+    # 解析 rm 命令参数
+    # 检查每个目标路径是否在 WORKING_DIR 外
+    # 返回 (是否有外部目标, 外部路径列表)
+```
+
+### 规则匹配引擎详解
+
+**规则加载流程** (`rule_guardian.py` 第225-275行):
+
+```python
+def load_rules_from_yaml(yaml_path: Path) -> list[GuardRule]:
+    """从单个 YAML 文件加载规则"""
+
+def load_rules_from_directory(rules_dir: Path, rule_files: list[str]) -> list[GuardRule]:
+    """从目录加载多个 YAML 文件规则"""
+```
+
+**默认规则文件** (第35-39行):
+
+```python
+_DEFAULT_RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
+_DEFAULT_RULE_FILES: list[str] = [
+    "dangerous_shell_commands.yaml",
+]
+```
+
+**`GuardRule.match()` 匹配逻辑** (第207-221行):
+
+```python
+def match(self, value: str) -> tuple[re.Match[str] | None, str | None]:
+    # 第一步：检查排除模式
+    if any(ep.search(value) for ep in self.compiled_exclude_patterns):
+        return None, None
+
+    # 第二步：遍历所有模式，搜索匹配
+    for pattern in self.compiled_patterns:
+        m = pattern.search(value)  # 使用 search() 而非 match()
+        if m:
+            return m, pattern.pattern
+    return None, None
+```
+
+**匹配关键特性**:
+
+| 特性 | 说明 |
+|------|------|
+| 排除模式优先 | `exclude_patterns` 命中的规则直接跳过 |
+| `re.search()` | 在字符串任意位置匹配，不只是开头 |
+| 大小写不敏感 | 所有模式编译时带 `re.IGNORECASE` |
+| 返回结构 | `(match对象, 模式字符串)` 便于调试 |
+
+**`RuleBasedToolGuardian.guard()` 完整流程** (第360-418行):
+
+```python
+def guard(self, tool_name: str, params: dict[str, Any]) -> list[GuardFinding]:
+    # 1. 过滤适用于该工具的规则
+    applicable_rules = [r for r in self.rules if r.applies_to_tool(tool_name)]
+
+    # 2. 遍历每个参数
+    for param_name, param_value in params.items():
+        value_str = str(param_value)
+
+        # 3. 检查参数适用的规则
+        for rule in applicable_rules:
+            if not rule.applies_to_param(param_name):
+                continue
+
+            # 4. 执行匹配
+            match_obj, pattern_str = rule.match(value_str)
+
+            # 5. 特殊处理 rm 命令
+            if rule.id == "TOOL_CMD_DANGEROUS_RM":
+                is_dangerous, outside_paths = _check_rm_targets_outside_workspace(value_str)
+                if is_dangerous:
+                    # 生成警告，包含外部路径详情
+```
+
+### 规则 YAML 格式详解
+
+**完整 YAML 结构** (第7-17行):
 
 ```yaml
-# 危险 Shell 命令规则
-- id: TOOL_CMD_DANGEROUS_RM
-  tools: [execute_shell_command]
-  params: [command]
-  category: command_injection
-  severity: HIGH
-  patterns:
-    - "\\brm\\b"
-    - "\\bdel\\b"
-  exclude_patterns:
+- id: RULE_ID                      # 唯一规则标识符
+  tools: [execute_shell_command]  # 目标工具列表（空=所有工具）
+  params: [command]                # 目标参数列表（空=所有参数）
+  category: command_injection      # 威胁类别枚举
+  severity: HIGH                   # 严重等级: CRITICAL/HIGH/MEDIUM/LOW/INFO
+  patterns:                       # 正则表达式列表
+    - "regex_pattern_1"
+    - "regex_pattern_2"
+  exclude_patterns:               # 排除模式（匹配则跳过）
     - "^\\s*#"
-  description: "Shell command contains 'rm' which may cause data loss"
-
-- id: TOOL_CMD_PIPE_TO_SHELL
-  tools: [execute_shell_command]
-  params: [command]
-  category: code_execution
-  severity: CRITICAL
-  patterns:
-    - "\\b(curl|wget)\\b\\s+.*\\|.*\\b(bash|sh|zsh)\\b"
-  description: "Detects 'curl | bash' patterns"
-
-- id: TOOL_CMD_REVERSE_SHELL
-  tools: [execute_shell_command]
-  params: [command]
-  category: network_abuse
-  severity: CRITICAL
-  patterns:
-    - "\\/dev\\/(tcp|udp)\\/"
-    - "\\bnc\\s+.*-e\\s*\\S+"
-  description: "Detects reverse shell attempts"
+  description: "人类可读描述"
+  remediation: "建议修复方案"
 ```
 
-#### 威胁类别
+**规则优先级**:
+1. `exclude_patterns` > `patterns` (排除优先)
+2. 同一规则内多模式为 OR 关系
+3. 不同规则为独立检查，结果聚合
 
-| 类别 | 说明 |
-|------|------|
-| `command_injection` | 命令注入 |
-| `code_execution` | 代码执行 |
-| `network_abuse` | 网络滥用 |
-| `sensitive_file_access` | 敏感文件访问 |
-| `data_exfiltration` | 数据泄露 |
-| `resource_abuse` | 资源滥用 |
+### 三大守卫协同机制
 
-#### 配置方式
+**守卫对比表**:
 
-```json
-{
-  "security": {
-    "tool_guard": {
-      "enabled": true,
-      "scope": ["bash", "read", "write", "edit"],
-      "denied_tools": ["debug_py"]
-    }
-  }
-}
+| 守卫 | 监控工具 | 检测方式 | 威胁类型 |
+|------|----------|----------|----------|
+| `FilePathToolGuardian` | 文件操作工具 (read_file, write_file等) | 路径规范化 + 保护区匹配 | 敏感文件访问 |
+| `RuleBasedToolGuardian` | execute_shell_command | 正则模式匹配 | 命令注入、危险命令 |
+| `ShellEvasionGuardian` | execute_shell_command | 状态机 + 混淆检测 | 命令混淆/逃避 |
+
+**`ToolGuardEngine` 编排** (`engine.py` 第82-103行):
+
+```python
+# 默认三大守卫
+_DEFAULT_GUARDIANS: tuple[type[BaseToolGuardian], ...] = (
+    FilePathToolGuardian,     # 文件路径守卫
+    RuleBasedToolGuardian,     # 规则守卫
+    ShellEvasionGuardian,     # 混淆检测守卫
+)
 ```
 
-或通过环境变量：
-```bash
-export QWENPAW_TOOL_GUARD_ENABLED=false
+### 3.4.2 ToolGuardResult 聚合结果
+
+**`ToolGuardResult`** (`models.py` 第93-137行):
+
+```python
+@dataclass
+class ToolGuardResult:
+    tool_name: str
+    params: dict[str, Any]
+    findings: list[GuardFinding] = field(default_factory=list)
+    guard_duration_seconds: float = 0.0
+    guardians_used: list[str] = field(default_factory=list)
+    guardians_failed: list[dict[str, str]] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def is_safe(self) -> bool:
+        """无 CRITICAL 或 HIGH 级别发现"""
+        return not any(
+            f.severity in (GuardSeverity.CRITICAL, GuardSeverity.HIGH)
+            for f in self.findings
+        )
+
+    @property
+    def max_severity(self) -> GuardSeverity | None:
+        """返回最高严重等级"""
 ```
 
-### 3.3 技能安全扫描 (Skill Scanner)
+**GuardFinding 完整结构** (`models.py` 第60-87行):
+
+```python
+@dataclass
+class GuardFinding:
+    id: str                    # 唯一标识 (UUID)
+    rule_id: str              # 触发规则ID
+    category: GuardThreatCategory  # 威胁类别
+    severity: GuardSeverity   # 严重等级
+    title: str                # 发现标题
+    description: str          # 详细描述
+    tool_name: str            # 工具名
+    param_name: str | None = None  # 参数名
+    matched_value: str | None = None  # 匹配的值
+    matched_pattern: str | None = None  # 匹配的正则
+    snippet: str | None = None  # 代码片段
+    remediation: str | None = None  # 修复建议
+    guardian: str | None = None  # 来源守卫
+    metadata: dict[str, Any] = field(default_factory=dict)  # 元数据
+```
+
+### 3.4.3 守卫启用优先级
+
+**`_guard_enabled()` 函数** (`engine.py` 第36-51行):
+
+```
+优先级: 环境变量 > config.json > 默认 (True)
+```
+
+```python
+def _guard_enabled() -> bool:
+    """决定是否启用工具守卫"""
+    # 1. 检查 QWENPAW_TOOL_GUARD_ENABLED 环境变量
+    # 2. 检查 config.json security.tool_guard.enabled
+    # 3. 返回默认值 True
+```
+
+**`resolve_guarded_tools()` (`utils.py` 第45-72行):
+
+```python
+def resolve_guarded_tools(
+    user_defined: set[str] | None,
+    config_guard: Any,
+) -> set[str] | None:
+    """解析守卫工具集合
+
+    优先级:
+    1. user_defined (构造函数提供)
+    2. QWENPAW_TOOL_GUARD_TOOLS 环境变量
+    3. config.json security.tool_guard.scope
+    4. 内置高风险默认集合
+    """
+
+### 3.4.4 ToolGuard 完整工作流程
+
+**工具调用拦截流程** (`engine.py` 第189-215行):
+
+```
+ToolGuardEngine.guard(tool_name, params)
+         │
+         ├─► is_guarded(tool_name)? ──No──► return ToolGuardResult(is_safe=True)
+         │
+         ├─► 遍历所有 guardians:
+         │         │
+         │         ├─► FilePathToolGuardian (always_run=True)
+         │         │         ├─► 敏感路径检查
+         │         │         └─► findings + governance
+         │         │
+         │         ├─► RuleBasedToolGuardian
+         │         │         ├─► 规则匹配 (17条 YAML 规则)
+         │         │         ├─► rm 特殊处理
+         │         │         └─► findings + governance
+         │         │
+         │         └─► ShellEvasionGuardian (仅 execute_shell_command)
+         │                   └─► 7项混淆检测
+         │
+         └─► 聚合所有 findings → ToolGuardResult
+                   │
+                   ├─► is_safe=True → 放行
+                   ├─► CRITICAL/HIGH → 阻止 + 抛异常
+                   └─► MEDIUM/LOW → 记录 + 返回
+```
+
+**治理行动 (Governance Actions)** (`models.py` 第137-180行):
+
+| 行动 | 触发条件 | 行为 |
+|------|---------|------|
+| `BLOCK` | CRITICAL 级别 | 立即阻止工具调用，抛出 `ToolGuardBlock` 异常 |
+| `ESCALATE` | HIGH 级别 + 用户未确认 | 暂停执行，等待用户审批 (Approval) |
+| `WARN` | MEDIUM 级别 | 记录警告，继续执行 |
+| `LOG` | LOW/INFO 级别 | 仅记录日志 |
+
+**BaseToolGuardian 基类** (`guardians/base.py` 第16-52行):
+
+```python
+class BaseToolGuardian(ABC, Generic[P]):
+    """所有守卫的基类"""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """守卫名称"""
+
+    @property
+    def always_run(self) -> bool:
+        """是否在快速路径也运行（默认 False）"""
+        return False
+
+    @abstractmethod
+    def guard(self, tool_name: str, params: P) -> list[GuardFinding]:
+        """执行守卫检查"""
+
+    def governance_action(
+        self, finding: GuardFinding
+    ) -> GovernanceAction | None:
+        """判断治理行动（可重写）"""
+        return finding.severity.to_governance_action()
+```
+
+**GuardSeverity 到 GovernanceAction 映射** (`models.py` 第180-195行):
+
+```python
+CRITICAL → BLOCK
+HIGH     → ESCALATE (需用户确认)
+MEDIUM   → WARN
+LOW/INFO → LOG
+SAFE     → (无行动)
+```
+
+### 3.4.5 集成点
+
+**ToolGuard 在 AgentRunner 中的集成** (`runner.py` 第480-510行):
+
+```
+query_handler()
+    │
+    ├─► 解析工具调用: tool_name, params
+    │
+    ├─► ToolGuardEngine.guard(tool_name, params)
+    │         │
+    │         ├─► BLOCK → 抛出 ToolGuardBlock
+    │         │
+    │         ├─► ESCALATE → 暂停，等待 Approval
+    │         │         ├─► create_pending() → 推送消息给用户
+    │         │         └─► future.await() → 等待用户审批
+    │         │
+    │         └─► WARN/LOG → 继续执行
+    │
+    └─► 执行工具调用
+```
+
+**环境变量配置**:
+
+| 环境变量 | 功能 | 默认值 |
+|---------|------|--------|
+| `QWENPAW_TOOL_GUARD_ENABLED` | 启用/禁用守卫 | `true` |
+| `QWENPAW_TOOL_GUARD_TOOLS` | 守卫工具范围 | 高风险工具 |
+| `QWENPAW_TOOL_GUARD_RULES_DIR` | 自定义规则目录 | 内置规则 |
+
+**配置文件路径** (`config.py`):
+
+```python
+security:
+  tool_guard:
+    enabled: true           # 启用开关
+    scope: ["execute_shell_command", "write_file", ...]  # 守卫范围
+    rules_dir: null        # 自定义规则目录
+    approval_required: true  # HIGH 级别是否需要审批
+```
+
+### 3.5 审批系统 (Approval)
+
+#### 3.5.1 概述
+
+**源码路径**: `src/qwenpaw/app/approvals/`
+
+当 ToolGuard 发现问题但需要用户确认时，进入审批流程。审批系统负责：
+- 管理待审批请求的生命周期
+- 与用户交互获取审批决定
+- 防止审批结果被滥用
+
+```
+src/qwenpaw/app/approvals/
+├── __init__.py           # 模块导出
+└── service.py            # ApprovalService 核心服务
+```
+
+#### 3.5.2 ApprovalDecision 枚举
+
+**源码**: `src/qwenpaw/security/tool_guard/approval.py` 第9-14行
+
+```python
+class ApprovalDecision(str, Enum):
+    APPROVED = "approved"   # 用户批准
+    DENIED = "denied"      # 用户拒绝
+    TIMEOUT = "timeout"    # 超时未响应
+```
+
+#### 3.5.3 PendingApproval 数据模型
+
+**源码**: `src/qwenpaw/app/approvals/service.py` 第45-56行
+
+```python
+@dataclass
+class PendingApproval:
+    """待审批记录"""
+    request_id: str                    # 唯一标识 (UUID)
+    session_id: str                    # 会话 ID
+    user_id: str                       # 用户 ID
+    channel: str                       # 渠道标识
+    tool_name: str                     # 工具名称
+    created_at: float                  # 创建时间戳
+    future: asyncio.Future[ApprovalDecision]  # 异步 Future
+    status: str = "pending"            # 状态
+    resolved_at: float | None = None   # 解决时间戳
+    result_summary: str = ""           # 安全发现摘要 (markdown)
+    findings_count: int = 0            # 发现数量
+    extra: dict[str, Any] = field(default_factory=dict)  # 额外数据
+```
+
+**状态流转**:
+
+| 状态 | 流转至 | 触发条件 |
+|------|--------|----------|
+| `pending` | `approved` | 用户执行 `/daemon approve` |
+| `pending` | `denied` | 用户拒绝审批请求 |
+| `pending` | `timeout` | GC 清理超时记录 |
+| `pending` | `superseded` | 工具调用被重放 |
+| `approved` | (删除) | `consume_approval()` 被调用 |
+
+#### 3.5.4 ApprovalService 核心服务
+
+**源码**: `src/qwenpaw/app/approvals/service.py` 第63-293行
+
+**核心方法表**:
+
+| 方法 | 行号 | 功能 |
+|------|------|------|
+| `set_channel_manager()` | 73 | 注入渠道管理器用于推送通知 |
+| `create_pending()` | 79-105 | 创建待审批记录 |
+| `resolve_request()` | 107-125 | 解决审批请求（设置 Future 结果） |
+| `get_request()` | 127-133 | 获取请求（待处理或已完成） |
+| `get_pending_by_session()` | 135-149 | 获取会话的下一个待审批 |
+| `get_all_pending_by_session()` | 151-161 | 获取会话所有待审批 |
+| `cancel_stale_pending_for_tool_call()` | 163-194 | 取消重复的待审批 |
+| `consume_approval()` | 196-229 | 检查并消费一次性审批 |
+| `get_approval_service()` | 287-293 | 单例访问器 |
+
+#### 3.5.5 审批创建流程
+
+**`create_pending()`** (第79-105行):
+
+```
+create_pending(session_id, user_id, channel, tool_name, result)
+         │
+         ├─► 生成 request_id (UUID)
+         │
+         ├─► 创建 PendingApproval 记录
+         │         │
+         │         ├─► format_findings_summary(result) → result_summary
+         │         │
+         │         └─► asyncio.create_future() → future
+         │
+         ├─► 加锁写入 self._pending
+         │
+         ├─► GC 清理过期记录
+         │
+         └─► 返回 PendingApproval
+```
+
+#### 3.5.6 参数验证机制
+
+**`consume_approval()`** (第196-229行) 防止审批结果滥用：
+
+```
+consume_approval(session_id, tool_name, tool_params)
+         │
+         ├─► 查找已批准的记录
+         │
+         ├─► tool_params 是否提供？
+         │         │
+         │         ├─► 是：对比存储的 tool_call.input
+         │         │         │
+         │         │         ├─► 不匹配 → 删除记录，返回 False
+         │         │         │
+         │         │         └─► 匹配 → 删除记录，返回 True
+         │         │
+         │         └─► 否：删除记录，返回 True
+         │
+         └─► 返回是否成功消费
+```
+
+**攻击场景防护**:
+- 用户批准了 `rm foo.txt`
+- 攻击者尝试执行 `rm -rf /`
+- `consume_approval()` 检测到参数不匹配
+- 审批被拒绝，工具被阻止
+
+#### 3.5.7 垃圾回收机制
+
+**GC 常量** (第28-35行):
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `_GC_PENDING_MAX_AGE_SECONDS` | 1800s (30分钟) | 待处理记录最大存活时间 |
+| `_GC_MAX_PENDING` | 200 | 待处理记录最大数量 |
+| `_GC_MAX_AGE_SECONDS` | 3600s (1小时) | 已完成记录最大存活时间 |
+| `_GC_MAX_COMPLETED` | 500 | 已完成记录最大数量 |
+
+**GC 流程**:
+```
+PendingApproval 创建/解决
+         │
+         ├─► _gc_pending_locked()
+         │         │
+         │         ├─► 清理超时的待处理记录
+         │         │         │
+         │         │         └─► future.set_result(TIMEOUT)
+         │         │
+         │         └─► 清理超出数量限制的记录
+         │
+         └─► _gc_completed_locked()
+                   │
+                   └─► 清理超时的已完成记录
+```
+
+#### 3.5.8 ToolGuard 完整审批流程
+
+```
+ToolGuardEngine.guard(tool_name, params)
+         │
+         ├── is_denied() → True? ──Yes──> 返回 auto_denied
+         │
+         ├── is_guarded() → True?
+         │     ├── yes + preapproved? ──Yes──> 执行
+         │     └── yes + not preapproved
+         │           │
+         │           └── 运行所有守卫 → 有 findings?
+         │                 ├── yes → ApprovalService.create_pending()
+         │                 │              │
+         │                 │              └─► 等待用户审批 (future.await)
+         │                 │
+         │                 └── no → 执行
+         │
+         └── only_always_run=True?
+               └── FilePathToolGuardian (always_run=True) 始终运行
+
+用户审批:
+         │
+         └─► /daemon approve
+                   │
+                   └─► ApprovalService.resolve_request(request_id, decision)
+                             │
+                             └─► future.set_result(decision)
+```
+
+#### 3.5.9 发现摘要格式化
+
+**源码**: `src/qwenpaw/security/tool_guard/approval.py` 第22-40行
+
+```python
+def format_findings_summary(result: "ToolGuardResult", *, max_items: int = 3) -> str:
+    """将发现列表格式化为 markdown 摘要"""
+    lines = ["## Security Findings\n"]
+    for f in result.findings[:max_items]:
+        severity_icon = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡"}.get(f.severity, "⚪️")
+        lines.append(f"{severity_icon} **{f.severity}**: {f.title}")
+        lines.append(f"   - {f.description}")
+        lines.append(f"   - Remediation: {f.remediation}")
+    if result.findings_count > max_items:
+        lines.append(f"... and {result.findings_count - max_items} more finding(s) omitted")
+    return "\n".join(lines)
+```
+
+#### 3.5.10 完整守卫决策流程
+
+```
+ToolGuardEngine.guard(tool_name, params)
+    │
+    ├── is_denied() → True? ──Yes──> 返回 auto_denied
+    │
+    ├── is_guarded() → True?
+    │     ├── yes + preapproved? ──Yes──> 执行
+    │     └── yes + not preapproved
+    │           │
+    │           └── 运行所有守卫 → 有 findings?
+    │                 ├── yes → SuspendedPermission (等待用户审批)
+    │                 └── no → 执行
+    │
+    └── only_always_run=True?
+          └── FilePathToolGuardian (always_run=True) 始终运行
+```
+
+#### 3.5.11 兄弟工具调用重放系统
+
+当一个工具调用需要审批时，同一助手消息中的其他工具调用会被存储并重放：
+
+**`_extract_sibling_tool_calls()`** (tool_guard_mixin.py 第116-128行):
+```python
+def _extract_sibling_tool_calls(self, msgs: list) -> list[dict]:
+    """从上一条助手消息中提取所有 tool_use 块"""
+    # 查找最后一条助手消息
+    # 提取所有 tool_use 类型的 content blocks
+```
+
+**重放队列机制**:
+```
+用户批准工具调用
+         │
+         ├─► 工具调用执行
+         │
+         ├─► _tool_guard_replay_queue 队列
+         │         │
+         │         ├─► _filter_pending_replay_queue() 过滤已执行的
+         │         │
+         │         └─► _emit_next_replay_tool_call() 发射下一个
+         │
+         └─► cancel_stale_pending_for_tool_call() 取消旧记录
+                   │
+                   └─► status → "superseded"
+```
+
+#### 3.5.12 ToolGuardMixin 集成 (tool_guard_mixin.py)
+
+**MRO 继承顺序**:
+```
+QwenPawAgent → ToolGuardMixin → agentscope.agent.ReActAgent
+```
+
+**`_acting()` 拦截流程** (第291-344行):
+
+```python
+async def _acting(self, tool_call: dict[str, Any]) -> Any:
+    # 1. 检查 headless 模式标志
+    if ctx.get("_headless_tool_guard", "true").lower() == "false":
+        return await super()._acting(tool_call)  # Mission Mode 绕过
+
+    # 2. 获取守卫锁（防止并行工具调用竞态）
+    async with self._tool_guard_lock:
+        # 3. 执行守卫决策
+        action = await self._decide_guard_action(tool_call)
+
+    # 4. 在锁外执行守卫操作（允许并行执行）
+    if action:
+        return await self._execute_guard_action(action, tool_call)
+
+    # 5. 无守卫决策 → 执行工具
+    return await super()._acting(tool_call)
+```
+
+**`_decide_guard_action()` 决策树** (第346-400行):
+
+```
+工具名称在 denied_tools 中?
+         │
+    Yes ─┴─> 返回 _GuardAction("auto_denied")
+         │
+         No
+         │
+         ▼
+检查预批准 (consume_approval)
+         │
+    Yes ─┴─> 返回 _GuardAction("preapproved")
+         │
+         No
+         │
+         ▼
+运行所有守卫规则
+         │
+         ▼
+findings > 0 且 should_require_approval()?
+         │
+    Yes ─┴─> 返回 _GuardAction("needs_approval")
+         │
+         No
+         │
+         ▼
+返回 None（无守卫决策，继续执行）
+```
+
+**`_acting_with_approval()` 审批等待流程** (第531-656行):
+
+```python
+async def _acting_with_approval(self, tool_call, pending: PendingApproval):
+    # 1. 从原始助手消息提取思考块
+    thinking_blocks = _extract_thinking_blocks(original_msg)
+
+    # 2. 提取兄弟工具调用
+    sibling_tool_calls = _extract_sibling_tool_calls(msgs)
+
+    # 3. 取消同一 tool_call_id 的旧待审批记录
+    svc.cancel_stale_pending_for_tool_call(session_id, tool_call_id)
+
+    # 4. 创建待审批记录
+    pending = await svc.create_pending(...)
+
+    # 5. 格式化拒绝消息给用户
+    denial_msg = _format_denial_message(pending, findings)
+
+    # 6. 等待用户审批 (future.await)
+    decision = await pending.future
+
+    # 7. 根据决定处理
+    if decision == APPROVED:
+        # 执行工具调用
+        # 重放兄弟工具调用
+    else:
+        # 返回拒绝消息
+```
+
+#### 3.5.13 安全考虑
+
+**参数不匹配防护** (service.py 第241-259行):
+
+```python
+async def consume_approval(self, session_id, tool_name, tool_params=None):
+    # ...
+    if tool_params is not None:
+        approved_call = completed.extra.get("tool_call", {})
+        approved_params = approved_call.get("input", {})
+
+        # 防止: 批准了 rm foo.txt 但执行了 rm -rf /
+        if approved_params != tool_params:
+            logger.warning(
+                "Tool guard: params mismatch for '%s' (session %s)",
+                tool_name,
+                session_id[:8],
+            )
+            del self._completed[key]
+            return False
+```
+
+**会话隔离**:
+- 每个审批绑定到 `session_id`
+- 审批只能被同一会话消费
+- FIFO 顺序防止竞态条件
+
+**拒绝标记清理** (runner.py 第765-873行):
+```python
+TOOL_GUARD_DENIED_MARK = "tool_guard_denied"
+# 拒绝后清理会话记忆中标记的消息
+```
+
+### 3.6 技能安全扫描 (Skill Scanner)
 
 #### 扫描流程
 
@@ -697,7 +1981,435 @@ DANGEROUS_PATTERNS = [
 
 ---
 
-## 4. 部署模式
+## 4. EnvStore 环境变量存储
+
+**源码路径**: `src/qwenpaw/envs/store.py`
+
+### 两层持久化策略 (store.py:10-18)
+
+```
+┌─────────────────────────────────────────────┐
+│              EnvStore 双层存储                │
+├─────────────────────────────────────────────┤
+│                                             │
+│  envs.json (持久化)                          │
+│  └─► 进程重启后保留                          │
+│  └─► 加密存储 (ENC: 前缀)                   │
+│                                             │
+│  os.environ (进程内)                        │
+│  └─► 注入当前 Python 进程                    │
+│  └─► 供 os.getenv() 和子进程使用            │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+### 核心 API
+
+| 函数 | 行号 | 功能 |
+|------|------|------|
+| `load_envs()` | 93 | 加载并透明解密环境变量 |
+| `save_envs()` | 137 | 写入加密环境变量并同步到 os.environ |
+| `set_env_var()` | 152 | 设置单个环境变量 |
+| `delete_env_var()` | 159 | 删除单个环境变量 |
+| `load_envs_into_environ()` | 165 | 应用安全环境变量到 os.environ |
+
+### 安全特性
+
+| 特性 | 行号 | 说明 |
+|------|------|------|
+| 引导密钥保护 | 67-72 | `QWENPAW_WORKING_DIR` 等不注入 environ |
+| 文件权限 | 44, 145 | `0o600` 保护 envs.json |
+| 父目录权限 | 38-45 | `_prepare_secret_parent()` 确保 `0o700` |
+| 遗留迁移 | 50-79 | 检测明文并重新加密 |
+
+---
+
+## 4.1 认证系统 (Auth)
+
+**源码路径**: `src/qwenpaw/app/auth.py`
+
+### 核心常量 (第42-68行)
+
+```python
+AUTH_FILE = SECRET_DIR / "auth.json"  # 认证数据存储路径
+TOKEN_EXPIRY_SECONDS = 7 * 24 * 3600  # 默认7天
+TOKEN_EXPIRY_MAX = 100 * 365 * 24 * 3600  # "永久"令牌最大100年
+
+_PUBLIC_PATHS = frozenset({
+    "/api/auth/login",
+    "/api/auth/status",
+    "/api/auth/register",
+    ...
+})
+```
+
+### 公开路径
+
+无需认证的路径：
+
+| 路径 | 说明 |
+|------|------|
+| `/api/auth/login` | 登录 |
+| `/api/auth/register` | 注册 |
+| `/api/auth/status` | 认证状态 |
+| `/api/version` | 版本信息 |
+| `/api/plugins` | 插件列表 |
+| `/assets/*` | 静态资源 |
+
+### 密码处理 (第93-108行)
+
+```python
+def _hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
+    """使用加盐 SHA-256 哈希密码"""
+    if salt is None:
+        salt = secrets.token_hex(16)
+    h = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return h, salt
+
+def verify_password(password: str, stored_hash: str, salt: str) -> bool:
+    """使用 timing-safe 比较验证密码"""
+    h, _ = _hash_password(password, salt)
+    return hmac.compare_digest(h, stored_hash)
+```
+
+**安全特性**:
+- 加盐 SHA-256 哈希
+- `hmac.compare_digest` 防止时序攻击
+- 无外部依赖（仅标准库）
+
+### JWT 令牌 (第115-163行)
+
+**令牌格式**: `{payload_b64}.{hmac_hex_signature}`
+
+```python
+def create_token(username: str, expiry_seconds: Optional[int] = None) -> str:
+    """创建 HMAC 签名的令牌"""
+    # payload = json.dumps({"sub": username, "exp": timestamp, "iat": timestamp, "jti": token_id})
+    # signature = HMAC-SHA256(secret, payload_b64)
+```
+
+**Payload 结构**:
+
+| 字段 | 说明 |
+|------|------|
+| `sub` | 用户名 |
+| `exp` | 过期时间戳 |
+| `iat` | 签发时间戳 |
+| `jti` | 唯一令牌 ID（用于撤销） |
+
+### 令牌验证 (第166-198行)
+
+```python
+def verify_token(token: str) -> Optional[str]:
+    """验证令牌，有效则返回用户名"""
+    # 1. 分割令牌，验证 HMAC 签名
+    # 2. 检查过期 (exp < time.time())
+    # 3. 检查撤销列表 (jti 查找)
+    # 返回 payload.get("sub") 成功
+```
+
+### 令牌撤销 (第261-327行)
+
+**单个撤销** (`revoke_token`):
+1. 解析令牌提取 `jti` 和 `exp`
+2. 添加到 `revoked_tokens_meta` 字典 (O(1) 查找)
+3. 定期清理过期条目
+
+**全部撤销** (`revoke_all_tokens`):
+1. 生成新的 JWT 密钥
+2. 清空撤销列表
+3. 所有现有令牌立即失效
+
+### AuthMiddleware (第567-636行)
+
+```python
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # 1. _should_skip_auth() 检查:
+        #    - 认证未启用
+        #    - 无注册用户
+        #    - OPTIONS 请求
+        #    - 公开路径/前缀
+        #    - 非 /api/ 路由
+        #    - 本地地址 (127.0.0.1, ::1)
+        # 2. _extract_token() 从 Authorization: Bearer <token> 提取
+        # 3. verify_token() 验证
+```
+
+### 认证流程
+
+```
+请求 → AuthMiddleware.dispatch()
+    │
+    ├─► _should_skip_auth() → True → 直接放行 (公开路径)
+    │
+    ├─► _extract_token() 提取令牌
+    │
+    ├─► verify_token() 验证
+    │     │
+    │     ├─► HMAC 签名有效?
+    │     ├─► 令牌未过期 (exp < time.time())?
+    │     └─► 令牌未撤销 (jti 不在列表)?
+    │
+    ├─► 有效 → request.state.user = username → call_next()
+    │
+    └─► 无效 → 401 Response {"detail": "Invalid or expired token"}
+```
+
+### REST API 端点 (`routers/auth.py`)
+
+| 端点 | 行号 | 方法 | 说明 |
+|------|------|------|------|
+| `/auth/login` | 49 | POST | 用户名/密码认证 |
+| `/auth/register` | 68 | POST | 注册用户 |
+| `/auth/status` | 106 | GET | 检查认证状态 |
+| `/auth/verify` | 115 | GET | 验证令牌有效性 |
+| `/auth/update-profile` | 145 | POST | 更新用户名/密码 |
+| `/auth/revoke-token` | 206 | POST | 撤销指定令牌 |
+| `/auth/revoke-all-tokens` | 254 | POST | 撤销所有令牌 |
+
+### 环境变量
+
+| 变量 | 说明 |
+|------|------|
+| `QWENPAW_AUTH_ENABLED` | 启用认证 (`true`, `1`, `yes`) |
+| `QWENPAW_AUTH_USERNAME` | 自动注册管理员用户名 |
+| `QWENPAW_AUTH_PASSWORD` | 自动注册管理员密码 |
+
+### 安全设计要点
+
+1. **无 PyJWT 依赖** - 使用自定义 HMAC-SHA256 实现
+2. **时序安全比较** - `hmac.compare_digest()` 全程使用
+3. **单用户设计** - 只允许注册一个账户
+4. **令牌 ID (jti)** - 支持单个令牌撤销
+5. **密钥加密** - JWT 密钥加密存储在 `auth.json`
+6. **自动清理** - 过期条目自动从撤销列表移除
+7. **本地绕过** - CLI 本地运行无需认证
+
+---
+
+## 5. Backup 备份系统
+
+**源码路径**: `src/qwenpaw/backup/`
+
+### 备份模块结构
+
+```
+backup/
+├── models.py              # BackupScope, BackupMeta 数据模型
+├── orchestration.py       # 恢复编排
+├── _ops/
+│   ├── create.py         # 备份创建流 (SSE 流式)
+│   ├── create_helpers.py # 打包辅助
+│   ├── restore.py        # 备份恢复核心
+│   ├── restore_helpers.py # 恢复辅助
+│   └── storage.py        # 存储管理 (list/delete/export/import)
+└── _utils/
+    ├── constants.py      # 路径前缀、备份 ID 验证
+    ├── meta.py           # 元数据生成和读取
+    └── safe_swap.py      # 原子目录交换
+```
+
+### REST API 端点 (routers/backup.py)
+
+| 方法 | 端点 | 函数 | 说明 |
+|------|------|------|------|
+| `POST` | `/backups/stream` | `create_backup_stream` | 创建备份 (SSE 流式进度) |
+| `GET` | `/backups` | `list_backups` | 列出所有备份 |
+| `POST` | `/backups/delete` | `delete_backups` | 删除备份 |
+| `POST` | `/backups/import` | `import_backup` | 导入备份 zip |
+| `GET` | `/backups/{backup_id}` | `get_backup` | 获取备份详情 |
+| `POST` | `/backups/{backup_id}/restore` | `restore_backup` | 恢复备份 |
+| `GET` | `/backups/{backup_id}/export` | `export_backup` | 导出备份 zip |
+
+### SSE 进度事件类型 (create.py:28)
+
+| 事件 | 字段 | 说明 |
+|------|------|------|
+| `start` | `total_agents`, `percent=0` | 开始 |
+| `agent` | `agent_id`, `index`, `total`, `percent` | 每个 Agent 处理进度 |
+| `saving` | `percent=90` | 保存元数据 |
+| `done` | `meta`, `percent=100` | 完成 |
+| `error` | `message` | 错误 |
+
+### 核心数据模型表 (models.py)
+
+| 模型 | 行号 | 字段 |
+|------|------|------|
+| `BackupScope` | 9 | `include_agents`, `include_global_config`, `include_secrets`, `include_skill_pool` |
+| `BackupMeta` | 23 | `id`, `name`, `description`, `created_at`, `version`, `scope`, `agent_count`, `qwenpaw_version` |
+| `CreateBackupRequest` | 51 | `name`, `description`, `scope`, `agents` |
+| `RestoreBackupRequest` | 61 | `include_agents`, `agent_ids`, `include_global_config`, `include_secrets`, `include_skill_pool`, `mode` |
+| `BackupDetail` | 105 | 继承 BackupMeta + `workspace_stats` |
+
+### BackupScope 备份范围 (models.py:14)
+
+```python
+class BackupScope:
+    include_agents: bool           # 包含 Agent 工作区
+    include_global_config: bool     # 包含全局 config.json
+    include_secrets: bool          # 包含 secrets 目录
+    include_skill_pool: bool       # 包含 skill pool 目录
+```
+
+### 创建流程 (create.py:30-167)
+
+```
+create_stream(req)
+    │
+    ├─► 创建 BackupMeta
+    │
+    ├─► _compute_initial_agents() 验证 Agent 存在性
+    │
+    ├─► 进度回调:
+    │     start → agent (每个) → saving → done/error
+    │
+    ├─► 后台线程执行压缩
+    │
+    └─► 临时文件 .tmp，成功后原子替换 .zip
+```
+
+### 恢复流程 (restore.py:186-260)
+
+**两阶段恢复协议**:
+```
+Phase 1: 提取到 .restore_tmp 临时目录
+Phase 2: 原子交换 old → .restore_old, tmp → dst
+Phase 3: 删除 .restore_old
+```
+
+**Config 合并策略**:
+| 模式 | 策略 |
+|------|------|
+| `full` | 完整替换 config.json |
+| `custom` | backup 顶层 keys 获胜，`agents.profiles` 只覆盖 restore_aids |
+
+### 原子目录交换 (safe_swap.py:9-23)
+
+**三阶段协议**:
+```
+1. 提取到 .restore_tmp
+2. 原子交换: old → .restore_old, tmp → dst
+3. 删除 .restore_old
+```
+
+**安全特性**:
+- 崩溃恢复：检测并清理遗留临时目录
+- Zip Slip 防护：验证解压路径不超出目标基准目录
+- 线程安全：每个目标路径有独立的 threading.Lock
+
+### 并发控制 (orchestration.py:40)
+
+```
+恢复编排流程:
+    │
+    ├─► 停止受影响的 Agent (含文件句柄)
+    │
+    ├─► 执行 restore
+    │     │
+    │     └─► _stage_secrets() → handle_master_key_conflict()
+    │     │
+    │     └─► extract_to_tmp() → 提取到 .restore_tmp
+    │     │
+    │     └─► commit_tmp() → 原子交换
+    │
+    └─► finally: 重启已停止的 Agent
+
+恢复后密钥重载 (orchestration.py:339-340):
+    │
+    └─► if SECRET_DIR in committed:
+              reload_master_key_from_disk()
+                    │
+                    ▼
+         清除 _cached_master_key, _cached_fernet = None
+                    │
+                    ▼
+         从 .master_key 文件读取新密钥
+                    │
+                    ▼
+         _try_keyring_set(new_key)  (同步 keyring)
+```
+
+### Zip 路径前缀 (constants.py:16-19)
+
+| 前缀 | 内容 |
+|------|------|
+| `data/workspaces/` | Agent 工作区 |
+| `data/secrets/` | 密钥目录 |
+| `data/skill_pool/` | Skill 池 |
+| `data/config.json` | 全局配置 |
+
+### Master Key 冲突处理 (restore_helpers.py:87)
+
+```
+备份前:
+    └─► 备份当前 master key 到 BACKUP_DIR/_pre_restore_keys/
+
+恢复时:
+    └─► handle_master_key_conflict() 处理密钥冲突
+```
+
+**冲突处理流程** (restore_helpers.py:108-156):
+
+```
+检测到备份 .master_key 与当前不同
+         │
+         ▼
+备份当前密钥到 BACKUP_DIR/_pre_restore_keys/<UTC-timestamp>.master_key.bak
+         │
+         ▼
+用备份中的密钥替换当前密钥
+         │
+         ▼
+备份存在 BACKUP_DIR 外（不被 atomic swap 影响）
+```
+
+### 崩溃恢复场景 (safe_swap.py:65-143)
+
+| 场景 | 检测条件 | 恢复动作 |
+|------|----------|----------|
+| 场景1 | `.restore_old` 存在, base_dir 不存在 | 重命名 old → base 恢复 |
+| 场景2 | `.restore_tmp` 存在, base_dir 存在 | 删除不完整的 tmp |
+| 场景3 | `.restore_old` 存在, base_dir 存在 | 删除多余的 old |
+
+### 回滚机制 (_swap_directories)
+
+```python
+def _swap_directories(dst, tmp_dst, old_dst):
+    if dst.exists():
+        dst.rename(old_dst)  # 保存原始到 .restore_old
+    try:
+        tmp_dst.rename(dst)  # Linux: 原子重命名
+    except OSError:
+        # 回滚：恢复原始
+        if renamed_to_old and old_dst.exists() and not dst.exists():
+            old_dst.rename(dst)
+        raise
+```
+
+### 进度事件格式 (create.py:31-37)
+
+```python
+{"type": "start",     "total_agents": N, "percent": 0}
+{"type": "agent",     "agent_id": str, "index": int, "total": int, "percent": int}
+{"type": "saving",    "percent": 90}
+{"type": "done",      "meta": dict, "percent": 100}
+{"type": "error",     "message": str}
+```
+
+### 存储操作 (storage.py)
+
+| 操作 | 函数 | 说明 |
+|------|------|------|
+| 列表 | `_list_sync()` | 读取 BACKUP_DIR 中每个 .zip 的 meta.json |
+| 详情 | `_detail_sync()` | 额外计算每个工作区的文件数和大小 |
+| 删除 | `_delete_sync()` | 直接 `zp.unlink()` |
+| 导出 | `_export_sync()` | 返回路径和名称 |
+| 导入 | `_import_sync()` | 验证 zip 结构，检查 ID 冲突 |
+
+---
+
+## 6. 部署模式
 
 ### 模式概览
 
@@ -769,6 +2481,8 @@ def app(host, port, workers):
 
 ### 4.2 桌面 Webview 模式
 
+**源码路径**: `src/qwenpaw/cli/desktop_cmd.py`
+
 #### 启动命令
 
 ```bash
@@ -782,24 +2496,207 @@ qwenpaw desktop
 - 阻塞等待窗口关闭
 - 窗口关闭后自动清理后端进程
 
+#### 核心组件
+
+**WebViewAPI** (`desktop_cmd.py:29-36`) - 暴露给 Webview 的 JavaScript API：
+
 ```python
-# desktop_cmd.py
+class WebViewAPI:
+    """API exposed to the webview for handling external links."""
 
-def desktop():
-    """桌面 Webview 模式"""
-    # 1. 启动 FastAPI 后端（选择空闲端口）
-    port = find_free_port()
-    backend = start_backend(port)
+    def open_external_link(self, url: str) -> None:
+        """Open URL in system's default browser."""
+        if not url.startswith(("http://", "https://")):
+            return
+        webview.open(url)
+```
 
-    # 2. 打开 Webview 窗口
-    webview.create_window(
-        'QwenPaw',
-        f'http://localhost:{port}'
-    )
-    webview.start()
+**端口选择** (`desktop_cmd.py:39-44`)：
 
-    # 3. 窗口关闭后清理
-    backend.terminate()
+```python
+def _find_free_port(host: str = "127.0.0.1") -> int:
+    """Bind to port 0 and return the OS-assigned free port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((host, 0))
+        sock.listen(1)
+        return sock.getsockname()[1]
+```
+
+**HTTP 就绪检测** (`desktop_cmd.py:47-58`)：
+
+```python
+def _wait_for_http(host: str, port: int, timeout_sec: float = 300.0) -> bool:
+    """Return True when something accepts TCP on host:port."""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(2.0)
+                s.connect((host, port))
+                return True
+        except (OSError, socket.error):
+            time.sleep(1)
+    return False
+```
+
+**Windows 子进程输出处理** (`desktop_cmd.py:61-79`)：
+
+```python
+def _stream_reader(in_stream, out_stream) -> None:
+    """Read from in_stream line by line and write to out_stream.
+
+    Used on Windows to prevent subprocess buffer blocking. Runs in a
+    background thread to continuously drain the subprocess output.
+    """
+```
+
+#### 完整启动流程 (`desktop_cmd.py:99-269`)
+
+```
+1. setup_logger(log_level)  配置日志
+           │
+2. _find_free_port(host)  获取空闲端口
+           │
+3. subprocess.Popen 启动 qwenpaw app 后端进程
+           │
+           ├─► Windows: 启动 stdout/stderr 排水线程
+           │
+4. _wait_for_http()  等待 HTTP 服务就绪 (最多300秒)
+           │
+           ├─► 超时: 输出错误信息，等待进程退出
+           │
+5. webview.create_window()  创建桌面窗口
+           │     title: "QwenPaw Desktop"
+           │     url: http://127.0.0.1:{port}
+           │     width: 1280, height: 800
+           │     text_select: True
+           │     js_api: WebViewAPI (open_external_link)
+           │
+6. webview.start()  阻塞直到用户关闭窗口
+           │
+7. proc.terminate()  窗口关闭后清理后端进程
+           │
+           ├─► 5秒超时后 force kill
+           │
+8. 检查 exit code，非正常退出则报错
+```
+
+#### 窗口关闭清理 (`desktop_cmd.py:207-236`)
+
+```python
+if proc and proc.poll() is None:  # 进程仍在运行
+    proc.terminate()
+    try:
+        proc.wait(timeout=5.0)  # 等待5秒
+    except subprocess.TimeoutExpired:
+        proc.kill()  # 超时则强制终止
+        proc.wait()
+```
+
+#### 命令行参数
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--host` | `127.0.0.1` | 服务绑定地址 |
+| `--log-level` | `info` | 日志级别 (critical/error/warning/info/debug/trace) |
+
+#### 双进程架构
+
+Desktop 模式采用双进程架构：
+
+```
+┌─────────────────────────────────────────────────────┐
+│ 主进程 (qwenpaw desktop)                            │
+│  - 创建子进程启动 qwenpaw app 后端                 │
+│  - 使用 pywebview 创建原生窗口                     │
+│  - 等待窗口关闭后清理子进程                       │
+└─────────────────────────────────────────────────────┘
+                      │
+                      │ subprocess.Popen
+                      ▼
+┌─────────────────────────────────────────────────────┐
+│ 子进程 (qwenpaw app)                               │
+│  - Uvicorn 运行 FastAPI 应用                       │
+│  - 端口由 OS 通过绑定端口 0 分配                  │
+│  - 提供 Web API 和静态文件服务                     │
+└─────────────────────────────────────────────────────┘
+```
+
+#### 进程清理竞态处理 (`desktop_cmd.py:207-240`)
+
+```python
+# 处理 poll() 和 terminate() 之间的竞态条件
+if proc and proc.poll() is None:
+    proc.terminate()
+    try:
+        proc.wait(timeout=5.0)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+except ProcessLookupError:
+    pass  # 进程已在 terminate 前退出
+except OSError:
+    pass  # 资源已被清理
+```
+
+**端口自动选择** (`desktop_cmd.py:39-44`):
+
+```python
+def _find_free_port(host: str = "127.0.0.1") -> int:
+    """通过绑定端口 0 请求 OS 自动分配空闲端口"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((host, 0))
+        sock.listen(1)
+        return sock.getsockname()[1]
+```
+
+**后端就绪检测** (`desktop_cmd.py:47-58`):
+
+```python
+def _wait_for_http(host: str, port: int, timeout_sec: float = 300.0) -> bool:
+    """轮询直到后端服务就绪（默认5分钟超时）"""
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(2.0)
+                s.connect((host, port))
+                return True
+        except OSError:
+            time.sleep(1)
+    return False
+```
+
+**Windows 子进程管道处理** (`desktop_cmd.py:61-79`):
+
+```python
+def _stream_reader(in_stream, out_stream) -> None:
+    """后台线程持续排空子进程输出管道（Windows 专用）"""
+    # 防止 Windows 上子进程管道缓冲区填满导致死锁
+    try:
+        for line in iter(in_stream.readline, ""):
+            if not line:
+                break
+            out_stream.write(line)
+            out_stream.flush()
+    except Exception:
+        pass
+    finally:
+        in_stream.close()
+```
+
+**完整启动流程**:
+
+```
+1. _find_free_port() ──► OS 自动分配端口
+2. subprocess.Popen(["qwenpaw app", ...])
+   ├── Windows: stdout/stderr=PIPE + 启动 _stream_reader 线程
+   └── Unix: stdout/stderr=sys.stdout
+3. _wait_for_http(host, port, 300s) ──► 轮询后端就绪
+4. webview.create_window() ──► 创建原生窗口
+   └── title: "QwenPaw Desktop", size: 1280x800
+5. webview.start() ──► 阻塞直到用户关闭窗口
+6. finally: proc.terminate() ──► 5秒等待 ──► proc.kill()
 ```
 
 ### 4.3 守护进程模式
