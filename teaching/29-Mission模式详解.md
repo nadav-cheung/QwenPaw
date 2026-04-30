@@ -1,3 +1,5 @@
+✅ 内容增强完成
+
 # Mission Mode 详解：自主迭代式复杂任务执行
 
 ## 概述
@@ -547,3 +549,240 @@ if isinstance(mission_result, dict):
 | Mission State | `src/qwenpaw/agents/mission/state.py` |
 | Mission Prompts | `src/qwenpaw/agents/mission/prompts.py` |
 | Runner 集成 | `src/qwenpaw/app/runner/runner.py:529-592` |
+
+---
+
+## 11. 练习题
+
+### 练习 1: 创建 Mission 任务
+
+**目标**: 使用 `/mission` 命令创建一个简单的任务。
+
+```bash
+# 练习: 在 QwenPaw 中执行以下命令
+/mission 为项目添加 README.md 文件
+
+# 预期行为:
+# 1. Phase 1 启动，Agent 生成 PRD
+# 2. 用户审查 prd.json
+# 3. 用户确认后进入 Phase 2
+# 4. Agent 执行任务
+```
+
+### 练习 2: 分析 PRD 结构
+
+**目标**: 理解 Mission Mode 的 PRD (Product Requirements Document) 格式。
+
+```python
+# 练习: 编写一个验证 PRD 格式的程序
+
+prd_example = {
+    "userStories": [
+        {
+            "id": "story-1",
+            "title": "添加 README",
+            "description": "为项目创建一个 README.md 文件",
+            "acceptanceCriteria": [
+                "README.md 包含项目名称",
+                "README.md 包含安装说明"
+            ],
+            "priority": "high",
+            "passes": False
+        }
+    ]
+}
+
+# 验证函数
+def validate_prd(prd: dict) -> list[str]:
+    """验证 PRD 格式是否正确"""
+    problems = []
+    required_fields = {"userStories"}
+    story_fields = {"id", "title", "description", "acceptanceCriteria", "priority", "passes"}
+
+    # 检查顶层字段
+    for field in required_fields:
+        if field not in prd:
+            problems.append(f"Missing required field: {field}")
+
+    # 检查每个 story
+    for i, story in enumerate(prd.get("userStories", [])):
+        for field in story_fields:
+            if field not in story:
+                problems.append(f"Story {i} missing field: {field}")
+
+    return problems
+
+print(validate_prd(prd_example))
+```
+
+### 练习 3: 实现工具限制
+
+**目标**: 理解 Phase 2 中的工具限制机制。
+
+```python
+# 练习: 模拟 Phase 2 的工具限制
+
+IMPLEMENTATION_TOOLS = frozenset({
+    "edit_file",
+    "browser_use",
+    "desktop_screenshot"
+})
+
+def check_tool_available(tool_name: str, phase: int) -> bool:
+    """检查工具在指定阶段是否可用"""
+    if phase == 1:
+        # Phase 1: 所有工具可用
+        return True
+    elif phase == 2:
+        # Phase 2: 实现工具被禁用
+        return tool_name not in IMPLEMENTATION_TOOLS
+    return False
+
+# 测试
+print(check_tool_available("execute_shell_command", 1))  # True
+print(check_tool_available("edit_file", 1))  # True
+print(check_tool_available("edit_file", 2))  # False
+print(check_tool_available("execute_shell_command", 2))  # True
+```
+
+### 练习 4: Git 上下文检测
+
+**目标**: 实现异步 Git 上下文检测。
+
+```python
+# 练习: 实现 Git 上下文检测（简化版）
+
+import asyncio
+import shutil
+from pathlib import Path
+from typing import Optional
+
+async def detect_git_context(workspace_dir: Path) -> dict:
+    """检测 Git 上下文（简化实现）"""
+    ctx = {
+        "git_installed": False,
+        "is_git_repo": False,
+        "default_branch": "main",
+        "current_branch": "",
+        "repo_root": ""
+    }
+
+    # 检查 git 是否安装
+    if shutil.which("git") is None:
+        return ctx
+
+    ctx["git_installed"] = True
+
+    # 使用 asyncio 创建子进程执行 git 命令
+    proc = await asyncio.create_subprocess_exec(
+        "git", "rev-parse", "--show-toplevel",
+        cwd=str(workspace_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+
+    if proc.returncode == 0:
+        ctx["is_git_repo"] = True
+        ctx["repo_root"] = stdout.decode().strip()
+
+    return ctx
+
+# 测试
+async def main():
+    ctx = await detect_git_context(Path("."))
+    print(f"Git installed: {ctx['git_installed']}")
+    print(f"Is git repo: {ctx['is_git_repo']}")
+    print(f"Repo root: {ctx['repo_root']}")
+
+asyncio.run(main())
+```
+
+---
+
+## 12. 如果你来自 Java...
+
+### Java 开发者对照表
+
+| Java 概念 | QwenPaw Mission Mode 实现 | 说明 |
+|-----------|---------------------------|------|
+| `ExecutorService` | Phase 1/2 两阶段执行 | 任务分解与执行分离 |
+| `Future` / `CompletableFuture` | PRD + worker 模式 | 异步任务与结果验证 |
+| `ThreadPoolExecutor` | Master Agent + workers | 控制器 + 执行器模式 |
+| `CountDownLatch` | `passes` 字段 | 任务完成计数 |
+| `ScheduledExecutorService` | `max_iterations` | 迭代次数限制 |
+| `ForkJoinPool` | Mission Mode 架构 | 分而治之的任务执行 |
+
+### 关键设计模式对比
+
+**1. 两阶段执行模型**
+
+```java
+// Java: 分阶段任务处理
+ExecutorService executor = Executors.newFixedThreadPool(2);
+Future<PRD> phase1Future = executor.submit(() -> generatePRD(task));
+PRD prd = phase1Future.get();
+executor.shutdown();
+```
+
+```python
+# Python: Mission Mode 两阶段执行
+# Phase 1: Agent 生成 PRD
+async for msg, last in run_mission_phase1(agent, msgs, loop_dir):
+    yield msg, last
+
+# Phase 2: 迭代执行
+async for msg, last in run_mission_phase2(agent, msgs, loop_dir):
+    yield msg, last
+```
+
+**2. 控制器-执行器模式**
+
+```java
+// Java: ExecutorService + Runnable
+class MasterAgent {
+    void execute(Task task) {
+        for (Story story : task.getStories()) {
+            executor.submit(new Worker(story));
+        }
+    }
+}
+```
+
+```python
+# Python: Master Agent + workers
+# Master Agent 通过 shell 分发任务给 worker
+worker_cmd = f"qwenpaw agents chat --background --task '{story}'"
+await run_command_async(worker_cmd.split())
+```
+
+**3. 结果验证模式**
+
+```java
+// Java: Callable + Future 验证
+Future<Boolean> verifyFuture = executor.submit(() -> {
+    return verifier.verify(story);
+});
+boolean passes = verifyFuture.get(timeout, TimeUnit.SECONDS);
+```
+
+```python
+# Python: verifier 执行后更新 prd.json
+# 每个 story 有独立的 verifier
+# passes 字段由 verifier 更新
+stories = prd.get("userStories", [])
+if all(s.get("passes") for s in stories):
+    yield completion_msg, True
+```
+
+### Java 开发者注意事项
+
+1. **PRD 即契约**: PRD (Product Requirements Document) 类似于 Java 中的接口定义，定义了任务的契约。
+
+2. **Worker 是无状态的**: Worker agent 与 Java 的 `Runnable` 类似，每次执行都是独立的任务。
+
+3. **工具限制是安全边界**: Phase 2 禁用的工具类似于 Java 中的安全管理器限制。
+
+4. **文件状态持久化**: Mission Mode 使用文件系统持久化状态，类似于 Java 的持久化队列。
+
+5. **异步迭代循环**: Phase 2 的迭代模型类似于 Java 的 `while(!isComplete() && hasMoreIterations())` 循环。

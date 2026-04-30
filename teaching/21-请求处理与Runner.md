@@ -1,5 +1,7 @@
 # 请求处理与 Runner：QwenPaw 核心引擎
 
+✅ 内容增强完成
+
 ## 概述
 
 Runner 是 QwenPaw 的请求处理引擎，负责接收用户查询、协调 Agent、执行工具、返回流式响应，并管理会话生命周期。本文深入分析 Runner 的架构设计、请求生命周期和关键设计模式。
@@ -1265,7 +1267,114 @@ async def shutdown_handler(self, *args, **kwargs):
 
 ---
 
-## 14. 相关章节
+## 14. 如果你来自 Java...
+
+对于有 Java 背景的开发者，理 Runner 的设计时可以通过以下类比来理解：
+
+| Python 概念 | Java/Spring 对应 | 说明 |
+|-------------|-----------------|------|
+| `AgentRunner` | `@Service` + `@Scope("prototype")` | 每次请求创建新实例，类似 Spring 的 prototype scope |
+| `query_handler` | Controller Request Mapping | 入口点，处理请求生命周期 |
+| `SafeJSONSession` | HttpSession + JDBC Session | 会话状态持久化，但使用 JSON 文件存储 |
+| `TaskTracker` | `DeferredResult` + `SseEmitter` | 实现异步流式响应，类似于 Spring 的 SSE 支持 |
+| `command_dispatch.py` | HandlerMapping + ControllerAdvice | 命令路由和优先级处理 |
+| `asyncio.Queue` | `BlockingQueue` | 异步消息队列，用于流式输出 |
+| 三层命令路由 | 过滤器链 Filter Chain | daemon > control > conversation 类似拦截器优先级 |
+
+### 关键架构差异
+
+**1. 依赖注入方式**
+
+Java/Spring 使用注解 + 容器：
+```java
+@Service
+public class MyService {
+    @Autowired
+    private OtherService otherService;
+}
+```
+
+QwenPaw 使用显式 setter 注入：
+```python
+def set_chat_manager(self, chat_manager):
+    self._chat_manager = chat_manager
+```
+
+**2. 热重载策略**
+
+Spring 需要配合 `@RefreshScope` 或 Actuator 才能实现配置热重载。QwenPaw 的做法是**每次请求新建 Agent 实例**，天然支持热重载，但代价是创建开销。
+
+**3. 会话状态**
+
+Java 通常使用 `HttpSession`（内存）或数据库存储。QwenPaw 的 `SafeJSONSession` 使用文件存储 + 原子写入，适合多进程环境，但性能不如内存存储。
+
+**4. 异步响应**
+
+Spring 通过 `SseEmitter` 或 `WebFlux` 实现 SSE。QwenPaw 通过 `TaskTracker` + `asyncio.Queue` 实现，核心是 `AsyncGenerator`，这是 Python 特有的协程机制。
+
+### 迁移建议
+
+如果你从 Java Spring 迁移到 QwenPaw：
+- 忘掉 `@Autowired`，关注**显式依赖注入**
+- 忘掉 `@SessionScope`，理解 **SafeJSONSession 的文件持久化**
+- 使用 `asyncio.Queue` 而不是 `BlockingQueue`
+- 使用 Python 的 `async/await` 而不是 Spring 的 `@Async`
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **理解 12 阶段请求生命周期**
+   在 `runner.py` 中，`query_handler` 方法包含 12 个处理阶段。如果用户在工具审批流程中超时，代码会进入哪个 stage？请写出完整的 stage 名称和对应的行号范围。
+
+2. **命令路由优先级**
+   `_is_command` 函数实现了 `daemon > control > conversation` 的三层优先级。请分析 `command_dispatch.py` 中，当用户发送 `/daemon status` 时，代码是如何快速判断并跳过的？`parse_daemon_query` 在其中的作用是什么？
+
+3. **SafeJSONSession 的损坏恢复**
+   `session.py` 中的 `_safe_json_loads` 函数包含 JSON 损坏恢复逻辑。请说明：当 JSON 文件出现部分损坏时，`raw_decode` 是如何提取有效内容的？这种设计在并发写入场景下会有什么风险？
+
+4. **TaskTracker 断线重连机制**
+   `TaskTracker.attach()` 方法返回的队列会被预填充 `buffer` 内容。请说明：新连接调用 `attach()` 后，buffer 中的 SSE 事件是如何被重新发送的？丢失事件的上界是多少？
+
+### 进阶练习
+
+1. **实现可中断的流式输出**
+   `_stream_printing_messages_interruptible` 使用 `asyncio.Queue` 和 `task.add_done_callback` 实现可中断的流式输出。请设计一个简化版本：支持外部调用者通过 `cancel()` 方法立即取消正在运行的 Agent 任务，并说明如何确保 `asyncio.CancelledError` 被正确传播。
+
+2. **添加新的 Control 命令**
+   假设需要添加 `/history <session_id>` 命令，显示指定会话的消息历史。请参照 `control_commands/` 的现有结构，设计新增命令的完整流程，包括：
+   - `__init__.py` 中的 `register_command` 调用
+   - `BaseControlCommandHandler` 子类的实现
+   - 命令如何从 `runner.query_handler` 传递到处理器
+
+3. **Session 状态版本迁移**
+   当 `SafeJSONSession` 的状态 schema 发生升级时（如新增字段），旧版本保存的 JSON 文件可能导致 `KeyError`。请设计一个状态版本迁移方案，在 `load_session_state` 中自动检测并升级旧格式，同时保持向后兼容。
+
+### 实战练习
+
+**综合项目：实现一个调试面板命令**
+
+设计并实现 `/debug` 命令，用于实时诊断 Runner 状态。该命令需要：
+- 在 `control_commands/` 下新增 `DebugCommandHandler`
+- 实现以下子命令：
+  - `/debug sessions`：列出所有活跃 session 及其状态
+  - `/debug task <run_key>`：显示指定任务的队列长度和 buffer 内容
+  - `/debug memory <session_id>`：输出该 session 的内存摘要
+- 通过 `runner` 参数访问 `AgentRunner` 的内部状态（`_task_tracker`、`session` 等）
+- 返回结构化的诊断报告（文本格式即可）
+
+**提示**：
+- 参考 `StopCommandHandler` 的上下文获取方式
+- `runner._task_tracker._runs` 包含所有运行状态
+- 使用 `runner.session.get_session_state_dict()` 获取会话状态
+
+---
+
+## 练习题设计完成
+
+## 15. 相关章节
 
 - [智能体钩子系统](./23-智能体钩子系统.md) — 钩子机制与 Agent 核心流程
 - [Provider与模型路由](./24-Provider与模型路由.md) — 模型管理与路由
@@ -1274,7 +1383,7 @@ async def shutdown_handler(self, *args, **kwargs):
 
 ---
 
-## 15. 总结
+## 16. 总结
 
 AgentRunner 是 QwenPaw 请求处理的核心引擎，通过 12 个阶段的清晰分离实现了：
 

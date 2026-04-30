@@ -1,3 +1,5 @@
+✅ 内容增强完成
+
 # Python 基础教程（面向 Java 开发者）
 
 ## 概述
@@ -533,12 +535,14 @@ QwenPaw 的 `MultiAgentManager` 展示了 async/await 的实际应用：
 
 ```python
 import asyncio
-from typing import Dict
+from typing import Dict, Set
 
 class MultiAgentManager:
     def __init__(self):
         self.agents: Dict[str, Workspace] = {}
         self._lock = asyncio.Lock()  # 异步锁
+        self._pending_starts: Dict[str, asyncio.Event] = {}  # 待启动事件
+        self._cleanup_tasks: Set[asyncio.Task] = set()         # 清理任务
 
     async def get_agent(self, agent_id: str) -> Workspace:
         """异步获取智能体（懒加载）"""
@@ -605,6 +609,29 @@ async def main():
 | `ExecutorService` | `asyncio.Lock()` |
 | `Future.cancel()` | `task.cancel()` |
 | `@Async` 注解 | `async def` |
+
+### 🐍 来自 Java 的你
+
+如果你熟悉 Java 的并发编程，下表帮你快速找到 Python 中的对应概念：
+
+| Java | Python | 说明 |
+|------|--------|------|
+| `CompletableFuture.supplyAsync(Supplier)` | `asyncio.create_task()` 或直接 `asyncio.gather()` | 创建异步任务 |
+| `future.get()` | `await coroutine` | 阻塞等待异步结果 |
+| `CompletableFuture.allOf(f1, f2, ...)` | `await asyncio.gather(task1, task2)` | 并发执行多个任务并等待全部完成 |
+| `CompletableFuture.thenCompose()` | `await` 链式调用 | 异步任务链式组合 |
+| `ExecutorService` + `submit()` | `asyncio.create_task()` | 提交异步任务到线程池/事件循环 |
+| `newSingleThreadExecutor()` | `asyncio.Lock()` | 串行化访问共享资源 |
+| `ReentrantLock.lock()` / `unlock()` | `async with lock:` | 异步锁的获取与释放 |
+| `CountDownLatch.await()` | `asyncio.Event.wait()` | 等待事件触发 |
+| `Semaphore.acquire()` / `release()` | `asyncio.Semaphore` | 控制并发数量 |
+| `ScheduledExecutorService.schedule()` | `asyncio.get_event_loop().call_later()` | 延迟执行一次性任务 |
+| `Future.isDone()` | `task.done()` | 检查任务是否完成 |
+
+**关键区别**：
+- Python 的 `async/await` 是单线程协作式并发，Java 的 `CompletableFuture` 通常基于线程池
+- Python 异步代码必须显式使用 `await` 才能让出控制权，Java 的 `Future.get()` 会阻塞线程
+- Python 的协程比线程更轻量，同一线程可以运行数千个协程
 
 ---
 
@@ -1271,6 +1298,89 @@ python -m venv new_venv
 source new_venv/bin/activate
 pip install -r requirements.txt
 ```
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **Python 语法转换**：将以下 Java 代码转换为 Python（注意缩进和类型提示）：
+   ```java
+   public class User {
+       private String name;
+       private int age;
+       
+       public User(String name, int age) {
+           this.name = name;
+           this.age = age;
+       }
+       
+       public String getName() { return name; }
+       public int getAge() { return age; }
+   }
+   ```
+
+2. **异步函数理解**：解释以下代码的输出顺序（参考 `07-智能体核心架构.md` 中的 `multi_agent_manager.py`）：
+   ```python
+   import asyncio
+   
+   async def task_a():
+       print("A start")
+       await asyncio.sleep(0.5)
+       print("A end")
+   
+   async def task_b():
+       print("B start")
+       await asyncio.sleep(0.3)
+       print("B end")
+   
+   async def main():
+       await asyncio.gather(task_a(), task_b())
+   
+   asyncio.run(main())
+   ```
+
+3. **类型提示练习**：为以下函数添加完整的类型提示，并说明每个类型的作用：
+   ```python
+   def process_items(items, filter_fn, default=None):
+       result = [x for x in items if filter_fn(x)]
+       return result if result else default
+   ```
+
+### 进阶练习
+
+1. **异步锁实现**：参考 `07-智能体核心架构.md` 中的 `MultiAgentManager` 示例，实现一个异步缓存类 `AsyncCache`，要求：
+   - 支持 `get(key)` 和 `set(key, value)` 异步方法
+   - 使用 `asyncio.Lock` 保护共享状态
+   - 包含缓存过期逻辑（可选）
+
+2. **上下文管理器**：实现一个测量异步函数执行时间的上下文管理器：
+   ```python
+   class Timer:
+       async def __aenter__(self):
+           # TODO: 记录开始时间
+           pass
+       
+       async def __aexit__(self, *args):
+           # TODO: 计算并打印耗时
+           pass
+   ```
+
+3. **类型约束**：使用 `NewType` 定义 `UserId` 和 `SessionId`，并编写一个验证函数确保 ID 格式正确（参考 `08-消息渠道系统.md` 中的渠道 ID 处理）。
+
+### 实战练习
+
+- **QwenPaw 配置解析器**：参考 `src/qwenpaw/config/config.py`，实现一个简化版的配置解析器：
+  1. 使用 `@dataclass` 定义配置模型
+  2. 支持从环境变量或 YAML 文件加载配置
+  3. 实现配置验证（参考 Pydantic 风格）
+  4. 包含异步初始化方法 `async def initialize()`
+
+**答案提示**：
+- 参考 `06.1-Python进阶教程.md` 中的 Pydantic 和 dataclass 章节
+- 参考 `src/qwenpaw/config/config.py` 的配置加载模式
+- 异步上下文管理器可参考 `src/qwenpaw/app/_app.py` 的应用启动模式
 
 ---
 

@@ -1,3 +1,7 @@
+✅ 内容增强完成
+
+> **增强说明**：本文档于 2026-04-30 进行了内容增强，新增 Java 开发者对比小节、Provider 模式分析、重试机制详解等内容。
+
 # Model 系统与 LLM 提供商
 
 ## 概述
@@ -1025,3 +1029,341 @@ class DownloadSource(str, Enum):
 - 管理器：`src/qwenpaw/providers/provider_manager.py`
 - 配置模型：`src/qwenpaw/config/config.py`
 - 本地模型：`src/qwenpaw/local_models/`
+
+---
+
+## 如果你来自 Java...
+
+### LLM Provider 概念对照
+
+| QwenPaw | Java (Spring AI / LangChain4j) | 说明 |
+|---------|-------------------------------|------|
+| `ProviderManager` | `ModelController` | 全局模型控制器 |
+| `Provider` | `AiModel` / `ChatModel` | 模型接口 |
+| `OpenAIProvider` | `OpenAiAiModel` | 具体模型实现 |
+| `ModelSlotConfig` | `ChatModelOptions` | 模型配置选项 |
+| `ModelInfo` | `Model` | 模型元信息 |
+| `api_key` 加密 | `EncryptedProperty` | 敏感信息加密 |
+
+### Provider 实现对比
+
+**Java (Spring AI)：**
+```java
+@Configuration
+public class OpenAiConfig {
+    @Bean
+    public ChatModel openAiChatModel(
+            @Value("${openai.api-key}") String apiKey) {
+        return OpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .model("gpt-4o")
+                .temperature(0.7)
+                .build();
+    }
+}
+```
+
+**QwenPaw (Python)：**
+```python
+# config.json
+{
+    "providers": {
+        "openai": {
+            "enabled": true,
+            "api_key": "encrypted:xxxxx",
+            "models": [{"model": "gpt-4o", "enabled": true}]
+        }
+    }
+}
+
+# 使用
+provider = ProviderManager.get_instance().get_provider("openai")
+model = provider.chat(model="gpt-4o")
+```
+
+### 模型工厂对比
+
+**Java (工厂模式)：**
+```java
+public interface AiModelFactory {
+    AiModel create(ModelConfig config);
+}
+
+@Service
+public class OpenAiModelFactory implements AiModelFactory {
+    @Override
+    public AiModel create(ModelConfig config) {
+        return OpenAiChatModel.builder()
+                .apiKey(config.getApiKey())
+                .model(config.getModelName())
+                .build();
+    }
+}
+```
+
+**QwenPaw (工厂模式)：**
+```python
+# model_factory.py
+def create_model_and_formatter(
+    provider_id: str,
+    model: str,
+    api_key: str | None = None,
+    **kwargs,
+) -> tuple[ChatModelBase, OutputFormatter]:
+    """工厂方法创建模型和格式化器"""
+    provider = ProviderManager.get_instance().get_provider(provider_id)
+    inner_model = provider.chat(model=model, api_key=api_key, **kwargs)
+    wrapped = RetryChatModel(inner_model)
+    formatter = OutputFormatter(model_name=model)
+    return wrapped, formatter
+```
+
+### 重试机制对比
+
+**Java (Resilience4j)：**
+```java
+@CircuitBreaker(name = "llm", fallbackMethod = "fallback")
+@Retry(name = "llm")
+public String chat(String prompt) {
+    return chatModel.call(prompt);
+}
+
+public String fallback(String prompt, Exception e) {
+    return "模型暂时不可用，请稍后重试";
+}
+```
+
+**QwenPaw (指数退避)：**
+```python
+# RetryChatModel 内部实现
+async def _compute_backoff(attempt: int) -> float:
+    wait = self._retry_config.backoff_base * (2 ** attempt)
+    return min(wait, self._retry_config.backoff_cap)
+
+# 调用
+wrapped_model = RetryChatModel(inner_model)
+response = await wrapped_model.chat(messages)
+```
+
+### 速率限制对比
+
+**Java (Bucket4j)：**
+```java
+@Bean
+public FilterRegistrationBean<RateLimitFilter> rateLimitFilter() {
+    Bucket bucket = Bucket.builder()
+            .addLimit(Bandwidth.classic(600, Refill.intervals(1, MINUTES)))
+            .build();
+    return new FilterRegistrationBean<>(new RateLimitFilter(bucket));
+}
+```
+
+**QwenPaw (信号量 + 定时器)：**
+```python
+# rate_limiter.py
+class LLMRateLimiter:
+    def __init__(self, max_concurrent: int = 10, max_qpm: int = 600):
+        self._semaphore = asyncio.Semaphore(max_concurrent)
+        self._qpm_limiter = QPMLimiter(max_qpm)
+
+    async def acquire(self):
+        await self._semaphore.acquire()
+        await self._qpm_limiter.acquire()
+```
+
+### 并发控制对比
+
+**Java (CompletableFuture + ExecutorService)：**
+```java
+@Bean(name = "llmExecutor")
+public ExecutorService llmExecutor() {
+    return Executors.newFixedThreadPool(10);
+}
+
+public CompletableFuture<String> chatAsync(String prompt) {
+    return CompletableFuture.supplyAsync(
+        () -> chatModel.call(prompt),
+        llmExecutor
+    );
+}
+```
+
+**QwenPaw (asyncio)：**
+```python
+# 内置并发控制
+LLM_MAX_CONCURRENT = 10  # 最大并发
+
+async def chat_async(messages):
+    async with semaphore:  # 信号量控制
+        return await model.chat(messages)
+
+# 流式响应的槽位管理
+async for chunk in stream:
+    if first_chunk:
+        limiter.release()  # 首个 chunk 后释放槽位
+```
+
+### API Key 安全对比
+
+**Java (Jasypt)：**
+```java
+@Bean
+public StringEncryptor stringEncryptor() {
+    PooledPBEStringEncryptor encryptor = new PooledPBEStringEncryptor();
+    encryptor.setPoolSize(2);
+    encryptor.setPassword("my-secret-key");
+    encryptor.setAlgorithm("PBEWithMD5AndDES");
+    return encryptor;
+}
+
+// 配置
+spring.datasource.password=ENC(encodedPassword)
+```
+
+**QwenPaw (Fernet)：**
+```python
+from cryptography.fernet import Fernet
+
+# 加密
+master_key = Fernet.generate_key()
+f = Fernet(master_key)
+encrypted = f.encrypt(b"api-key-value")
+
+# 解密
+config["api_key"] = f.decrypt(encrypted)
+```
+
+### 本地模型部署对比
+
+**Java (Ollama Java Client)：**
+```java
+OllamaApiClient client = OllamaClient.builder()
+        .baseUrl("http://localhost:11434")
+        .build();
+
+ChatRequest request = ChatRequest.builder()
+        .model("llama3.2")
+        .message(Message.user("Hello"))
+        .build();
+
+ChatResponse response = client.chat(request);
+```
+
+**QwenPaw：**
+```python
+# 配置 Ollama provider
+{
+    "providers": {
+        "ollama": {
+            "enabled": true,
+            "base_url": "http://localhost:11434",
+            "models": []
+        }
+    }
+}
+
+# 自动发现模型
+qwenpaw models list --provider ollama
+
+# 使用
+/model ollama/llama3.2
+```
+
+### 关键设计差异
+
+| 方面 | Java (Spring AI) | QwenPaw |
+|------|-----------------|---------|
+| 架构风格 | 强类型 + 依赖注入 | 动态类型 + 单例模式 |
+| 配置方式 | `@Configuration` + YAML | JSON + 环境变量 |
+| 并发模型 | 线程池 + CompletableFuture | asyncio + async/await |
+| 重试策略 | Resilience4j 注解 | 装饰器模式 (RetryChatModel) |
+| 速率限制 | Bucket4j | 自实现信号量 + QPM |
+| API 兼容 | OpenAI 格式 | OpenAI 兼容 + 原始 API |
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **Provider 列表**：运行 `qwenpaw models list` 查看所有可用模型
+2. **配置查看**：查看 `~/.qwenpaw/config.json` 中的 providers 配置
+3. **模型切换**：使用 `/model gpt-4o-mini` 在对话中切换模型
+
+### 进阶练习
+
+4. **API Key 配置**：为 OpenAI provider 配置 API Key，观察加密存储
+5. **本地模型**：安装 Ollama 并配置 QwenPaw 连接本地模型
+6. **能力探测**：阅读 `multimodal_prober.py` 理解多模态检测机制
+
+### 高级练习
+
+7. **Provider 扩展**：创建一个自定义 Provider，连接不支持的 LLM 服务
+8. **重试机制分析**：阅读 `retry_chat_model.py`，绘制重试流程图
+9. **速率限制调优**：分析 `rate_limiter.py`，设计一个自适应限流策略
+
+### 参考答案
+
+<details>
+<summary>点击展开答案</summary>
+
+**练习 1：**
+```bash
+qwenpaw models list
+# 或
+qwenpaw providers list
+```
+
+**练习 2：**
+```bash
+cat ~/.qwenpaw/config.json | jq '.providers'
+```
+
+**练习 3：**
+```
+/model gpt-4o-mini
+```
+
+**练习 4：**
+```bash
+qwenpaw providers configure openai
+# 输入 API Key
+# 查看 config.json 中变为 encrypted:xxxxx
+```
+
+**练习 5：**
+```bash
+# 安装 Ollama
+brew install ollama
+ollama serve
+ollama pull llama3.2
+
+# QwenPaw 配置
+qwenpaw providers configure ollama
+```
+
+**练习 6：**
+`MultimodalProber` 检测模型是否支持图像输入，通过发送测试请求判断。
+
+**练习 7：**
+参考 `openai_provider.py` 实现 `CustomProvider`，覆盖 `chat()` 和 `fetch_models()` 方法。
+
+**练习 8：**
+```
+调用 chat()
+    │
+    ├─► 检查信号量槽位
+    │
+    ├─► 检查 QPM 限制
+    │
+    ├─► 首次失败 → 等待 backoff_base
+    │
+    ├─► 重试 → 2x backoff
+    │
+    └─► 达到 max_retries → 抛出异常
+```
+
+**练习 9：**
+可基于令牌使用量动态调整 QPM，或使用滑动窗口算法实现更精确的限流。
+
+</details>

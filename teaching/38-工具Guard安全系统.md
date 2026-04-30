@@ -1,4 +1,9 @@
 # 工具 Guard 安全系统
+---
+✅ 内容增强完成
+增强内容: 多层防御体系、规则扩展、审计日志合规、Java Spring Security对比、练习题
+---
+
 
 ## 概述
 
@@ -784,3 +789,223 @@ except Exception:
 | 数据模型 | `src/qwenpaw/security/tool_guard/models.py` |
 | 危险规则 | `src/qwenpaw/security/tool_guard/rules/dangerous_shell_commands.yaml` |
 | QwenPawAgent MRO | `src/qwenpaw/agents/react_agent.py:76` |
+
+---
+
+## 附录：企业级安全防护进阶
+
+### 多层防御体系
+
+ToolGuard 是 QwenPaw 的**应用层**安全防护。企业级 AI Agent 通常需要多层防御：
+
+| 层级 | 组件 | 作用 |
+|------|------|------|
+| 边界层 | API Gateway / WAF | DDoS 防护、IP 黑名单、速率限制 |
+| 认证层 | Auth Service | 用户身份验证、Token 验证 |
+| 授权层 | ACL / RBAC | 权限最小化、角色分离 |
+| 应用层 | ToolGuard | 工具调用拦截、危险模式检测 |
+| 资源层 | seccomp / AppArmor | 系统调用限制、容器隔离 |
+| 网络层 | iptables / Service Mesh | 流量控制、服务间 TLS |
+
+**纵深防御原则**：每层都可能失效，多层保护确保即使一层被突破仍有其他层保护。
+
+### 危险命令规则扩展
+
+生产环境可以扩展 `dangerous_shell_commands.yaml`：
+
+```yaml
+# 企业自定义规则示例
+- id: CUSTOM_DB_DESTRUCTIVE
+  tools: ["execute_shell_command"]
+  params: ["command"]
+  category: COMMAND_INJECTION
+  severity: HIGH
+  patterns:
+    - "DROP\\s+DATABASE"
+    - "DROP\\s+TABLE"
+    - "TRUNCATE\\s+.*"
+  exclude_patterns:
+    - "DROP\\s+.*\\s+IF\\s+EXISTS"  # 安全的删除
+  description: "检测危险数据库操作"
+  remediation: "使用数据库迁移工具而非直接执行 SQL"
+
+- id: CUSTOM_NETWORK_SCAN
+  tools: ["execute_shell_command"]
+  params: ["command"]
+  category: NETWORK_RECONNAISSANCE
+  severity: MEDIUM
+  patterns:
+    - "nmap\\s+"
+    - "masscan\\s+"
+    - "netstat\\s+.*-an"
+  description: "检测网络扫描行为"
+  remediation: "如需网络诊断，使用专门的网络监控工具"
+```
+
+### 审计日志与合规
+
+ToolGuard 的日志可用于合规审计：
+
+```python
+# 审计日志结构
+@dataclass
+class ToolGuardAuditLog:
+    timestamp: datetime
+    tool_name: str
+    params: dict[str, Any]  # 已脱敏
+    action: str  # "executed" | "denied" | "approved" | "timeout"
+    user_id: str
+    session_id: str
+    findings: list[GuardFinding]
+    duration_ms: float
+    agent_version: str
+
+# 合规报告生成
+def generate_compliance_report(
+    logs: list[ToolGuardAuditLog],
+    start_date: datetime,
+    end_date: datetime
+) -> dict:
+    """生成安全合规报告"""
+    denied = [l for l in logs if l.action == "denied"]
+    
+    return {
+        "period": {"start": start_date, "end": end_date},
+        "summary": {
+            "total_calls": len(logs),
+            "denied_calls": len(denied),
+            "denial_rate": len(denied) / len(logs) if logs else 0,
+        },
+        "top_denied_tools": Counter(l.tool_name for l in denied).most_common(5),
+        "top_findings": Counter(
+            f.rule_id for l in denied for f in l.findings
+        ).most_common(5),
+    }
+```
+
+---
+
+## 🐍 来自 Java 的你
+
+如果你熟悉 **Spring Security** 或 Java 安全管理器：
+
+| Java 安全机制 | QwenPaw ToolGuard | 说明 |
+|---------------|-------------------|------|
+| `SecurityManager` | ToolGuardMixin | 运行时权限检查 |
+| `@Secured` / `@RolesAllowed` | `denied_tools` | 方法级安全注解 |
+| `PermissionEvaluator` | RuleBasedToolGuardian | 自定义权限评估 |
+| AOP 拦截 | Mixin + MRO | 切面织入 |
+| JAAS (Java Auth) | ApprovalDecision | 认证授权 |
+| `Policy` 文件 | YAML 规则 | 安全策略配置 |
+
+**Spring Security 方法级安全示例：**
+
+```java
+@Configuration
+@EnableMethodSecurity
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/tools/**").hasAnyRole("USER", "ADMIN")
+                .anyRequest().authenticated()
+            )
+            .build();
+    }
+}
+
+@Service
+public class ToolService {
+    @Secured("ROLE_ADMIN")
+    public void executeDangerousTool(String toolName) {
+        // 只有 ADMIN 角色可执行
+    }
+    
+    @PreAuthorize("hasRole('USER') and #toolName not in @deniedTools.getList()")
+    public ToolResult executeTool(String toolName, Map<String, Object> params) {
+        // SpEL 表达式自定义权限检查
+    }
+}
+```
+
+**QwenPaw 等效实现：**
+
+```python
+# 配置拒绝工具
+QWENPAW_TOOL_GUARD_DENIED_TOOLS=execute_shell_command,edit_file
+
+# 或在 config.yaml
+security:
+  tool_guard:
+    denied_tools:
+      - execute_shell_command
+      - edit_file
+
+# Guard 检查（在 ToolGuardMixin._acting 中）
+if engine.is_denied(tool_name):
+    return _GuardAction("auto_denied", ...)
+
+guard_result = engine.guard(tool_name, tool_input)
+if guard_result.findings:
+    if self._should_require_approval():
+        return _GuardAction("needs_approval", ...)
+```
+
+**关键区别：**
+- Spring 使用声明式注解（编译时），ToolGuard 使用运行时拦截
+- Spring 依赖 Spring IoC 容器，ToolGuard 使用 Python MRO Mixin
+- Spring 的权限表达式支持 SpEL，ToolGuard 使用 YAML 规则 + 正则
+- Spring 可集成 OAuth2/JWT，ToolGuard 目前是本地决策
+
+---
+
+## 练习题
+
+### 选择题
+
+1. **ShellEvasionGuardian 的 QuoteState 状态机用于？**
+   - A. 检测 SQL 注入
+   - B. 检测 shell 命令替换和混淆
+   - C. 检测 XSS 攻击
+   - D. 验证 JSON 格式
+
+2. **always_run=True 的守护在 ToolGuard 中的作用是？**
+   - A. 无论工具是否在 guarded 列表都运行
+   - B. 始终允许执行不拦截
+   - C. 在锁外运行不阻塞
+   - D. 忽略所有规则
+
+3. **ToolGuardMixin 通过什么机制拦截工具调用？**
+   - A. 装饰器装饰
+   - B. 类继承链（MRO）
+   - C. 元类替换
+   - D. monkey patching
+
+### 简答题
+
+4. **描述 ToolGuard 的三层防护架构及每层的核心检测目标。**
+
+5. **为什么审批通过后的 preapproval token 只能用于相同参数的工具调用？**
+
+6. **设计一个自定义 GuardRule 来检测 AI 模型提示词注入攻击。**
+
+### 答案
+
+1. **B** - QuoteState 跟踪引号状态，检测 `$()` 命令替换等混淆
+2. **A** - always_run=True 确保即使不在 guarded 列表也运行（如 FilePathToolGuardian）
+3. **B** - 通过 MRO 继承链，ToolGuardMixin._acting 覆盖 ReActAgent._acting
+4. 三层：FilePathGuardian（敏感路径）+ RuleBasedGuardian（正则规则）+ ShellEvasionGuardian（命令混淆）
+5. 安全考量：防止"rm foo.txt"的审批被滥用执行"rm -rf /"
+6. 提示词注入规则示例：
+   ```yaml
+   id: PROMPT_INJECTION
+   tools: ["execute_shell_command"]
+   params: ["command"]
+   patterns:
+     - "(?i)(ignore\\s+(previous|all)|disregard\\s+(instructions?|rules?))"
+     - "(?i)(new\\s+instruction|override|system\\s*:)"
+   severity: HIGH
+   ```
+

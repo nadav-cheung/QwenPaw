@@ -8,6 +8,96 @@
 
 ---
 
+### 🐍 来自 Java 的你
+
+| Java | Python | 说明 |
+|------|--------|------|
+| `ProcessBuilder` | `subprocess` / `asyncio.create_subprocess_shell` | 进程构建器 |
+| `Runtime.getRuntime().exec()` | `subprocess.call()` | 简单命令执行 |
+| `Process.start()` | `asyncio.create_subprocess_shell()` | 启动进程 |
+| `process.waitFor()` | `await proc.communicate()` | 等待进程完成 |
+| `process.destroyForcibly()` | `os.killpg()` | 强制终止进程 |
+| `process.exitValue()` | `proc.returncode` | 获取退出码 |
+| `process.getInputStream()` | `proc.stdout` | 标准输出 |
+| `process.getErrorStream()` | `proc.stderr` | 标准错误 |
+| `ProcessBuilder.directory()` | `cwd=` | 工作目录 |
+| `ProcessBuilder.environment()` | `env=` | 环境变量 |
+| `ProcessBuilder.inheritIO()` | `subprocess.DEVNULL` | IO 重定向 |
+| `CompletableFuture.supplyAsync()` | `asyncio.create_task()` | 异步执行 |
+| `ExecutorService` | `asyncio.to_thread()` | 线程池执行 |
+
+**ProcessBuilder 对比示例**：
+
+```java
+// Java ProcessBuilder
+ProcessBuilder pb = new ProcessBuilder("ls", "-la");
+pb.directory(new File("/project"));
+pb.environment().put("PATH", "/usr/bin:" + System.getenv("PATH"));
+
+Process process = pb.start();
+
+// 读取输出
+String stdout = new String(process.getInputStream().readAllBytes());
+String stderr = new String(process.getErrorStream().readAllBytes());
+
+int exitCode = process.waitFor();  // 阻塞等待
+```
+
+```python
+# Python asyncio
+proc = await asyncio.create_subprocess_shell(
+    "ls -la",
+    stdout=asyncio.subprocess.PIPE,
+    stderr=asyncio.subprocess.PIPE,
+    cwd="/project",
+    env=env,
+)
+stdout, stderr = await proc.communicate()
+exit_code = proc.returncode
+```
+
+**超时处理对比**：
+
+```java
+// Java 超时处理
+ExecutorService executor = Executors.newSingleThreadExecutor();
+Future<Integer> future = executor.submit(() -> process.waitFor());
+try {
+    int exitCode = future.get(30, TimeUnit.SECONDS);
+} catch (TimeoutException e) {
+    process.destroyForcibly();  // 强制终止
+} finally {
+    executor.shutdown();
+}
+```
+
+```python
+# Python 超时处理
+try:
+    stdout, stderr = await asyncio.wait_for(
+        proc.communicate(),
+        timeout=30
+    )
+except asyncio.TimeoutError:
+    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+```
+
+**进程树终止对比**：
+
+```java
+// Java 进程树终止 (Unix)
+// Java 没有直接杀进程组的方法，需要通过 Runtime 执行 kill 命令
+ProcessBuilder pb = new ProcessBuilder("kill", "-TERM", "-" + process.pid());
+pb.start();
+```
+
+```python
+# Python 进程树终止
+os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+```
+
+---
+
 ## 1. 核心函数
 
 源码路径：`src/qwenpaw/agents/tools/shell.py:285`
@@ -637,6 +727,38 @@ result = await execute_shell_command(
 
 - [53-文件操作与安全机制](./53-文件操作与安全机制.md) — Shell 中文件操作的访问控制
 - [55-CLI命令系统详解](./55-CLI命令系统详解.md) — Shell 命令的 CLI 调用
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **跨平台换行符处理**
+   请分别说明在 Windows 和 Unix 系统下，`_collapse_embedded_newlines()` 函数如何处理以下输入命令：
+   - `echo "hello\nworld"`（双引号内含换行转义序列）
+   - `ls\n-la`（无引号包裹的换行）
+   
+   两种平台的处理结果分别是什么？
+
+2. **Windows 转义修复逻辑**
+   `_sanitize_win_cmd()` 函数修复 LLM 常见的 `\"` 双转义问题。请分析：给定命令 `echo \"hello\"`，该函数会如何处理？修复前后的命令分别是什么？函数通过什么条件判断是否需要修复？
+
+3. **超时优雅终止流程**
+   在 Unix 系统上，当命令执行超时时，QwenPaw 采取 SIGTERM → 等待 2 秒 → SIGKILL 的三级终止策略。请描述这个流程：为什么不能直接发送 SIGKILL？2 秒的 grace period 有什么作用？
+
+### 进阶练习
+
+1. **Windows 临时文件重定向**
+   Windows 平台使用临时文件而非管道来重定向 stdout/stderr。请分析：这种方法解决了什么问题？Chrome 等进程为什么会可能导致 `communicate()` 阻塞？如果不重定向到临时文件，还有什么替代方案？
+
+2. **start_new_session 的作用**
+   Unix 平台上 `asyncio.create_subprocess_shell` 使用 `start_new_session=True` 创建新会话和进程组。请描述：从父进程 fork 子进程开始，到超时杀进程组为止的完整生命周期流程（包括 fork、setsid、进程组等关键节点）。
+
+### 实战练习
+
+- **智能解码的 Fallback 策略**
+  `smart_decode()` 函数使用三级解码策略：UTF-8 → 系统首选编码 → errors='replace'。请分析这个设计的必要性：如果直接使用 `errors='replace'` 而不尝试特定编码，会有什么问题？然后请为 `smart_decode()` 设计一个扩展方案，支持用户指定编码优先级的配置选项，并说明修改位置和方式。
 
 ---
 

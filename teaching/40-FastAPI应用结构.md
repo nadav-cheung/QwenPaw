@@ -6,6 +6,45 @@ QwenPaw 的 Web 应用基于 FastAPI 构建，采用**两阶段启动**架构（
 
 ---
 
+### 🐍 来自 Java 的你
+
+| Java | Python FastAPI | 说明 |
+|------|----------------|------|
+| `@SpringBootApplication` | `FastAPI()` | 应用入口类 |
+| `@RestController` | `@app.get/post/put/delete()` | REST 控制器 |
+| `@RequestMapping("/api")` | `APIRouter(prefix="/api")` | 路由分组 |
+| `@PathVariable` | `/{item_id}` 路径参数 | URL 路径变量 |
+| `@RequestParam` | `?name=value` 查询参数 | URL 查询参数 |
+| `@RequestBody` | `Body(...)` | 请求体绑定 |
+| `@ResponseBody` | 默认返回值 JSON | 响应自动序列化 |
+| `WebMvcConfigurer` | `app.add_middleware()` | 中间件配置 |
+| `@Component` / `@Bean` | 直接实例化或依赖注入 | Bean 注册 |
+| `ApplicationContext` | `app.state` | 应用状态存储 |
+| `Filter` | `BaseHTTPMiddleware` | 过滤器/中间件 |
+
+**Spring MVC 对比示例**：
+
+```java
+// Java Spring MVC
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    @GetMapping("/{id}")
+    public User getUser(@PathVariable Long id) {
+        return userService.findById(id);
+    }
+}
+```
+
+```python
+# Python FastAPI
+@router.get("/{user_id}")
+async def get_user(user_id: int):
+    return await user_service.find_by_id(user_id)
+```
+
+---
+
 ## 1. 应用入口 — _app.py
 
 源码路径：`src/qwenpaw/app/_app.py`
@@ -463,6 +502,40 @@ def create_agent_scoped_router() -> APIRouter:
 
 ---
 
+## 练习题
+
+### 基础练习
+
+1. **中间件顺序推理**
+   假设中间件按以下顺序注册：
+   ```python
+   app.add_middleware(CORSMiddleware)
+   app.add_middleware(AuthMiddleware)
+   app.add_middleware(AgentContextMiddleware)
+   ```
+   请求 `GET /api/agents/agent1/chats` 时，CORSMiddleware、AuthMiddleware、AgentContextMiddleware 三个中间件的处理顺序是什么？（请求时和响应时的顺序分别回答）
+
+2. **AgentContextMiddleware 的 agentId 提取**
+   `AgentContextMiddleware` 支持两种方式设置 `agent_id`：从 URL 路径提取和从 `X-Agent-Id` Header 读取。请列出当请求为 `GET /api/agents/my-agent/chats` 且 Header 包含 `X-Agent-Id: header-agent` 时，`set_current_agent_id()` 最终收到的是哪个 agentId，为什么？
+
+3. **两阶段启动的阶段划分**
+   在 QwenPaw 的 `lifespan` 上下文管理器中，哪些初始化操作属于 Phase 1（同步快速设置），哪些属于 Phase 2（后台重型初始化）？请列举 Phase 1 和 Phase 2 各包含的具体步骤。
+
+### 进阶练习
+
+1. **新增公开端点**
+   假设你要在 QwenPaw 中新增一个 `/api/health` 端点，用于无认证的健康检查。请描述需要修改哪些文件，以及如何在 `_PUBLIC_PATHS` 中注册该路径，使 `AuthMiddleware` 跳过认证检查。
+
+2. **作用域路由工厂分析**
+   `create_agent_scoped_router()` 创建的路由前缀是 `/agents/{agentId}`。请分析：当请求 `GET /agents/agent1/config` 到达时，哪个路由处理器会处理它？路由参数 `{agentId}` 的值是什么？
+
+### 实战练习
+
+- **多 Agent 动态路由实现**
+  在 QwenPaw 中，`DynamicMultiAgentRunner` 通过检查请求 Header 中的 `X-Agent-Id` 来动态路由到不同 workspace 的 Runner。请参考源码 `src/qwenpaw/app/_app.py:60` 中的 `_get_workspace` 方法，描述其完整的工作流程：如何从请求中获取 agentId，如何根据 agentId 找到对应的 workspace，以及 `TaskTracker` 在这个过程中扮演什么角色。
+
+---
+
 ## 9. 关键文件索引
 
 | 组件 | 文件路径 |
@@ -472,3 +545,62 @@ def create_agent_scoped_router() -> APIRouter:
 | AuthMiddleware | `src/qwenpaw/app/auth.py:567` |
 | 路由聚合 | `src/qwenpaw/app/routers/__init__.py` |
 | Agent 作用域路由 | `src/qwenpaw/app/routers/agent_scoped.py:49` |
+
+---
+
+## 附录：FastAPI 2025 最新特性
+
+### Lifespan 事件（替代废弃的 startup/shutdown）
+
+```python
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动逻辑 - 应用开始接收请求前执行
+    ml_models = {}
+    ml_models["model_a"] = load_model("model_a.pkl")
+    yield
+    # 关闭逻辑 - 应用处理完请求后执行
+    ml_models.clear()
+
+app = FastAPI(lifespan=lifespan)
+```
+
+> **注意**：FastAPI 0.93+ 推荐使用 `lifespan` 替代独立的 `startup`/`shutdown` 事件。
+
+### OAuth2 依赖注入（类似 Spring Security）
+
+```python
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    user = get_user_from_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效的认证凭证",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+```
+
+### 中间件与 Filter 对比（Java EE vs FastAPI）
+
+| Java EE | FastAPI | 说明 |
+|---------|---------|------|
+| `Filter.doFilter()` | `middleware.dispatch()` | 过滤方法 |
+| `FilterChain` | `call_next` | 链式调用 |
+| `@WebFilter` | `app.add_middleware()` | 注册方式 |
+| `HttpServletRequest` | `Request` | 请求对象 |
+| `HttpServletResponse` | `Response` | 响应对象 |
+| `request.setAttribute()` | `request.state.xxx` | 状态传递 |
+
+---
+
+**✅ 内容增强完成**
+

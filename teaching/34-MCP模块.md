@@ -1,6 +1,58 @@
 # MCP 模块 (Model Context Protocol)
+---
+✅ 内容增强完成
+增强内容: Streamable HTTP传输协议(2025.3替代SSE)、Java Spring AI MCP Server对比、FastMCP官方SDK示例、练习题
+---
+
 
 MCP 模块管理 MCP 客户端连接，支持热更新和多种传输协议。
+
+### 🐍 来自 Java 的你
+
+| Java SPI | Python MCP | 说明 |
+|----------|------------|------|
+| `ServiceLoader.load()` | `MCPClientManager` | 动态加载服务 |
+| `META-INF/services/` 配置文件 | `config.yaml` 中的 mcp 配置 | 服务发现机制 |
+| `XXService` 接口 | `StatefulClientBase` | 服务抽象基类 |
+| `ServiceProvider` | `StdIOStatefulClient` / `HttpStatefulClient` | 具体实现 |
+| 同步加载 | 异步 `asyncio` + 生命周期任务 | 并发模型 |
+| 静态配置 | 热更新 `MCPConfigWatcher` | 配置变更处理 |
+| `List<XXService>` | `get_clients()` / `get_client()` | 获取服务实例 |
+
+**Java SPI 示例:**
+```java
+// META-INF/services/com.example.ToolPlugin
+// com.example.impl.FileToolPlugin
+
+ServiceLoader<ToolPlugin> loader = ServiceLoader.load(ToolPlugin.class);
+for (ToolPlugin plugin : loader) {
+    plugin.initialize();
+}
+```
+
+**Python MCP 等效:**
+```python
+# 配置文件中定义
+mcp:
+  clients:
+    - name: "filesystem"
+      transport: "stdio"
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+
+# 代码中使用
+manager = MCPClientManager()
+await manager.init_from_config()
+clients = manager.get_clients()
+```
+
+**关键区别:**
+- Java SPI 是**编译时**服务发现，MCP 是**运行时**协议通信
+- Java SPI 加载后常驻，MCP 支持热更新替换客户端
+- Java SPI 返回实例，Python MCP 通过 `session.call_tool()` 远程调用
+- Java SPI 是同步的，MCP 客户端运行在独立的 `asyncio` 生命周期任务中
+
+---
 
 ## 核心文件
 
@@ -208,3 +260,164 @@ async def call_tool(self, name: str, arguments: dict | None = None):
 3. **环境变量安全**: API 返回时自动掩码敏感信息
 4. **多传输协议**: StdIO、Streamable HTTP、SSE 三种传输模式
 5. **自动恢复**: Agent 启动时可重新连接断开的 MCP 客户端
+
+---
+
+## 附录：MCP 协议 2025 最新演进
+
+### Streamable HTTP（2025.3 重大更新）
+
+2025 年 3 月 26 日，MCP 协议引入 **Streamable HTTP** 传输层，取代原有的 HTTP + SSE：
+
+| 特性 | HTTP + SSE（旧） | Streamable HTTP（新） |
+|------|------------------|----------------------|
+| 连接建立 | 需专用 `/sse` 端点 | 统一 `/mcp` 端点 |
+| 流式响应 | 仅服务端推送 | 按需流式或标准 HTTP 响应 |
+| 状态管理 | 无 session 机制 | 支持 session 会话恢复 |
+| 重连能力 | 差 | `Last-Event-ID` 支持完整恢复 |
+| 连接压力 | 长连接压力大 | 可复用 HTTP 请求 |
+
+**为什么演进？** 原 SSE 方案存在：
+- 连接不可恢复
+- 服务端长连接压力大  
+- 无统一端点管理
+
+**官方 Python SDK (FastMCP) 示例：**
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("My Server", json_response=True)
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+@mcp.resource("greeting://{name}")
+def get_greeting(name: str) -> str:
+    """Get a personalized greeting"""
+    return f"Hello, {name}!"
+
+@mcp.prompt()
+def greet_user(name: str, style: str = "friendly") -> str:
+    """Generate a greeting prompt"""
+    return f"Write a {style} greeting for someone named {name}."
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http", host="0.0.0.0", port=8000)
+```
+
+### 🐍 来自 Java 的你（Spring AI 版）
+
+如果你熟悉 **Spring AI Alibaba** 的 MCP Server 实现，核心概念对照：
+
+| Spring AI MCP | Python MCP SDK | 说明 |
+|----------------|----------------|------|
+| `@Tool` + `@Bean` | `@mcp.tool()` | 暴露工具方法 |
+| `MethodToolCallbackProvider` | 自动注册 | 工具回调提供者 |
+| `spring-ai-starter-mcp-server-webmvc` | `mcp.server.fastmcp.FastMCP` | Server 框架 |
+| `@Service` 封装业务 | 普通 Python 函数 | 业务逻辑 |
+| REST API (Spring Boot) | Streamable HTTP / stdio | 传输层 |
+| `RestClient` 调外部 API | `httpx` / `aiohttp` | 外部服务调用 |
+
+**Spring AI Java 示例：**
+
+```java
+@Service
+public class WeatherService {
+    @Tool(description = "Get weather forecast for a location")
+    public String getWeather(
+        @ToolParam(description = "Latitude") double lat,
+        @ToolParam(description = "Longitude") double lon
+    ) {
+        // 调用外部天气 API
+        return restClient.get().uri("https://api.weather.gov/...").retrieve().body();
+    }
+}
+
+@SpringBootApplication
+public class McpServerApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(McpServerApplication.class, args);
+    }
+    
+    @Bean
+    public ToolCallbackProvider weatherTools(WeatherService service) {
+        return MethodToolCallbackProvider.builder()
+            .toolObjects(service)
+            .build();
+    }
+}
+```
+
+**关键区别：**
+- Java 需要 `@ComponentScan` + `@Bean` 注入，Python 使用装饰器自动注册
+- Java `@ToolParam` 显式声明参数，Python 类型注解自动推断
+- Java 构建在 Spring Boot 之上，Python 是轻量级 asyncio 框架
+
+---
+
+## 练习题
+
+### 选择题
+
+1. **MCPClientManager 的热更新核心机制是？**
+   - A. 文件监听器监控文件变化
+   - B. 轮询 agent.json 的 mtime，通过哈希快速拒绝
+   - C. WebSocket 长连接推送更新
+   - D. 数据库变更通知
+
+2. **Streamable HTTP 相比 SSE 的核心优势是？**
+   - A. 更快的传输速度
+   - B. 支持会话恢复和统一端点
+   - C. 更好的压缩比
+   - D. 更简单的实现
+
+3. **QwenPaw 中 MCP 客户端生命周期运行在？**
+   - A. FastAPI 主线程
+   - B. uvicorn worker 进程
+   - C. 独立的 asyncio 任务中
+   - D. Redis 队列中
+
+### 简答题
+
+4. **描述 `replace_client()` 的热更新流程。**
+
+5. **为什么 StdIOStatefulClient 需要 `_run_lifecycle()` 独立任务？**
+
+6. **在 QwenPaw 中注册一个新的 MCP 客户端需要哪些步骤？**
+
+### 答案
+
+1. **B** - AgentConfigWatcher 通过轮询 mtime 检测变更，哈希快速拒绝无变更的配置
+2. **B** - Streamable HTTP 引入 session 机制和统一端点，支持完整会话恢复
+3. **C** - 客户端运行在 `_run_lifecycle()` 独立任务中，避免 anyio CancelScope 问题
+4. 参考"设计亮点"中的 replace_client 流程
+5. 因为 FastAPI/uvicorn 的 CancelScope 在不同任务间退出时会导致 CPU 泄漏
+6. 1) 在 config 中添加 MCP 客户端配置；2) 调用 `manager.init_from_config()` 或 `manager.replace_client()`
+
+---
+
+**参考答案：**
+
+1. **B** - AgentConfigWatcher 通过轮询 mtime 检测变更，哈希快速拒绝无变更的配置
+2. **B** - Streamable HTTP 引入 session 机制和统一端点，支持完整会话恢复
+3. **C** - 客户端运行在 `_run_lifecycle()` 独立任务中，避免 anyio CancelScope 问题
+
+4. **replace_client() 热更新流程：**
+   - 创建新客户端实例（新配置）
+   - 启动新客户端（锁外，可能较慢）
+   - 在锁内原子替换客户端列表中的旧实例
+   - 优雅停止旧客户端
+
+5. **为什么需要独立任务：**
+   - FastAPI/uvicorn 使用 anyio 的 CancelScope
+   - 当 CancelScope 在不同任务间退出时，会导致 CPU 泄漏
+   - `_run_lifecycle()` 在独立任务中运行，通过 AsyncExitStack 管理完整生命周期
+
+6. **注册 MCP 客户端步骤：**
+   - 在 `config.yaml` 或 `agent.json` 的 mcp.clients 中添加配置
+   - 配置包括：name, transport, command/args（stdio）或 url/headers（HTTP）
+   - QwenPaw 启动时 MCPClientManager.init_from_config() 自动初始化
+   - 或运行时通过 POST /mcp API 动态添加

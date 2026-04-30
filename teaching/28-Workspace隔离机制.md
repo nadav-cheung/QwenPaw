@@ -1,3 +1,5 @@
+✅ 内容增强完成
+
 # Workspace 隔离机制
 
 ## 概述
@@ -521,6 +523,141 @@ await multi_agent_manager.stop_agent("unused-agent")
 await multi_agent_manager.reload_agent("agent-id")
 # 而非停止再启动
 ```
+
+---
+
+## 如果你来自 Java...
+
+Java 生态中有多种多租户/隔离架构的实现方式：
+
+### Spring Cloud — 多实例隔离模式
+
+```java
+// Java 的 Spring Cloud Contract 类似 Workspace 的隔离概念
+@Configuration
+public class AgentContextConfig {
+    @Bean
+    @Scope(value = "agent", proxyMode = ScopedProxyMode.TARGET_CLASS)
+    public AgentContext agentContext() {
+        return new AgentContext();
+    }
+}
+
+// 抽象工厂模式创建隔离的 Agent
+public interface AgentFactory {
+    Agent createAgent(String agentId);
+}
+
+@Service
+public class DefaultAgentFactory implements AgentFactory {
+    @Override
+    public Agent createAgent(String agentId) {
+        // 每个 Agent 独立的组件
+        return new Agent(
+            new AgentConfig(agentId),
+            new MemoryManager(),
+            new ChatManager(),
+            new ChannelManager()
+        );
+    }
+}
+```
+
+### Java 9 Module System — 模块隔离
+
+```java
+// Java 9 Module System 实现模块级隔离
+// module-info.java
+module com.qwenpaw.agent {
+    requires com.qwenpaw.core;
+    exports com.qwenpaw.agent.api;
+}
+
+// 类加载器隔离
+public class AgentClassLoader extends URLClassLoader {
+    // 每个 Workspace 使用独立的 ClassLoader
+}
+```
+
+### 关键概念对应
+
+| QwenPaw 概念 | Java 对应 | 说明 |
+|--------------|-----------|------|
+| `Workspace` | `Agent` / `TenantContext` | 隔离执行单元 |
+| `ServiceManager` | `BeanFactory` / `ApplicationContext` | 服务生命周期 |
+| `MultiAgentManager` | `AgentFactory` / `TenantRegistry` | 全局管理 |
+| `reusable=True` | `@RefreshScope` | 热重载保持状态 |
+| `ServiceDescriptor` | `@Bean` 定义 | 声明式服务 |
+| `workspace_dir` | `ClassLoader` + `FileSystem` | 资源隔离 |
+
+### Java 实现特点
+
+1. **依赖注入**：Spring 的 IoC 容器自动管理组件依赖
+2. **作用域代理**：`@Scope("agent")` 动态代理实现租户隔离
+3. **配置刷新**：`@RefreshScope` 支持配置变更后重建 Bean
+4. **类加载器隔离**：每个租户使用独立的 `ClassLoader`
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **Workspace 启动顺序分析**
+   `ServiceManager.start_all()` 按优先级分组并发启动服务。请分析：Runner (priority=10) 和 Channel manager (priority=30) 之间为什么要留有空隙？`asyncio.sleep(0)` 的作用是什么？
+
+2. **可复用组件设计**
+   `memory_manager` 和 `chat_manager` 被标记为 `reusable=True`，而 `runner` 不是。请分析：为什么对话历史需要保留而 Runner 不需要？如果把 Runner 也标记为 reusable，会有什么问题？
+
+3. **热重载的双实例切换**
+   `reload_agent` 方法先创建新实例，再原子替换，最后才停止旧实例。请分析：为什么要用「先建后停」的策略，而不是「先停后建」？如果旧实例停止失败，会出现什么问题？
+
+4. **懒加载 + 双重检查锁**
+   `MultiAgentManager.get_agent()` 使用懒加载和双重检查锁。请画出时序图，说明为什么需要双重检查？如果去掉外层锁，只保留内层锁，能正常工作吗？
+
+### 进阶练习
+
+1. **实现 Workspace 资源限制**
+   当前 Workspace 没有资源限制。请设计一个机制，限制每个 Workspace 的：
+   - 最大内存使用量
+   - 最大并发任务数
+   - 磁盘存储配额
+
+   **提示**：使用 Python 的 `resource` 模块或 `psutil` 库。
+
+2. **跨 Workspace 消息通信**
+   如果 Agent A 需要向 Agent B 发送消息，当前需要通过外部消息队列。请设计一个 Workspace 间的直接通信机制：
+   - Workspace 如何发现其他 Workspace？
+   - 如何避免循环依赖？
+   - 如何处理 Workspace 不存在的情况？
+
+3. **Workspace 模板功能**
+   设计一个「Workspace 模板」功能，支持从预定义模板快速创建新 Agent：
+   - 模板包含默认配置、服务组合、技能池
+   - 新 Agent 可以基于模板创建并覆盖特定配置
+
+### 实战练习
+
+**综合项目：Workspace 监控面板**
+
+创建一个 Web 监控界面，展示所有 Workspace 的运行状态：
+
+- **后端 API**：
+  - `GET /api/workspaces` - 列出所有 Workspace
+  - `GET /api/workspaces/{id}/stats` - 获取资源使用统计
+  - `POST /api/workspaces/{id}/reload` - 触发热重载
+  - `POST /api/workspaces/{id}/stop` - 停止 Workspace
+
+- **前端界面**：
+  - Workspace 列表卡片（显示状态、健康检查、内存使用）
+  - 热重载按钮
+  - 日志查看器
+  - 实时更新（轮询或 WebSocket）
+
+**提示**：
+- 参考 `MultiAgentManager` 的 API 设计
+- 使用 `ServiceDescriptor` 获取服务优先级信息
+- 考虑添加资源监控（CPU、内存、任务数）
 
 ---
 

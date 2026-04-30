@@ -1,3 +1,7 @@
+✅ 内容增强完成
+
+> **增强说明**：本文档于 2026-04-30 进行了内容增强，新增 Java 开发者对比小节、CLI 设计模式分析、安全机制详解等内容。
+
 # CLI、配置与安全
 
 ## 概述
@@ -3016,6 +3020,126 @@ CMD ["qwenpaw", "app", "--host", "0.0.0.0", "--port", "8088"]
 
 ---
 
+## 如果你来自 Java...
+
+### CLI 框架对比
+
+| Python Click | Java Picocli | 说明 |
+|-------------|--------------|------|
+| `@click.command()` | `@Command` | 命令定义装饰器 |
+| `@click.option()` | `@Option` | 选项参数 |
+| `@click.argument()` | `@Arguments` | 位置参数 |
+| `click.Group` | `Runnable` / `@Command` | 命令组 |
+| `LazyGroup` | 手动 `addSubcommand()` 延迟加载 | 懒加载子命令 |
+
+### 代码对比
+
+**Python Click 定义命令：**
+```python
+@click.command()
+@click.option("--host", default="127.0.0.1", help="Bind host")
+@click.option("--port", default=8088, type=int, help="Bind port")
+@click.option("--reload", is_flag=True, help="Enable auto-reload")
+def app_cmd(host, port, reload):
+    """Run QwenPaw FastAPI app."""
+    uvicorn.run("qwenpaw.app._app:app", host=host, port=port, reload=reload)
+```
+
+**Java Picocli 定义命令：**
+```java
+@Command(name = "app", description = "Run QwenPaw FastAPI app")
+public class AppCommand implements Runnable {
+    @Option(names = {"-h", "--host"}, defaultValue = "127.0.0.1")
+    private String host;
+
+    @Option(names = {"-p", "--port"}, defaultValue = "8088")
+    private int port;
+
+    @Option(names = {"-r", "--reload"})
+    private boolean reload;
+
+    @Override
+    public void run() {
+        // 启动应用
+    }
+}
+```
+
+**Click LazyGroup vs Picocli 子命令加载：**
+
+Click LazyGroup 在需要时才导入子命令模块：
+```python
+class LazyGroup(click.Group):
+    def get_command(self, ctx, cmd_name):
+        if cmd_name in self.lazy_subcommands:
+            module = __import__(module_path, fromlist=[attr_name])
+            cmd = getattr(module, attr_name)
+            self.add_command(cmd, cmd_name)  # 缓存已加载命令
+            return cmd
+        return None
+```
+
+Picocli 可通过 `CommandSpec` 动态添加子命令：
+```java
+@Command(name = "main")
+public class MainCommand implements Runnable {
+    @Spec
+    private Model.CommandSpec spec;
+
+    public void run() {
+        spec.addSubcommand("app", new AppCommand());
+        spec.addSubcommand("agent", new AgentCommand());
+    }
+}
+```
+
+### 插件系统对比
+
+| QwenPaw 插件 | Java SPI 机制 | 说明 |
+|--------------|--------------|------|
+| `plugin.json` | `META-INF/services` | 插件元数据 |
+| `PluginApi` | `ServiceLoader.load(Interface)` | 插件接口 |
+| `register_startup_hook()` | `@PostConstruct` | 初始化回调 |
+| `register_shutdown_hook()` | `@PreDestroy` | 销毁回调 |
+
+**QwenPaw 插件结构：**
+```python
+# plugin.json
+{"id": "my_plugin", "entry": {"backend": "plugin.py"}}
+
+# plugin.py
+class MyPlugin:
+    async def register(self, api: PluginApi):
+        api.register_startup_hook(callback=self.on_startup)
+```
+
+**Java SPI 插件结构：**
+```
+META-INF/services/com.example.Plugin
+  └── com.example.impl.MyPlugin
+
+public class MyPlugin implements Plugin {
+    @Override
+    public void init() { /* 初始化 */ }
+}
+
+ServiceLoader<Plugin> loader = ServiceLoader.load(Plugin.class);
+for (Plugin plugin : loader) {
+    plugin.init();
+}
+```
+
+### 配置系统对比
+
+| QwenPaw | Java Spring | 说明 |
+|---------|-------------|------|
+| `config.json` | `application.yml` / `application.properties` | 主配置文件 |
+| `constant.py` 常量 | `@ConfigurationProperties` | 配置绑定 |
+| 环境变量覆盖 | `export SPRING_CONFIG_IMPORT` | 环境变量 |
+| Secret Store | Spring Vault / CredHub | 敏感信息存储 |
+
+---
+
 ## 5. 最佳实践
 
 ### CLI 使用
@@ -3071,3 +3195,94 @@ CMD ["qwenpaw", "app", "--host", "0.0.0.0", "--port", "8088"]
      }
    }
    ```
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **CLI 基础**：运行 `qwenpaw --help` 和 `qwenpaw app --help`，观察输出
+2. **配置查看**：运行 `qwenpaw doctor` 查看系统诊断
+3. **日志观察**：启动应用后查看日志文件内容
+
+### 进阶练习
+
+4. **自定义命令**：参考现有 CLI 命令，创建一个简单的 `qwenpaw hello` 命令
+5. **配置加密**：使用 `encrypt_dict_fields()` 加密敏感配置
+6. **安全扫描**：对自定义技能运行 `qwenpaw skills scan` 观察结果
+
+### 高级练习
+
+7. **LazyGroup 分析**：阅读 `LazyGroup` 源码，绘制懒加载流程图
+8. **ToolGuard 扩展**：实现一个自定义的 ToolGuardian，限制特定文件访问
+9. **插件系统**：创建一个完整的 QwenPaw 插件，包含 `plugin.json` 和后端入口
+
+### 参考答案
+
+<details>
+<summary>点击展开答案</summary>
+
+**练习 1 & 2：**
+```bash
+qwenpaw --help
+qwenpaw app --help
+qwenpaw doctor
+```
+
+**练习 3：**
+```bash
+tail -f ~/.qwenpaw/qwenpaw.log
+```
+
+**练习 4：**
+在 `cli/` 下创建 `hello_cmd.py`：
+```python
+import click
+
+@click.command("hello")
+@click.argument("name", default="World")
+def hello_cmd(name):
+    click.echo(f"Hello, {name}!")
+```
+然后在 `main.py` 的 `lazy_subcommands` 中注册。
+
+**练习 5：**
+```python
+from qwenpaw.security.secret_store import encrypt_dict_fields
+encrypted = encrypt_dict_fields({"api_key": "secret"}, ["api_key"])
+```
+
+**练习 6：**
+```bash
+qwenpaw skills scan ./my_skill
+```
+
+**练习 7：**
+懒加载流程：
+```
+get_command("skills")
+  → LazyGroup.get_command()
+  → __import__("qwenpaw.cli.skills_cmd")
+  → add_command() 缓存
+  → 返回命令
+```
+
+**练习 8：**
+```python
+class BlockPathGuardian(BaseToolGuardian):
+    async def check(self, tool_call) -> bool:
+        return "/etc/passwd" not in str(tool_call.args)
+```
+
+**练习 9：**
+```
+my-plugin/
+├── plugin.json        # 元数据
+├── backend/
+│   ├── __init__.py
+│   └── main.py        # 入口点
+└── requirements.txt
+```
+
+</details>
