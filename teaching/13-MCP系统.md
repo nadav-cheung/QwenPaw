@@ -111,7 +111,7 @@ class StdIOStatefulClient(StatefulClientBase):
             await self._lifecycle_task
 ```
 
-**HTTP 客户端实现** (`HttpStatefulClient` 类，第322-490行):
+**HTTP 客户端实现** (`HttpStatefulClient` 类，第322行；`_run_lifecycle` 第392-490行):
 
 ```python
 class HttpStatefulClient(StatefulClientBase):
@@ -245,35 +245,397 @@ class MCPClientManager:
 
 ### 3.2 热重载机制
 
-MCP 支持运行时更新配置而不中断服务：
+**源码路径**: `src/qwenpaw/app/mcp/manager.py`
+
+MCP 支持运行时更新配置而不中断服务，采用"锁外连接，锁内替换"策略：
 
 ```python
-# 配置变更监听
-class MCPConfigWatcher:
-    """监控 MCP 配置变化"""
-    
-    async def watch(self, config_path: Path) -> None:
-        """监听配置文件变化"""
-        
-        last_mtime = 0
-        
-        while True:
+class MCPClientManager:
+    """MCP 客户端生命周期管理器"""
+
+    def __init__(self) -> None:
+        self._clients: Dict[str, Any] = {}
+        self._lock = asyncio.Lock()
+
+    async def replace_client(
+        self,
+        key: str,
+        client_config: "MCPClientConfig",
+        timeout: float = 60.0,
+    ) -> None:
+        """热重载：替换客户端
+
+        流程: 连接新客户端(锁外) → 锁内交换并关闭旧客户端(锁内)
+        """
+        # 1. 在锁外创建并连接新客户端（可能耗时）
+        new_client = self._build_client(client_config)
+        await asyncio.wait_for(new_client.connect(), timeout=timeout)
+
+        # 2. 在锁内交换并关闭旧客户端（最小化锁时间）
+        async with self._lock:
+            old_client = self._clients.get(key)
+            self._clients[key] = new_client
+
+        # 3. 关闭旧客户端（在锁外执行）
+        if old_client is not None:
+            await old_client.close()
+```
+
+**热重载流程图**:
+```
+配置文件变更 (config.json)
+         │
+         ▼
+MCPConfigWatcher 检测到变更
+         │
+         ▼
+调用 replace_client(key, new_config)
+         │
+         ├── 锁外: 创建新客户端
+         │       └── new_client = _build_client(config)
+         │       └── await new_client.connect()
+         │
+         └── 锁内: 原子替换
+                 ├── old = _clients[key]
+                 ├── _clients[key] = new_client
+                 └── unlock
+                         │
+                         ▼
+                 锁外: 关闭旧客户端
+                         └── await old_client.close()
+```
+
+**与 ChannelManager 热重载对比**:
+
+| 维度 | MCP 热重载 | Channel 热重载 |
+|------|-----------|---------------|
+| 锁机制 | `_lock` 内部锁 | `_restart_locks[channel_name]` per-channel 锁 |
+| 替换策略 | 锁外连接，锁内替换 | 锁外启动，锁内交换 |
+| 资源清理 | `await old_client.close()` | `await old_channel.stop()` |
+
+### 3.3 生命周期管理
+
+**构建客户端** (`_build_client` 方法，第230-266行):
+
+```python
+@staticmethod
+def _build_client(client_config: "MCPClientConfig") -> Any:
+    """根据传输类型构建 MCP 客户端实例"""
+    rebuild_info = {
+        "name": client_config.name,
+        "transport": client_config.transport,
+        "url": client_config.url,
+        "headers": client_config.headers or None,
+        "command": client_config.command,
+        "args": list(client_config.args),
+        "env": dict(client_config.env),
+        "cwd": client_config.cwd or None,
+    }
+
+    if client_config.transport == "stdio":
+        client = StdIOStatefulClient(
+            name=client_config.name,
+            command=client_config.command,
+            args=client_config.args,
+            env=client_config.env,
+            cwd=client_config.cwd or None,
+        )
+        setattr(client, "_qwenpaw_rebuild_info", rebuild_info)
+        return client
+
+    # HTTP 客户端：展开环境变量 (第256-257行)
+    headers = client_config.headers
+    if headers:
+        headers = {k: os.path.expandvars(v) for k, v in headers.items()}
+
+    client = HttpStatefulClient(
+        name=client_config.name,
+        transport=client_config.transport,
+        url=client_config.url,
+        headers=headers or None,
+    )
+    setattr(client, "_qwenpaw_rebuild_info", rebuild_info)
+    return client
+```
+
+**环境变量注入** (`_build_client` 第256-257行):
+
+配置中的 `${VAR}` 格式的环境变量会在 HTTP 请求头中自动展开：
+
+```python
+headers = client_config.headers
+if headers:
+    headers = {k: os.path.expandvars(v) for k, v in headers.items()}
+```
+
+这使得配置可以安全引用环境变量而不暴露实际值：
+```json
+{
+  "headers": {
+    "Authorization": "Bearer ${GITHUB_TOKEN}"
+  }
+}
+```
+
+**强制清理** (`_force_cleanup_client` 方法，第190-228行):
+
+```python
+@staticmethod
+async def _force_cleanup_client(client: Any) -> None:
+    """强制关闭 connect() 被中断的客户端
+
+    StatefulClientBase.close() 在 is_connected 仍为 False 时拒绝运行。
+    我们直接关闭 AsyncExitStack 来触发 stdio_client 的 finally 块，
+    发送 SIGTERM/SIGKILL 到子进程。
+    """
+    if client is None:
+        return
+
+    stack = getattr(client, "stack", None)
+    if stack is None:
+        return
+
+    try:
+        await stack.aclose()
+    except Exception:
+        logger.debug("Error during force-cleanup of MCP client", exc_info=True)
+    finally:
+        # 重置客户端状态
+        for attr, default in (
+            ("stack", None),
+            ("session", None),
+            ("is_connected", False),
+        ):
             try:
-                current_mtime = config_path.stat().st_mtime
-                
-                if current_mtime > last_mtime:
-                    last_mtime = current_mtime
-                    
-                    # 重新加载配置
-                    new_config = load_mcp_config(config_path)
-                    
-                    # 热更新客户端
-                    await self._hot_reload(new_config)
-                
-                await asyncio.sleep(5)  # 轮询间隔
-                
-            except asyncio.CancelledError:
-                break
+                setattr(client, attr, default)
+            except Exception:
+                pass
+```
+
+**StdIOStatefulClient 生命周期** (`stateful_client.py` 第112-175行):
+
+```python
+async def _run_lifecycle(self) -> None:
+    """在专用后台任务中运行 MCP 客户端生命周期"""
+    while not self._stop_event.is_set():
+        try:
+            async with AsyncExitStack() as stack:
+                # 在同一任务中进入上下文管理器，避免 cancel scope 错误
+                context = await stack.enter_async_context(
+                    stdio_client(self.server_params),
+                )
+                self.session = ClientSession(read_stream, write_stream)
+                await stack.enter_async_context(self.session)
+                await self.session.initialize()
+
+                self.is_connected = True
+                self._ready_event.set()
+
+                # 等待 reload 或 stop 信号
+                while not self._reload_event.is_set() and not self._stop_event.is_set():
+                    await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error(f"Error in MCP client lifecycle: {e}")
+            self.is_connected = False
+            await asyncio.sleep(1)
+```
+
+**关键设计**:
+- **单一后台任务**: 整个生命周期在一个 `asyncio.Task` 中运行
+- **AsyncExitStack**: 确保 `connect()` 和 `close()` 在同一任务中
+- **_stop_event**: 优雅停止信号
+- **_reload_event**: 配置重载信号
+
+### 3.4 MCPConfigWatcher 配置监听
+
+**源码路径**: `src/qwenpaw/app/mcp/watcher.py`
+
+`MCPConfigWatcher` 是独立的配置监听器，使用轮询方式检测配置文件变化，实现客户端热重载：
+
+```python
+class MCPConfigWatcher:
+    """Watch MCP configuration and hot-reload clients on changes."""
+
+    def __init__(
+        self,
+        mcp_manager: MCPClientManager,
+        config_loader: Callable,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,  # 默认 2.0 秒
+        config_path: Optional[Path] = None,
+    ):
+        self._mcp_manager = mcp_manager
+        self._config_loader = config_loader
+        self._poll_interval = poll_interval
+        self._config_path = config_path
+
+        # 快照：用于快速比较
+        self._last_mcp: Optional["MCPConfig"] = None
+        self._last_mcp_hash: Optional[int] = None
+        self._last_mtime: float = 0.0
+
+        # 重试跟踪：防止无限重试
+        self._client_failures: Dict[str, tuple[int, int]] = {}
+        self._max_retries: int = 3
+
+    async def start(self) -> None:
+        """拍摄初始快照并启动轮询任务"""
+        self._snapshot()
+        self._task = asyncio.create_task(self._poll_loop(), name="mcp_config_watcher")
+
+    async def stop(self) -> None:
+        """停止轮询任务并等待进行中的重载完成"""
+        self._task.cancel()
+        try:
+            await self._task
+        except asyncio.CancelledError:
+            pass
+
+        # 等待进行中的重载任务
+        if self._reload_task and not self._reload_task.done():
+            try:
+                await asyncio.wait_for(self._reload_task, timeout=5.0)
+            except asyncio.TimeoutError:
+                self._reload_task.cancel()
+```
+
+**轮询检查机制** (`_poll_loop` + `_check`):
+
+```python
+async def _poll_loop(self) -> None:
+    """主轮询循环"""
+    while True:
+        try:
+            await asyncio.sleep(self._poll_interval)
+            await self._check()
+        except Exception:
+            logger.exception("MCPConfigWatcher: poll iteration failed")
+
+async def _check(self) -> None:
+    """检查配置变化"""
+    # 1. 检查 mtime 快速跳过
+    if self._config_path:
+        try:
+            mtime = self._config_path.stat().st_mtime
+        except FileNotFoundError:
+            return
+        if mtime == self._last_mtime:
+            return
+        self._last_mtime = mtime
+
+    # 2. 加载新配置并快速比较 hash
+    new_mcp = self._load_mcp_config()
+    new_hash = self._mcp_hash(new_mcp)
+    if new_hash == self._last_mcp_hash:
+        return  # 无变化
+
+    # 3. 检查是否已有进行中的重载
+    if self._reload_task and not self._reload_task.done():
+        logger.debug("Skipping reload, previous still in progress")
+        return
+
+    # 4. 在后台任务中触发重载
+    self._reload_task = asyncio.create_task(
+        self._reload_changed_clients_wrapper(new_mcp),
+        name="mcp_reload_task",
+    )
+```
+
+**重试跟踪机制** (`_reload_changed_clients_wrapper`):
+
+```python
+async def _reload_changed_clients_wrapper(self, new_mcp: "MCPConfig") -> None:
+    """重载包装器：处理异常，只在成功时更新快照"""
+    new_hash = self._mcp_hash(new_mcp)
+
+    try:
+        await self._reload_changed_clients(new_mcp)
+        # 成功：更新快照
+        self._last_mcp = new_mcp.model_copy(deep=True)
+        self._last_mcp_hash = new_hash
+    except Exception:
+        logger.warning("MCPConfigWatcher: reload task failed")
+
+def _should_skip_client(self, key: str, client_hash: int) -> bool:
+    """检查客户端是否应因失败而跳过"""
+    if key in self._client_failures:
+        retry_count, last_hash = self._client_failures[key]
+        if last_hash == client_hash and retry_count >= self._max_retries:
+            return True
+    return False
+
+def _track_client_failure(self, key: str, client_hash: int) -> None:
+    """跟踪客户端失败次数"""
+    if key in self._client_failures:
+        old_count, old_hash = self._client_failures[key]
+        new_count = old_count + 1 if old_hash == client_hash else 1
+    else:
+        new_count = 1
+
+    self._client_failures[key] = (new_count, client_hash)
+
+    if new_count >= self._max_retries:
+        logger.warning(f"Client '{key}' failed {new_count} times, giving up")
+```
+
+**配置变化处理** (`_reload_changed_clients`):
+
+```python
+async def _reload_changed_clients(self, new_mcp: "MCPConfig") -> None:
+    """比较旧配置和新配置，重载变化的客户端"""
+    old_mcp = self._last_mcp
+    old_clients = old_mcp.clients if old_mcp else {}
+
+    # 新增或变更的客户端
+    for key, new_cfg in new_mcp.clients.items():
+        old_cfg = old_clients.get(key)
+        await self._handle_client_update(key, old_cfg, new_cfg)
+
+    # 删除的客户端
+    for key in old_clients:
+        if key not in new_mcp.clients:
+            await self._handle_client_removal(key)
+
+async def _handle_client_update(self, key: str, old_cfg, new_cfg) -> None:
+    """处理单个客户端更新"""
+    # 客户端被禁用：移除
+    if not new_cfg.enabled:
+        if old_cfg and old_cfg.enabled:
+            await self._mcp_manager.remove_client(key)
+            self._client_failures.pop(key, None)
+        return
+
+    # 客户端配置变更：重载
+    if old_cfg != new_cfg:
+        await self._reload_single_client(key, new_cfg)
+
+async def _reload_single_client(self, key: str, new_cfg) -> None:
+    """重载单个客户端（带重试跟踪）"""
+    client_hash = hash(str(new_cfg.model_dump(mode="json")))
+
+    if self._should_skip_client(key, client_hash):
+        return
+
+    try:
+        await self._mcp_manager.replace_client(key, new_cfg)
+        self._client_failures.pop(key, None)
+    except Exception:
+        self._track_client_failure(key, client_hash)
+```
+
+**触发热重载**:
+```
+检测到配置文件 mtime 变更
+         │
+         ▼
+load_mcp_config() 重新加载配置
+         │
+         ▼
+遍历配置的客户端
+         │
+         ├── 新增 → _add_client()
+         ├── 变更 → replace_client()
+         └── 删除 → remove_client()
 ```
 
 ---
@@ -577,7 +939,132 @@ qwenpaw mcp show --client github
 
 ---
 
-## 11. 参考资料
+## 10. 应用场景
+
+### 10.1 文件系统操作
+
+通过 MCP 服务器实现安全的文件系统访问：
+- **场景**: 文档处理、代码读取、日志分析
+- **服务器**: `@modelcontextprotocol/server-filesystem`
+- **优势**: 细粒度权限控制，限制访问目录范围
+
+### 10.2 GitHub 集成
+
+通过 MCP 服务器操作 GitHub：
+- **场景**: Issue 管理、PR 审查、仓库分析
+- **服务器**: `@modelcontextprotocol/server-github`
+- **优势**: 无需配置 API Token，通过 MCP 协议安全访问
+
+### 10.3 数据库连接
+
+通过 MCP 连接 PostgreSQL、MySQL 等数据库：
+- **场景**: 数据查询、报表生成、数据库管理
+- **服务器**: `@modelcontextprotocol/server-postgres`
+- **优势**: SQL 查询能力，结构化数据返回
+
+---
+
+## 11. 常见问题
+
+### 11.1 连接问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `Connection refused` | MCP 服务器未启动 | 启动 MCP 服务器或检查 URL |
+| `Timeout` | 连接超时 | 增加 timeout 配置或检查网络 |
+| `stdio not found` | npx 命令不可用 | 安装 Node.js 或使用 Python MCP 服务器 |
+
+### 11.2 工具调用问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `Tool not found` | 工具名拼写错误 | 使用正确的工具名 |
+| `Permission denied` | 权限不足 | 检查 mcp.json 配置的权限 |
+| 工具无响应 | 服务器崩溃 | 重启 MCP 服务器 |
+
+### 11.3 调试方法
+
+```bash
+# 检查 MCP 客户端状态
+qwenpaw mcp list
+
+# 测试 MCP 连接
+qwenpaw mcp test --client filesystem
+
+# 启用调试日志
+export LOG_LEVEL=DEBUG
+qwenpaw logs | grep mcp
+```
+
+---
+
+## 12. 最佳实践
+
+### 12.1 安全建议
+
+1. **最小权限**: 只授予必要的文件/目录访问权限
+2. **环境变量**: 使用环境变量而非硬编码敏感信息
+3. **输入验证**: MCP 服务器应验证所有输入参数
+4. **定期更新**: 保持 MCP 服务器版本最新
+
+### 12.2 性能优化
+
+| 问题 | 解决方案 |
+|------|----------|
+| 连接慢 | 使用 stdio 替代 HTTP 本地连接 |
+| 超时 | 增加 timeout 配置 (默认 30s) |
+| 工具过多 | 按需加载，而非全部加载 |
+| 重复连接 | 启用客户端重用，避免频繁建立连接 |
+
+### 12.3 开发建议
+
+1. **自定义服务器**: 使用 Python/Node.js SDK 开发专用 MCP 服务器
+2. **测试驱动**: 先在本地测试 MCP 服务器，再集成到 QwenPaw
+3. **版本兼容**: 确保 MCP 客户端与服务端版本兼容
+
+---
+
+## 13. 总结
+
+### 核心要点
+
+1. **MCP 协议**: 标准化 LLM 与外部工具交互的协议，支持 HTTP 和 stdio 两种传输方式
+2. **MCPClientManager**: 统一的客户端生命周期管理，支持热重载
+3. **HttpStatefulClient**: HTTP/SSE 传输模式，适合远程 MCP 服务器
+4. **StdIOStatefulClient**: 标准输入输出传输模式，适合本地进程
+5. **三层守卫**: FilePathToolGuardian + RuleBasedToolGuardian + ShellEvasionGuardian
+
+### 关键配置
+
+| 配置项 | 说明 |
+|--------|------|
+| `~/.qwenpaw/config.json` mcp.clients | MCP 客户端配置 |
+| `~/.qwenpaw/plugins/<plugin>/mcp.json` | 插件 MCP 服务器配置 |
+| 环境变量 `${VAR}` | 配置中自动替换为环境变量值 |
+
+### 故障排查流程
+
+```
+MCP 工具无法调用
+    │
+    ├─► 检查客户端状态: qwenpaw mcp list
+    │
+    ├─► 测试连接: qwenpaw mcp test --client <name>
+    │
+    ├─► 检查服务器日志: 查看 MCP 服务器进程输出
+    │
+    └─► 验证配置: 检查 transport、url/command 是否正确
+
+热重载不生效
+    │
+    ├─► 检查配置文件 mtime: ls -la ~/.qwenpaw/config.json
+    │
+    └─► 重启 QwenPaw: 某些配置变更需要完全重启
+```
+
+---
+
+## 14. 参考资料
 
 - 源码路径：`src/qwenpaw/app/mcp/`
 - MCP 官方文档：https://modelcontextprotocol.io/

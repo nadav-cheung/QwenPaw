@@ -1,0 +1,328 @@
+# Console 渠道详解
+
+## 概述
+
+Console 渠道是 QwenPaw 的内置渠道，通过 stdout/stdin 实现基于终端的人机对话。输入由 AgentApp 的 `/agent/process` 端点处理，ConsoleChannel 负责将 Agent 响应格式化打印到终端。
+
+`★ Insight ─────────────────────────────────────`
+- ConsoleChannel 是**纯输出渠道**，输入通过独立的 HTTP 端点处理——这种输入/输出分离设计是跨渠道架构的基础
+- ANSI 颜色支持是**平台检测**而非编译时决定：`_USE_COLOR` 在模块加载时判断终端能力
+- `filter_thinking` 等配置让 ConsoleChannel 适配不同用户的输出偏好，是**可配置性**的体现
+`─────────────────────────────────────────────────`
+
+---
+
+## 1. ConsoleChannel 类
+
+源码路径：`src/qwenpaw/app/channels/console/channel.py:64`
+
+### 1.1 类定义
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:64
+class ConsoleChannel(BaseChannel):
+    """Console Channel: prints agent responses to stdout.
+
+    Input is handled by AgentApp's /agent/process endpoint;
+    this channel only takes care of output (printing to the terminal).
+
+    Supports filtering options via config:
+        - show_tool_details: Display tool execution details
+        - filter_tool_messages: Hide intermediate tool messages
+        - filter_thinking: Hide agent thinking/reasoning blocks
+    """
+
+    channel = "console"
+```
+
+---
+
+## 2. 核心功能
+
+### 2.1 输出配置
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `show_tool_details` | 显示工具执行详情 | `True` |
+| `filter_tool_messages` | 隐藏中间工具消息 | `False` |
+| `filter_thinking` | 隐藏思考/推理块 | `False` |
+| `bot_prefix` | Bot 消息前缀 | `""` |
+
+### 2.2 ANSI 颜色支持
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:47
+_USE_COLOR = sys.stdout is not None and hasattr(sys.stdout, "fileno") and os.isatty(sys.stdout.fileno())
+
+_GREEN = "\033[32m" if _USE_COLOR else ""
+_YELLOW = "\033[33m" if _USE_COLOR else ""
+_RED = "\033[31m" if _USE_COLOR else ""
+_BOLD = "\033[1m" if _USE_COLOR else ""
+_RESET = "\033[0m" if _USE_COLOR else ""
+```
+
+### 2.3 会话 ID 解析
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:168
+def resolve_session_id(self, sender_id: str, channel_meta: Optional[dict]) -> str:
+    """使用显式 meta['session_id'] 或回退到 'console:<sender_id>'"""
+    if channel_meta and channel_meta.get("session_id"):
+        return channel_meta["session_id"]
+    return f"{self.channel}:{sender_id}"
+```
+
+---
+
+## 3. 消息处理
+
+### 3.1 stream_one
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:240
+async def stream_one(self, payload: Any) -> AsyncGenerator[str, None]:
+    """处理一个 payload 并生成 SSE 格式的事件"""
+    async for event in self._process(request):
+        yield f"data: {data}\n\n"
+```
+
+### 3.2 消息格式化
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:320
+def _print_parts(self, parts: List[OutgoingContentPart], ev_type: Optional[str]) -> None:
+    """将输出内容打印到 stdout"""
+    for p in parts:
+        if t == ContentType.TEXT:
+            self._safe_print(f"{self.bot_prefix}{p.text}")
+        elif t == ContentType.IMAGE:
+            self._safe_print(f"🖼  [Image: {p.image_url}]")
+        elif t == ContentType.VIDEO:
+            self._safe_print(f"🎬 [Video: {p.video_url}]")
+        elif t == ContentType.AUDIO:
+            self._safe_print(f"🔊 [Audio]")
+        elif t == ContentType.FILE:
+            self._safe_print(f"📎 [File: {p.file_url}]")
+        elif t == ContentType.REFUSAL:
+            self._safe_print(f"⚠ Refusal: {p.text}")
+```
+
+---
+
+## 4. 内容类型
+
+### 4.1 支持的类型
+
+| 类型 | 说明 | 显示格式 |
+|------|------|----------|
+| `TEXT` | 文本消息 | 直接打印 |
+| `IMAGE` | 图片 | 🖼 [Image: url] |
+| `VIDEO` | 视频 | 🎬 [Video: url] |
+| `AUDIO` | 音频 | 🔊 [Audio] |
+| `FILE` | 文件 | 📎 [File: url] |
+| `REFUSAL` | 拒绝消息 | ⚠ Refusal: ... |
+
+### 4.2 思考块过滤
+
+```python
+# filter_thinking=True 时，跳过 ThinkingBlock 类型
+if filter_thinking and ev_type == "thinking":
+    continue
+```
+
+---
+
+## 5. 主动发送
+
+### 5.1 send 方法
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:380
+async def send(self, to_handle: str, text: str, meta: Optional[Dict[str, Any]]) -> None:
+    """发送文本消息 — 打印到 stdout 并推送到前端"""
+    self._safe_print(f"{self.bot_prefix}{text}")
+    # 同时推送到前端 push store
+    await self._push_to_frontend(to_handle, text, meta)
+```
+
+### 5.2 send_content_parts 方法
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:396
+async def send_content_parts(
+    self,
+    to_handle: str,
+    parts: List[OutgoingContentPart],
+    meta: Optional[Dict[str, Any]] = None,
+) -> None:
+    """发送内容部件 — 打印到 stdout 并推送到前端 store"""
+    self._print_parts(parts, None)
+    # 同时推送到前端 push store
+    await self._push_to_frontend_parts(to_handle, parts, meta)
+```
+
+---
+
+## 6. 健康检查
+
+### 6.1 health_check 方法
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:424
+async def health_check(self) -> Dict[str, Any]:
+    """Console channel 启用时始终健康"""
+    if not self.enabled:
+        return {"channel": self.channel, "status": "disabled", "detail": "..."}
+    return {"channel": self.channel, "status": "healthy", "detail": "..."}
+```
+
+---
+
+## 7. Windows 编码处理
+
+### 7.1 stdout 重新配置
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:105
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+```
+
+### 7.2 安全打印
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:295
+def _safe_print(self, text: str) -> None:
+    """处理 Windows 编码和管道问题"""
+    try:
+        print(text)
+    except OSError as e:
+        if e.errno == 22:  # Invalid argument
+            # 回退到 buffer 写入
+            sys.stdout.buffer.write(text.encode("utf-8", errors="replace"))
+```
+
+---
+
+## 8. 配置创建
+
+### 8.1 from_config 类方法
+
+```python
+# src/qwenpaw/app/channels/console/channel.py:131
+@classmethod
+def from_config(cls, process: ProcessHandler, config: ConsoleChannelConfig, ...) -> "ConsoleChannel":
+    return cls(
+        process=process,
+        enabled=config.enabled,
+        bot_prefix=config.bot_prefix or "",
+        show_tool_details=show_tool_details,
+        filter_tool_messages=filter_tool_messages,
+        filter_thinking=filter_thinking,
+        workspace_dir=workspace_dir,
+        media_dir=config.media_dir or "",
+    )
+```
+
+---
+
+## 9. 应用场景
+
+### 9.1 终端交互式对话
+
+```bash
+# 启动 qwenpaw 后，Console channel 自动连接
+# 用户在终端输入查询，Agent 响应打印到 stdout
+
+# 过滤思考过程，只看最终回答
+# 在配置中设置 filter_thinking: true
+```
+
+### 9.2 主动推送消息
+
+ConsoleChannel 支持 Agent 主动向用户推送消息（不依赖用户输入）：
+
+```python
+# Agent 内部调用
+await channel.send(
+    to_handle="session_id",
+    text="任务已完成，结果已保存",
+    meta={"session_id": session_id}
+)
+```
+
+### 9.3 前端消息同步
+
+```python
+# ConsoleChannel 同时将消息推送到前端 push store
+# 前端轮询 /api/console/push/{session_id} 获取主动推送的消息
+await self._push_to_frontend(to_handle, text, meta)
+```
+
+---
+
+## 10. 最佳实践
+
+1. **Windows UTF-8**：Windows 环境启动时会自动重配置 stdout 编码，无需手动处理
+2. **管道安全**：`try/except OSError` 处理管道断开（`EPIPE`）场景，避免进程崩溃
+3. **颜色降级**：非终端环境（文件重定向、CI）自动禁用颜色，避免 ANSI 转义码污染
+4. **session_id 隔离**：多会话并行时，通过 `channel:session_id` 格式确保隔离
+5. **消息过滤组合**：`show_tool_details=False` + `filter_tool_messages=True` 可实现最小化输出
+
+---
+
+## 11. 常见问题
+
+### Q1: 终端颜色不显示？
+
+检查是否重定向到文件或管道：`os.isatty()` 检测终端环境，非终端时颜色码自动禁用。
+
+```python
+import os
+print(sys.stdout.fileno())  # -1 表示非终端
+print(os.isatty(sys.stdout.fileno()))  # False = 非终端
+```
+
+### Q2: Windows 中文乱码？
+
+确保 Windows 终端编码为 UTF-8：
+
+```cmd
+chcp 65001
+set PYTHONIOENCODING=utf-8
+qwenpaw run
+```
+
+### Q3: 管道断开时进程崩溃？
+
+`_safe_print` 已处理 `OSError errno=22`（无效参数），但管道持续断开时仍建议重定向到文件：
+
+```bash
+qwenpaw run > output.log 2>&1
+```
+
+---
+
+## 12. 总结
+
+| 要点 | 说明 |
+|------|------|
+| 定位 | 纯输出渠道，输入由 `/agent/process` HTTP 端点处理 |
+| 颜色支持 | `_USE_COLOR` 动态检测，非终端自动禁用 |
+| 消息过滤 | `show_tool_details`、`filter_tool_messages`、`filter_thinking` 三个维度 |
+| 平台处理 | Windows 重配置 UTF-8 编码 + `try/except OSError` 管道处理 |
+| 主动发送 | `send()` / `send_content_parts()` 支持 Agent 主动推送 |
+| 相关章节 | [跨渠道消息路由](./77-跨渠道消息路由.md)、[Agent 执行流程](./20-配置解析与Runner.md) |
+
+---
+
+## 13. 关键文件索引
+
+| 组件 | 文件路径 |
+|------|----------|
+| ConsoleChannel | `src/qwenpaw/app/channels/console/channel.py:64` |
+| stream_one | `src/qwenpaw/app/channels/console/channel.py:240` |
+| _print_parts | `src/qwenpaw/app/channels/console/channel.py:320` |
+| send | `src/qwenpaw/app/channels/console/channel.py:380` |
+| health_check | `src/qwenpaw/app/channels/console/channel.py:424` |

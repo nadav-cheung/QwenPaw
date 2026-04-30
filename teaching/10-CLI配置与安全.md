@@ -28,7 +28,7 @@ src/qwenpaw/cli/
 
 ### 核心组件
 
-#### LazyGroup 命令加载 (`cli/__init__.py:47-80`)
+#### LazyGroup 命令加载 (`cli/main.py:58-85`)
 
 ```python
 class LazyGroup(click.Group):
@@ -59,7 +59,7 @@ class LazyGroup(click.Group):
         return None
 ```
 
-**懒加载命令注册** (`cli/__init__.py:83-144`):
+**懒加载命令注册** (`cli/main.py:83-144`):
 
 ```python
 @click.group(
@@ -194,6 +194,233 @@ qwenpaw doctor --fix
 # 交互式初始化向导
 qwenpaw init
 ```
+
+---
+
+## 1.3 核心命令实现详解
+
+### 1.3.1 app 命令 — 启动 FastAPI 服务器
+
+**源码路径**: `src/qwenpaw/cli/app_cmd.py:17-91`
+
+```python
+@click.command("app")
+@click.option("--host", default="127.0.0.1", help="Bind host")
+@click.option("--port", default=8088, type=int, help="Bind port")
+@click.option("--reload", is_flag=True, help="Enable auto-reload (dev only)")
+@click.option("--log-level", default="info", help="Log level")
+@click.option("--hide-access-paths", multiple=True,
+    default=("/console/push-messages",), help="隐藏访问日志路径")
+def app_cmd(host, port, reload, log_level, hide_access_paths):
+    """Run QwenPaw FastAPI app."""
+
+    # 持久化最后使用的 host/port
+    write_last_api(host, port)
+
+    # 设置日志级别
+    os.environ[LOG_LEVEL_ENV] = log_level
+    setup_logger(log_level)
+
+    # 隐藏敏感路径的访问日志
+    if hide_access_paths:
+        logging.getLogger("uvicorn.access").addFilter(
+            SuppressPathAccessLogFilter(hide_access_paths)
+        )
+
+    uvicorn.run(
+        "qwenpaw.app._app:app",
+        host=host,
+        port=port,
+        reload=reload,
+        workers=1,  # 始终使用单 worker
+        log_level=log_level,
+    )
+```
+
+**关键设计**:
+- `--workers` 参数已废弃，始终使用单 worker 保证稳定性
+- `--reload` 模式下设置 `QWENPAW_RELOAD_MODE=1` 环境变量，启用 Windows 兼容的 ThreadPool
+- 启动前通过 `write_last_api()` 保存 host/port，供其他命令复用
+
+### 1.3.2 plugin install 命令 — 插件安装
+
+**源码路径**: `src/qwenpaw/cli/plugin_commands.py:73-218`
+
+```python
+@plugin.command()
+@click.argument("source")
+@click.option("--force", is_flag=True, help="强制重装")
+def install(source: str, force: bool):
+    """从本地路径或 URL 安装插件"""
+    # 1. 检查 QwenPaw 未运行
+    _check_qwenpaw_not_running()
+
+    # 2. 判断是 URL 还是本地路径
+    is_url = source.startswith(("http://", "https://"))
+    if is_url:
+        source_path, temp_dir = _download_plugin_from_url(source)
+    else:
+        source_path = Path(source).resolve()
+
+    # 3. 验证 plugin.json 存在
+    manifest_path = source_path / "plugin.json"
+
+    # 4. 解析 manifest 获取 plugin_id
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    plugin_id = manifest["id"]
+
+    # 5. 目标目录: ~/.qwenpaw/plugins/<plugin_id>
+    target_dir = get_plugins_dir() / plugin_id
+
+    # 6. 如果已存在且 --force，删除旧版本
+    if target_dir.exists() and force:
+        shutil.rmtree(target_dir)
+
+    # 7. 复制插件文件
+    shutil.copytree(source_path, target_dir)
+
+    # 8. 安装依赖 (pip install -r requirements.txt)
+    requirements_file = target_dir / "requirements.txt"
+    if requirements_file.exists():
+        subprocess.run([
+            sys.executable, "-m", "pip", "install",
+            "-r", str(requirements_file)
+        ], check=True)
+```
+
+**安全特性 — Zip Slip 攻击防护** (`plugin_commands.py:43-57`):
+
+```python
+def _safe_extract_zip(zip_ref, extract_path):
+    """防止 Zip Slip 攻击：确保解压路径不超出目标目录"""
+    for member in zip_ref.namelist():
+        member_path = (extract_path / member).resolve()
+        if not str(member_path).startswith(str(extract_path.resolve())):
+            raise ValueError(f"Zip Slip detected: {member}")
+    zip_ref.extractall(extract_path)
+```
+
+**Zip Slip 防护原理**: 攻击者可能在 ZIP 文件中注入 `../../../etc/passwd` 等路径遍历文件名，解压时可能覆盖系统文件。上述检查确保所有解压路径都在目标目录内。
+
+### 1.3.3 plugin validate 命令 — 插件验证
+
+**源码路径**: `src/qwenpaw/cli/plugin_commands.py:330-383`
+
+```python
+@plugin.command()
+@click.argument("path")
+def validate(path: str):
+    """验证插件结构"""
+    plugin_path = Path(path).resolve()
+
+    # 检查 plugin.json 存在
+    manifest_path = plugin_path / "plugin.json"
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    # 验证必需字段
+    required_fields = ["id", "name", "version"]
+    for field in required_fields:
+        if field not in manifest:
+            click.echo(f"Missing required field: {field}", err=True)
+            return
+
+    # 检查入口点文件存在
+    entry = manifest.get("entry", {})
+    backend_entry = entry.get("backend")
+    if backend_entry:
+        backend_path = plugin_path / backend_entry
+        if not backend_path.exists():
+            click.echo(f"Backend entry not found: {backend_entry}", err=True)
+            return
+
+    click.echo("Plugin validation passed")
+```
+
+### 1.3.4 LazyGroup 懒加载机制详解
+
+**源码路径**: `src/qwenpaw/cli/main.py:34-59`
+
+```python
+class LazyGroup(click.Group):
+    """支持延迟加载子命令的 Click Group"""
+
+    def __init__(self, *args, lazy_subcommands=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lazy_subcommands = lazy_subcommands or {}
+
+    def list_commands(self, ctx):
+        """返回所有命令名（eager + lazy）"""
+        base = super().list_commands(ctx)
+        return sorted(set(base) | set(self.lazy_subcommands.keys()))
+
+    def get_command(self, ctx, cmd_name):
+        """获取命令，按需懒加载"""
+        # 1. 先尝试 eager 命令
+        cmd = super().get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd
+
+        # 2. 懒加载命令
+        if cmd_name in self.lazy_subcommands:
+            module_path, attr_name, label = self.lazy_subcommands[cmd_name]
+            _t = time.perf_counter()
+            module = __import__(module_path, fromlist=[attr_name])
+            cmd = getattr(module, attr_name)
+            _record(label, time.perf_counter() - _t)  # 记录加载时间
+            self.add_command(cmd, cmd_name)  # 缓存到 Group
+            return cmd
+        return None
+```
+
+**懒加载命令注册** (`cli/main.py:95-140`):
+
+```python
+lazy_subcommands={
+    "acp": ("qwenpaw.cli.acp_cmd", "acp_cmd", ".acp_cmd"),
+    "app": ("qwenpaw.cli.app_cmd", "app_cmd", ".app_cmd"),
+    "agents": ("qwenpaw.cli.agents_cmd", "agents_group", ".agents_cmd"),
+    "channels": ("qwenpaw.cli.channels_cmd", "channels_group", ".channels_cmd"),
+    "cron": ("qwenpaw.cli.cron_cmd", "cron_group", ".cron_cmd"),
+    "daemon": ("qwenpaw.cli.daemon_cmd", "daemon_group", ".daemon_cmd"),
+    "init": ("qwenpaw.cli.init_cmd", "init_cmd", ".init_cmd"),
+    "plugin": ("qwenpaw.cli.plugin_commands", "plugin", ".plugin_commands"),
+    ...
+}
+```
+
+**懒加载流程图**:
+
+```
+qwenpaw cron list
+         │
+         ▼
+LazyGroup.get_command("cron")
+         │
+         ├─► super().get_command("cron") → None (eager 中没有)
+         │
+         ▼
+"cron" in lazy_subcommands → True
+         │
+         ▼
+__import__("qwenpaw.cli.cron_cmd", fromlist=["cron_group"])
+         │
+         ▼
+getattr(module, "cron_group")
+         │
+         ▼
+self.add_command(cmd, "cron")  // 缓存
+         │
+         ▼
+返回 cron_group 命令
+```
+
+**懒加载优势**:
+- 启动速度：未使用的命令模块不加载，节省内存和启动时间
+- `time.perf_counter()` 记录加载时间，便于诊断性能问题
+- 命令加载后缓存到 Group，后续调用直接返回
 
 ---
 

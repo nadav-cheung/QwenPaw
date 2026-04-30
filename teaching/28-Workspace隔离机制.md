@@ -1,0 +1,536 @@
+# Workspace 隔离机制
+
+## 概述
+
+QwenPaw 支持多智能体（Multi-Agent），每个 Agent 运行在独立的 **Workspace** 中，实现资源隔离、热重载和零停机重配置。本章解析 Workspace 的目录隔离、服务隔离、热重载机制和完整的组件关系图。
+
+**源码路径**: `src/qwenpaw/app/workspace/`
+
+---
+
+## 1. Workspace 类的结构
+
+源码路径：`src/qwenpaw/app/workspace/workspace.py`
+
+### 1.1 核心属性
+
+```python
+# src/qwenpaw/app/workspace/workspace.py:49
+class Workspace:
+    """Single agent workspace with complete runtime components."""
+
+    def __init__(self, agent_id: str, workspace_dir: str):
+        self.agent_id = agent_id
+        self.workspace_dir = Path(workspace_dir).expanduser()
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+
+        # Service manager (统一组件生命周期管理)
+        self._service_manager = ServiceManager(self)
+
+        # 非服务状态
+        self._config = None          # 延迟加载
+        self._started = False
+        self._manager = None         # MultiAgentManager 引用
+        self._task_tracker = TaskTracker()
+
+        # 注册所有服务
+        self._register_services()
+```
+
+### 1.2 服务属性（通过 ServiceManager 委托）
+
+```python
+# src/qwenpaw/app/workspace/workspace.py:90
+@property
+def runner(self) -> Optional[AgentRunner]:
+    return self._service_manager.services.get("runner")
+
+@property
+def memory_manager(self):
+    return self._service_manager.services.get("memory_manager")
+
+@property
+def mcp_manager(self):
+    return self._service_manager.services.get("mcp_manager")
+
+@property
+def chat_manager(self):
+    return self._service_manager.services.get("chat_manager")
+
+@property
+def channel_manager(self):
+    return self._service_manager.services.get("channel_manager")
+
+@property
+def cron_manager(self):
+    return self._service_manager.services.get("cron_manager")
+```
+
+---
+
+## 2. 隔离层次
+
+### 2.1 目录级隔离
+
+每个 Agent 拥有独立的工作空间目录：
+
+```
+~/.qwenpaw/
+├── config.json                    # 根配置
+├── default/                       # default agent workspace
+│   ├── agent.json                # Agent 配置
+│   ├── chats.json                # 聊天记录
+│   ├── jobs.json                 # 定时任务
+│   └── sessions/                 # 会话状态文件
+│       └── *.json
+├── agent-2/                      # agent-2 workspace
+│   ├── agent.json
+│   ├── chats.json
+│   ├── jobs.json
+│   └── sessions/
+└── agent-3/                     # agent-3 workspace
+    └── ...
+```
+
+### 2.2 服务级隔离
+
+每个 Workspace 有独立的服务实例：
+
+| 服务 | 隔离意义 |
+|------|---------|
+| `AgentRunner` | 每个 Agent 有独立的请求处理器 |
+| `BaseMemoryManager` | 每个 Agent 有独立的记忆存储 |
+| `MCPClientManager` | 每个 Agent 有独立的 MCP 客户端 |
+| `ChatManager` | 每个 Agent 有独立的聊天记录管理 |
+| `ChannelManager` | 每个 Agent 有独立的频道连接 |
+| `CronManager` | 每个 Agent 有独立的定时任务调度器 |
+
+### 2.3 ServiceManager — 声明式服务配置
+
+源码路径：`src/qwenpaw/app/workspace/service_manager.py:32`
+
+```python
+@dataclass
+class ServiceDescriptor:
+    """服务描述符 — 声明式服务配置"""
+    name: str                      # 服务唯一标识
+    service_class: type             # 服务类
+    init_args: Callable            # 初始化参数函数
+    post_init: Callable            # 创建后钩子
+    start_method: str             # 启动方法名
+    stop_method: str               # 停止方法名
+    reusable: bool                # 是否可在重载时复用
+    priority: int                 # 启动优先级
+    concurrent_init: bool         # 是否可并发初始化
+```
+
+**优先级驱动的启动顺序**：
+
+```
+Priority 10:  Runner
+Priority 20:  Core services (memory_manager, mcp_manager, chat_manager) — 并发
+Priority 25:  Runner.start()
+Priority 30:  Channel manager
+Priority 40:  Cron manager
+Priority 50:  Agent Config Watcher (条件)
+Priority 51:  MCP Config Watcher (条件)
+```
+
+---
+
+## 3. Workspace 与 Runner 的关系
+
+### 3.1 组件关系图
+
+```
+Workspace
+  └── _service_manager.services["runner"] = AgentRunner
+        ├── agent_id: str
+        ├── workspace_dir: Path
+        ├── memory_manager
+        ├── _chat_manager
+        ├── _mcp_manager
+        └── _workspace = Workspace  ← 反向引用
+```
+
+### 3.2 双向引用链
+
+```python
+# workspace.py — Workspace 创建并注册 Runner
+sm.register(ServiceDescriptor(
+    name="runner",
+    service_class=AgentRunner,
+    init_args=lambda ws: {
+        "agent_id": ws.agent_id,
+        "workspace_dir": ws.workspace_dir,
+        "task_tracker": ws._task_tracker,
+    },
+    stop_method="stop",
+    priority=10,
+))
+
+# runner.py — Runner 持有 Workspace 引用
+def set_workspace(self, workspace):
+    self._workspace = workspace
+```
+
+---
+
+## 4. Workspace 与 ChannelManager 的关系
+
+### 4.1 注入机制
+
+源码路径：`src/qwenpaw/app/workspace/service_factories.py`
+
+```python
+async def create_channel_service(ws: "Workspace", _):
+    if not ws._config.channels:
+        return None
+
+    cm = ChannelManager.from_config(
+        process=make_process_from_runner(runner),
+        config=temp_config,
+        on_last_dispatch=on_last_dispatch,
+        workspace_dir=ws.workspace_dir,
+    )
+
+    # 注入 workspace 到 ChannelManager 和所有 channels
+    cm.set_workspace(ws)
+
+    # 注入 workspace 到 runner 用于控制命令处理
+    runner.set_workspace(ws)
+    return cm
+```
+
+### 4.2 ChannelManager 使用 Workspace 的场景
+
+1. **task_tracker 访问**：通过 `workspace.task_tracker`
+2. **配置重载**：在 `restart_channel` 中加载最新 agent 配置
+
+---
+
+## 5. MultiAgentManager — 多 Workspace 全局管理
+
+源码路径：`src/qwenpaw/app/multi_agent_manager.py:34`
+
+```python
+class MultiAgentManager:
+    def __init__(self):
+        self.agents: Dict[str, Workspace] = {}   # 所有已加载的 workspace
+        self._lock = asyncio.Lock()               # 线程锁
+        self._pending_starts: Dict[str, asyncio.Event] = {}  # 等待中的启动
+
+    async def get_agent(self, agent_id: str) -> Workspace:
+        """获取 Workspace — 懒加载 + 双重检查锁定"""
+        if agent_id in self.agents:
+            return self.agents[agent_id]
+
+        async with self._lock:
+            if agent_id in self.agents:
+                return self.agents[agent_id]
+            if agent_id in self._pending_starts:
+                event = self._pending_starts[agent_id]
+                await event.wait()  # 等待其他请求的启动完成
+
+        # 我们是启动者：在锁外创建（允许并行启动）
+        instance = Workspace(agent_id, workspace_dir)
+        await instance.start()
+
+        async with self._lock:
+            self.agents[agent_id] = instance
+        return instance
+```
+
+---
+
+## 6. 热重载 — 零停机重载
+
+源码路径：`src/qwenpaw/app/multi_agent_manager.py:244`
+
+### 6.1 核心流程
+
+```python
+async def reload_agent(self, agent_id: str) -> bool:
+    """零停机重载 — 新旧实例平滑切换"""
+
+    # Step 1: 获取旧实例（快速检查）
+    old_instance = self.agents[agent_id]
+
+    # Step 2: 创建新实例（关键：先创建再停止旧的）
+    new_instance = Workspace(agent_id, workspace_dir)
+
+    # Step 3: 复用可迁移组件
+    reusable = old_instance._service_manager.get_reusable_services()
+    await new_instance.set_reusable_components(reusable)
+
+    # Step 4: 启动新实例
+    await new_instance.start()
+
+    # Step 5: 原子替换
+    self.agents[agent_id] = new_instance
+
+    # Step 6: 优雅停止旧实例
+    await self._graceful_stop_old_instance(old_instance, agent_id)
+```
+
+### 6.2 延迟清理机制
+
+```python
+async def _graceful_stop_old_instance(self, old_instance, agent_id):
+    has_active = await old_instance.task_tracker.has_active_tasks()
+
+    if has_active:
+        # 有活跃任务：后台延迟清理
+        async def delayed_cleanup():
+            await old_instance.task_tracker.wait_all_done(timeout=60.0)
+            await old_instance.stop(final=False)
+
+        cleanup_task = asyncio.create_task(delayed_cleanup())
+    else:
+        # 无活跃任务：立即停止
+        await old_instance.stop(final=False)
+```
+
+### 6.3 可复用组件
+
+```python
+# src/qwenpaw/app/workspace/service_manager.py
+class ServiceDescriptor:
+    reusable: bool = True  # memory_manager, chat_manager 可复用
+
+# 重载时不重建，直接转移
+async def set_reusable_components(self, reusable: dict):
+    for name, service in reusable.items():
+        self._service_manager.services[name] = service
+```
+
+---
+
+## 7. 生命周期管理
+
+### 7.1 Workspace 启动 — start
+
+```python
+async def start(self):
+    """启动 workspace 并初始化所有组件"""
+    if self._started:
+        return
+
+    # 1. 加载代理配置
+    self._config = load_agent_config(self.agent_id)
+
+    # 2. 通过 ServiceManager 启动所有服务
+    await self._service_manager.start_all()
+
+    self._started = True
+```
+
+### 7.2 ServiceManager.start_all — 优先级分组并发启动
+
+```python
+async def start_all(self) -> None:
+    # 按优先级分组
+    priority_groups = self._group_by_priority()
+
+    for priority in sorted(priority_groups.keys()):
+        descriptors = priority_groups[priority]
+
+        # 分离并发和顺序服务
+        concurrent = [d for d in descriptors if d.concurrent_init]
+        sequential = [d for d in descriptors if not d.concurrent_init]
+
+        # 并发启动
+        if concurrent:
+            await asyncio.gather(*[self._start_service(desc) for desc in concurrent])
+
+        # 顺序启动
+        for desc in sequential:
+            await self._start_service(desc)
+
+        # 优先级组之间让出事件循环
+        await asyncio.sleep(0)
+```
+
+---
+
+## 8. 完整组件关系图
+
+```
+MultiAgentManager (全局单一实例)
+  │
+  ├── agents: Dict[agent_id, Workspace]
+  │     │
+  │     └── Workspace (每个 agent 一个)
+  │           │
+  │           ├── agent_id
+  │           ├── workspace_dir (隔离的目录)
+  │           ├── task_tracker (TaskTracker)
+  │           │
+  │           └── _service_manager (ServiceManager)
+  │                 │
+  │                 └── services: Dict[str, Any]
+  │                       │
+  │                       ├── "runner": AgentRunner
+  │                       ├── "memory_manager": BaseMemoryManager
+  │                       ├── "mcp_manager": MCPClientManager
+  │                       ├── "chat_manager": ChatManager
+  │                       ├── "channel_manager": ChannelManager
+  │                       └── "cron_manager": CronManager
+  │
+  └── DynamicMultiAgentRunner (FastAPI Runner)
+        │
+        └── _multi_agent_manager = MultiAgentManager
+```
+
+---
+
+## 9. 设计模式总结
+
+### 9.1 隔离层次
+
+| 层次 | 机制 | 说明 |
+|------|------|------|
+| **目录隔离** | 每个 agent 独立 `workspace_dir` | 文件系统级别 |
+| **进程隔离** | 每个 Workspace 独立的服务实例 | 内存级别 |
+| **线程安全** | `asyncio.Lock` | 并发访问保护 |
+| **服务隔离** | `ServiceManager` + `ServiceDescriptor` | 声明式生命周期 |
+
+### 9.2 关键设计模式
+
+1. **声明式服务配置** — 使用 `ServiceDescriptor` 替代硬编码初始化
+2. **优先级驱动启动** — 确保依赖顺序正确
+3. **可复用组件** — 支持热重载而不丢失状态
+4. **零停机重载** — 新旧实例平滑切换
+5. **延迟清理** — 后台任务完成后再清理旧实例
+6. **懒加载 + 双重检查** — 并行启动加速，只初始化需要的 Agent
+
+---
+
+## 10. 应用场景
+
+### 场景1: 多租户隔离
+
+为不同客户/团队创建独立的 Agent：
+
+```python
+# 客户 A
+workspace_a = await multi_agent_manager.get_agent("customer-a")
+
+# 客户 B
+workspace_b = await multi_agent_manager.get_agent("customer-b")
+
+# 两者完全隔离，有独立的配置、记忆、渠道
+```
+
+### 场景2: 开发/生产环境隔离
+
+```python
+# 开发环境
+dev_workspace = await multi_agent_manager.get_agent("dev")
+
+# 生产环境
+prod_workspace = await multi_agent_manager.get_agent("prod")
+```
+
+### 场景3: 热重载配置
+
+管理员修改 `agent.json` 后无需重启：
+
+```python
+# 触发热重载
+await multi_agent_manager.reload_agent("default")
+```
+
+---
+
+## 11. 常见问题
+
+### Q1: Workspace 隔离的开销有多大？
+
+**A**: 每个 Workspace 都会创建独立的服务实例：
+- **内存开销**：每个 Agent 约增加 50-100MB（取决于配置）
+- **服务开销**：ChannelManager、CronManager 等持续运行
+
+对于资源受限场景，可以考虑池化重型服务。
+
+### Q2: 为什么需要双向引用（Workspace → Runner，Runner → Workspace）？
+
+**A**: 各有用途：
+- **Workspace → Runner**：Workspace 管理 Runner 的生命周期
+- **Runner → Workspace**：Runner 需要访问 Workspace 的组件（如 TaskTracker）
+
+这解耦了管理职责和依赖使用。
+
+### Q3: 热重载时哪些组件会被复用？
+
+**A**: 标记为 `reusable=True` 的服务：
+- `memory_manager`
+- `chat_manager`
+
+这些服务保存了用户数据，重建会丢失对话历史。
+
+### Q4: 如何调试 Workspace 问题？
+
+**A**: 方法：
+1. 检查 Workspace 日志
+2. 查看 `workspace_dir/sessions/` 中的会话状态
+3. 使用 `MultiAgentManager.get_agent()` 获取 Workspace 实例检查状态
+4. 查看服务启动顺序日志
+
+### Q5: 可以动态创建新的 Workspace 吗？
+
+**A**: 可以。通过 API 或代码：
+
+```python
+# 动态创建 agent
+await multi_agent_manager.create_agent("new-agent-id")
+```
+
+但需要确保 `agents/` 目录下有对应的配置文件。
+
+---
+
+## 12. 最佳实践
+
+### 实践1: 合理设计 Agent ID
+
+```python
+# 使用有意义的 ID
+await multi_agent_manager.get_agent("customer-123")
+await multi_agent_manager.get_agent("prod-backend")
+```
+
+### 实践2: 及时清理不需要的 Workspace
+
+```python
+# 停止并移除 Workspace
+await multi_agent_manager.stop_agent("unused-agent")
+```
+
+### 实践3: 使用 reusable 服务保存重要状态
+
+```python
+# memory_manager 和 chat_manager 是 reusable
+# 可以在热重载时保留用户数据
+```
+
+### 实践4: 配置变更使用热重载而非重启
+
+```python
+# 修改 agent.json 后
+await multi_agent_manager.reload_agent("agent-id")
+# 而非停止再启动
+```
+
+---
+
+## 13. 相关章节
+
+- [请求处理与Runner](./21-请求处理与Runner.md) — Runner 在 Workspace 中的角色
+- [消息渠道架构](./26-消息渠道架构.md) — ChannelManager 与 Workspace 交互
+- [定时任务与心跳](./25-定时任务与心跳.md) — CronManager 与 Workspace 交互
+- [MCP系统详解](./29-MCP系统详解.md) — MCPClientManager 与 Workspace 交互
+
+---
+
+*本文档基于 QwenPaw v0.x 源码编写，源码位置：`src/qwenpaw/app/workspace/`*

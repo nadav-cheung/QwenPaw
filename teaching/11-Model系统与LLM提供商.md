@@ -129,7 +129,7 @@ def _init_builtins(self):
 | `zhipu-cn-codingplan` | OpenAIProvider | `https://open.bigmodel.cn/api/coding/paas/v4` | 智谱编程计划 |
 | `zhipu-intl-codingplan` | OpenAIProvider | `https://api.z.ai/api/coding/paas/v4` | 智谱国际编程计划 |
 
-### 2.3 支持的模型列表
+### 2.4 支持的模型列表
 
 ```python
 # Qwen 系列
@@ -402,41 +402,227 @@ class RateLimitConfig:
     jitter_range: float = 1.0
 ```
 
-### 5.3 重试流程
+### 5.3 RetryChatModel 重试机制
+
+**源码路径**: `src/qwenpaw/providers/retry_chat_model.py`
+
+`RetryChatModel` 包装器实现指数退避重试，核心组件：
+
+| 组件 | 行号 | 说明 |
+|------|------|------|
+| `RetryConfig` | 47 | 重试策略配置（启用、最大重试次数、退避基数/上限）|
+| `RateLimitConfig` | 60 | 速率限制配置（最大并发、QPM、暂停时间）|
+| `RetryChatModel` | 144 | 重试包装器类 |
+| `_is_retryable()` | 88 | 判断异常是否可重试 |
+| `_is_rate_limit()` | 95 | 判断是否为 429 限流错误 |
+| `_extract_retry_after()` | 98 | 解析 Retry-After 头 |
+| `_compute_backoff()` | 133 | 计算指数退避时间 |
+
+**RetryConfig 和 RateLimitConfig 数据类** (`retry_chat_model.py:59-89`):
 
 ```python
-async def chat_with_retry(self, messages, **kwargs):
-    async with self._semaphore:  # 限流信号量
-        for attempt in range(max_retries):
-            try:
-                return await self._model.chat(messages, **kwargs)
-            except RateLimitError:
-                if attempt == max_retries - 1:
-                    raise
-                # 指数退避 + 随机抖动
-                delay = min(backoff_base * (2 ** attempt), backoff_cap)
-                delay += random.uniform(0, jitter_range)
-                await asyncio.sleep(delay)
+# retry_chat_model.py:59
+@dataclass(frozen=True, slots=True)
+class RetryConfig:
+    """Retry policy for transient LLM API failures."""
+    enabled: bool = LLM_MAX_RETRIES > 0
+    max_retries: int = max(LLM_MAX_RETRIES, 1)
+    backoff_base: float = LLM_BACKOFF_BASE      # 默认 1.0s
+    backoff_cap: float = LLM_BACKOFF_CAP          # 默认 10.0s
+
+# retry_chat_model.py:69
+@dataclass(frozen=True, slots=True)
+class RateLimitConfig:
+    """Rate-limiting policy for LLM calls.
+
+    Controls the global LLMRateLimiter singleton that caps concurrency and
+    coordinates pauses when a 429 is received.
+    """
+    max_concurrent: int = LLM_MAX_CONCURRENT      # 默认 10
+    max_qpm: int = LLM_MAX_QPM                   # 默认 600
+    pause_seconds: float = LLM_RATE_LIMIT_PAUSE  # 默认 5.0s
+    jitter_range: float = LLM_RATE_LIMIT_JITTER  # 默认 1.0s
+    acquire_timeout: float = LLM_ACQUIRE_TIMEOUT  # 默认 300s，等待信号量槽位的超时时间
+```
+
+**RetryChatModel 重试机制核心组件** (`retry_chat_model.py`):
+
+| 组件 | 行号 | 说明 |
+|------|------|------|
+| `RetryConfig` | 59 | 重试策略配置（启用、最大重试次数、退避基数/上限）|
+| `RateLimitConfig` | 69 | 速率限制配置（最大并发、QPM、暂停时间、**acquire_timeout**）|
+| `RetryChatModel` | 204 | 重试包装器类 |
+| `_is_retryable()` | 124 | 判断异常是否可重试 |
+| `_is_rate_limit()` | 137 | 判断是否为 429 限流错误 |
+| `_extract_retry_after()` | 142 | 解析 Retry-After 头 |
+| `_compute_backoff()` | 196 | 计算指数退避时间 |
+| `_consume_stream_with_slot()` | 235 | 流式响应的信号量槽位管理 |
+
+```python
+class RetryChatModel(ChatModelBase):
+    """Transparent retry wrapper around any :class:`ChatModelBase`.
+
+    委托所有调用到内部模型，透明重试瞬态错误。
+    流式响应也支持：流中途失败会从头重试整个请求。
+    """
+
+    def __init__(
+        self,
+        inner: ChatModelBase,
+        retry_config: RetryConfig | None = None,
+        rate_limit_config: RateLimitConfig | None = None,
+    ) -> None:
+        super().__init__(model_name=inner.model_name, stream=inner.stream)
+        self._inner = inner
+        self._retry_config = _normalize_retry_config(retry_config)
+        self._rate_limit_config = _normalize_rate_limit_config(rate_limit_config)
+```
+
+**信号量槽位传输机制** (`retry_chat_model.py:14-24`, `269-351`):
+
+流式响应独有的槽位管理机制：
+
+- **非流式**： `__call__` 的 finally 块总是释放槽位（`owns_semaphore` 保持 True）
+- **流式**：槽位所有权在首个 chunk 到达后转移到 `_consume_stream_with_slot`
+  - `__call__` 返回生成器前设置 `owns_semaphore = False`，跳过 finally 块的释放
+  - `_consume_stream_with_slot` 在首个 chunk 到达后立即释放槽位
+- **`acquired` 布尔标志**：跟踪信号量槽位是否真正获取，防止 `CancelledError` 时虚假释放
+
+```python
+# retry_chat_model.py:235
+async def _consume_stream_with_slot(self, stream, limiter):
+    """槽位在首个 chunk 到达后释放，避免流式响应期间占用槽位"""
+    first_chunk = True
+    try:
+        async for chunk in stream:
+            if first_chunk:
+                first_chunk = False
+                limiter.release()  # 首个 chunk 到达后立即释放
+            yield chunk
+    finally:
+        if first_chunk:
+            # 流失败未产生任何 chunk，释放槽位
+            limiter.release()
+```
+
+**雷鸣 herd 问题防护**：429 时所有并发调用者暂停相同时间（加上各自的随机抖动），避免同时重试造成新一轮限流。
+
+**`_is_retryable` 方法** (第88行) - 判断是否可重试:
+```python
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504, 529}
+
+def _is_retryable(exc: Exception) -> bool:
+    """Return *True* if *exc* should trigger a retry."""
+    retryable = _get_openai_retryable() + _get_anthropic_retryable()
+    if retryable and isinstance(exc, retryable):
+        return True
+    status = getattr(exc, "status_code", None)
+    if status is not None and status in RETRYABLE_STATUS_CODES:
+        return True
+    return False
+```
+
+**流式重试处理** `_wrap_stream` 方法 (第270-340行):
+- 流失败时重试整个请求而非仅重试失败的 chunk
+- 槽位在首个 chunk 到达后释放，避免其他调用者饥饿
+
+**重试流程图**:
+```
+chat() 调用
+         │
+         ▼
+获取信号量 (max_concurrent)
+         │
+         ▼
+try: 执行 chat
+         │
+         ├── 成功 → yield chunks → 释放信号量
+         │
+         └── 失败
+                 │
+                 ├── 不可重试 → 释放信号量 → 抛出异常
+                 │
+                 └── 可重试
+                         │
+                         ├── 还有重试次数 → 计算延迟 → sleep → 重试
+                         │
+                         └── 没有重试次数 → 释放信号量 → 抛出异常
 ```
 
 ### 5.4 模型工厂与包装器管道
 
-**源码路径**: `src/qwenpaw/providers/model_factory.py`
+**源码路径**: `src/qwenpaw/agents/model_factory.py`
 
-`create_model_and_formatter()` (line 930) 创建模型和格式化器：
+`create_model_and_formatter()` 创建模型和格式化器，核心组件：
+
+| 组件 | 行号 | 说明 |
+|------|------|------|
+| `create_model_and_formatter()` | 930 | 工厂方法入口 |
+| `_create_file_block_support_formatter()` | 680 | 创建支持文件块的格式化器 |
+| `_normalize_messages_for_formatter()` | 95 | 标准化消息格式 |
+| `_format_anthropic_messages()` | 341 | Anthropic 消息格式化 |
+| `_format_anthropic_media_block()` | 134 | Anthropic 媒体块格式化 |
+| `_format_openai_video_block()` | 201 | OpenAI 视频块格式化 |
+| `_promote_tool_result_videos()` | 497 | 提升工具结果中的视频 |
+| `_reorder_tool_and_promoted_messages()` | 565 | 重排工具消息顺序 |
+| `_fix_image_mime_types()` | 609 | 修复非标准 MIME 类型 |
+| `_fixup_media_list()` | 635 | 标准化媒体列表 |
+| `_file_url_to_path()` | 49 | 去除 file:// 前缀转路径 |
+
+**create_model_and_formatter()** (第930-1010行):
 
 ```python
 def create_model_and_formatter(
     agent_id: Optional[str] = None,
 ) -> Tuple[ChatModelBase, FormatterBase]:
-    # 1. 解析 agent_id (参数 > context > None)
-    # 2. 加载代理配置 (RetryConfig, RateLimitConfig)
-    # 3. 获取 provider 和 model
-    provider = ProviderManager.get_instance().get_provider(provider_id)
-    model = provider.get_chat_model_instance(model_id)
-    # 4. 创建格式化器
+    """Factory method to create model and formatter instances.
+
+    1. 解析 agent_id (参数 > context > None)
+    2. 加载代理配置 (RetryConfig, RateLimitConfig)
+    3. 获取 provider 和 model
+    4. 创建格式化器
+    5. 双重包装模型: TokenRecordingModelWrapper → RetryChatModel
+    """
+    from ..app.agent_context import get_current_agent_id
+    from ..config.config import load_agent_config
+
+    # Determine agent_id (parameter > context > None)
+    if agent_id is None:
+        try:
+            agent_id = get_current_agent_id()
+        except Exception:
+            pass
+
+    # 加载代理配置
+    if agent_id:
+        agent_config = load_agent_config(agent_id)
+        model_slot = agent_config.active_model
+        retry_config = RetryConfig(
+            enabled=agent_config.running.llm_retry_enabled,
+            max_retries=agent_config.running.llm_max_retries,
+            backoff_base=agent_config.running.llm_backoff_base,
+            backoff_cap=agent_config.running.llm_backoff_cap,
+        )
+        rate_limit_config = RateLimitConfig(
+            max_concurrent=agent_config.running.llm_max_concurrent,
+            max_qpm=agent_config.running.llm_max_qpm,
+            pause_seconds=agent_config.running.llm_rate_limit_pause,
+            jitter_range=agent_config.running.llm_rate_limit_jitter,
+            acquire_timeout=agent_config.running.llm_acquire_timeout,
+        )
+
+    # 获取 provider 和 model
+    if model_slot and model_slot.provider_id and model_slot.model:
+        manager = ProviderManager.get_instance()
+        provider = manager.get_provider(model_slot.provider_id)
+        model = provider.get_chat_model_instance(model_slot.model)
+    else:
+        model = ProviderManager.get_active_chat_model()
+
+    # 创建格式化器
     formatter = _create_formatter_instance(model.__class__)
-    # 5. 双重包装模型
+
+    # 双重包装模型
     wrapped_model = TokenRecordingModelWrapper(provider_id, model)
     wrapped_model = RetryChatModel(
         wrapped_model,
@@ -446,16 +632,56 @@ def create_model_and_formatter(
     return wrapped_model, formatter
 ```
 
+**FileBlockSupportFormatter** (`model_factory.py:680-913`):
+- 继承任意 Formatter 类，扩展文件块支持
+- 处理 thinking blocks（Anthropic 格式）
+- 处理视频占位符提升和恢复
+- 修复非标准 MIME 类型 (image/jpg → image/jpeg)
+- 处理 tool_result 中的媒体块去重
+- `convert_tool_result_to_string()` 方法扩展，支持 file 类型 block
+
+**convert_tool_result_to_string 扩展** (`model_factory.py:836-908`):
+```python
+@staticmethod
+def convert_tool_result_to_string(
+    output: Union[str, List[dict]],
+) -> tuple[str, Sequence[Tuple[str, dict]]]:
+    """扩展以支持 file 类型 block。
+
+    处理流程：
+    1. 字符串直接返回
+    2. 尝试父类方法
+    3. 如遇 "Unsupported block type: file"，处理 file block
+    4. file block 提取 path/url，返回 (文本描述, multimodal_data)
+    """
+```
+
+**消息格式化流程**:
+```
+normalize_messages_for_model_request()
+         │
+         ├── 检测 formatter 类型 (Anthropic/OpenAI/Gemini)
+         │
+         ├── _format_anthropic_messages() ──► 处理媒体块和 tool_result
+         │
+         └── _format_openai_video_block() ──► 视频块转换
+                   │
+                   ├── _substitute_video_blocks() ──► 替换为占位符
+                   ├── super()._format() ──► 父类格式化
+                   ├── _replace_video_placeholders() ──► 恢复视频块
+                   └── _promote_tool_result_videos() ──► 提升视频到用户消息
+```
+
 **包装器管道架构**:
 
 ```
 ProviderManager.get_active_chat_model()
          │
          ▼
-   ┌─────────────────────┐
+   ┌───────────────────────┐
    │ OpenAIChatModelCompat│
    │ (或 Anthropic/Gemini)│
-   └─────────────────────┘
+   └───────────────────────┘
          │ (包装)
          ▼
    ┌─────────────────────────────┐
@@ -476,19 +702,76 @@ ProviderManager.get_active_chat_model()
 
 ```python
 class TokenRecordingModelWrapper(ChatModelBase):
+    """Token 使用量记录包装器"""
+
+    async def chat(self, messages, **kwargs) -> AsyncIterator[ChatMessage]:
+        """包装 chat 方法，记录 token 使用量"""
+        usage = None
+        async for chunk in self._model.chat(messages, **kwargs):
+            # 记录 usage（如果有）
+            if hasattr(chunk, "usage") and chunk.usage:
+                usage = chunk.usage
+            yield chunk
+
+        # 流结束后记录 usage
+        if usage:
+            await self._record_usage(usage)
+
     async def _record_usage(self, usage: ChatUsage | None) -> None:
-        # 记录 prompt_tokens, completion_tokens, total_tokens
+        """记录 token 使用量到会话"""
+        if usage:
+            session_id = get_current_session_id()
+            record_usage(session_id, self.provider_id, usage)
 
     @classmethod
     def pop_usage_for_session(cls, session_id: str) -> dict[str, Any] | None:
-        # 获取会话的 token 使用记录
+        """获取会话的 token 使用记录"""
+        return token_usage_store.pop(session_id)
 ```
 
 **重试可错误**: `{429, 500, 502, 503, 504, 529}` + OpenAI/Anthropic SDK 可重试异常
 
 **流式安全**: 信号量槽位在首个 chunk 到达后释放 (非完整流结束后)，防止其他调用者饥饿
 
-### 5.5 FileBlockSupportFormatter 与思考块
+### 5.5 Token 使用量记录
+
+**TokenUsageStore** (`token_usage/store.py`):
+
+```python
+class TokenUsageStore:
+    """Token 使用量存储"""
+
+    def __init__(self):
+        self._usages: dict[str, list[dict]] = {}
+
+    def record(self, session_id: str, provider_id: str, usage: ChatUsage) -> None:
+        """记录单次 token 使用量"""
+        if session_id not in self._usages:
+            self._usages[session_id] = []
+        self._usages[session_id].append({
+            "provider_id": provider_id,
+            "prompt_tokens": usage.prompt_tokens,
+            "completion_tokens": usage.completion_tokens,
+            "total_tokens": usage.total_tokens,
+            "timestamp": time.time(),
+        })
+
+    def pop(self, session_id: str) -> dict[str, Any] | None:
+        """获取并清除会话的 token 使用量"""
+        return self._usages.pop(session_id, None)
+
+    def get_total(self, session_id: str) -> dict[str, int]:
+        """获取会话的总 token 使用量"""
+        usages = self._usages.get(session_id, [])
+        return {
+            "prompt_tokens": sum(u["prompt_tokens"] for u in usages),
+            "completion_tokens": sum(u["completion_tokens"] for u in usages),
+            "total_tokens": sum(u["total_tokens"] for u in usages),
+            "request_count": len(usages),
+        }
+```
+
+### 5.6 FileBlockSupportFormatter 与思考块
 
 **源码路径**: `model_factory.py` line 695-913
 
@@ -496,399 +779,44 @@ class TokenRecordingModelWrapper(ChatModelBase):
 
 ```python
 class FileBlockSupportFormatter(base_formatter_class):
+    """处理 thinking blocks 和特殊内容块的格式化器"""
+
     async def _format(self, msgs) -> list[dict]:
+        """格式化消息，处理 thinking blocks"""
+        formatted = []
+
+        for msg in msgs:
+            # 1. 处理 thinking blocks
+            if msg.type == "thinking":
+                formatted.append({
+                    "type": "thinking",
+                    "thinking": msg.content,
+                })
+            # 2. 处理视频占位符
+            elif msg.type == "video":
+                formatted.append({
+                    "type": "video",
+                    "video_url": msg.video_url,
+                    "placeholder": msg.placeholder or "Video content",
+                })
+            # 3. 普通消息
+            else:
+                formatted.append(self._format_content(msg))
+
+        return formatted
+```
         # 1. 标准化消息，检测格式化器类型
-        # 2. 提取 thinking blocks 到 reasoning_contents dict
-        # 3. Anthropic: 使用 _format_anthropic_messages() 原生传递
-        # 4. OpenAI/Gemini: 提取 reasoning_content 并注入 assistant 消息
-```
-
-**Thinking block 处理流程** (非 Anthropic 模型):
-
-```
-1. 从 assistant 消息提取 thinking blocks
-         │
-         ▼
-2. 预测哪些 assistant 消息会存活 (过滤 thinking-only 消息)
-         │
-         ▼
-3. 对齐 reasoning_contents 与存活的 assistant 消息
-         │
-         ▼
-4. 注入 reasoning_content 字段
-```
-
-### 5.6 消息归一化管道
-
-**源码路径**: `agents/utils/message_request_normalizer.py` line 131
-
-`normalize_messages_for_model_request()` 在发送前标准化消息：
-
-```python
-def normalize_messages_for_model_request(
-    msgs: list[Msg],
-    *,
-    supports_multimodal: bool,
-    target_family: str = "openai",
-) -> list[Msg]:
-```
-
-**标准化流程**:
-
-```
-1. _clone_messages() - 深拷贝所有消息，避免修改存储历史
-         │
-         ▼
-2. _sanitize_tool_messages() - 修复/移除无效 tool blocks
-         │
-         ├─► _repair_empty_tool_inputs() - 修复空的 input={}
-         ├─► _remove_invalid_tool_blocks() - 移除无效 id/name
-         ├─► _dedup_tool_blocks() - 去重相同 ID 的 tool_use
-         └─► _remove_unpaired_tool_messages() - 移除孤立 tool 结果
-         │
-         ▼
-3. _clean_provider_specific_fields() - 清除提供商特定字段
-         │
-         ├─► 剥离 extra_content (Gemini thought_signature)
-         └─► 剥离 raw_input (AgentScope 流解析产物)
-         │
-         ▼
-4. _strip_media_blocks_in_place() - 如果不支持多模态
-         └─► 移除 image/audio/video blocks
-         └─► 替换为空内容占位符
-```
-
-**完整消息流程** (用户输入 → LLM 格式化消息):
-
-```
-用户输入
-    │
-    ▼
-process_file_and_media_blocks_in_message() - 下载文件/媒体
-    │
-    ▼
-QwenPawAgent.reply() - 工具调用拦截
-    │
-    ▼
-normalize_messages_for_model_request() - 消息归一化
-    │
-    ▼
-FileBlockSupportFormatter._format() - 格式化
-    │
-    ├─► Anthropic: _format_anthropic_messages() 原生处理
-    └─► OpenAI/Gemini: thinking/video 块注入
-    │
-    ▼
-Provider API 请求
-```
-
-**Provider Target Families**:
-
-| Target | 处理方式 |
-|--------|---------|
-| `openai` | 默认，剥离所有提供商特定字段 |
-| `anthropic` | 使用 _format_anthropic_messages() 原生 thinking/image/video |
-| `gemini` | 保留 extra_content (Gemini thought_signature) |
-
-**视频占位符处理** (OpenAI/Gemini):
-
-```
-_substitute_video_blocks() → base formatter → _replace_video_placeholders()
-     替换视频为 __QWENPAW_VID_{id}__        还原视频块
+        # 2. 处理 thinking blocks
+        # 3. 处理视频占位符
+        # 4. 转换消息格式
 ```
 
 ---
 
-## 6. 模型能力探测
+## 6. 本地模型管理 (local_models)
 
-### 6.1 多模态能力检测
+### 6.1 核心组件
 
-```python
-async def probe_model_multimodal(
-    provider_id: str,
-    model_id: str,
-    image_only: bool = False,
-) -> dict:
-    """探测模型是否支持多模态"""
-    model_info = get_model_info(provider_id, model_id)
-    
-    # 方法1: 从已知模型列表查询
-    if model_info.probe_source == "documentation":
-        return {
-            "supports_vision": model_info.supports_image,
-            "supports_video": model_info.supports_video,
-        }
-    
-    # 方法2: 实际调用探测
-    result = await multimodal_prober.probe(
-        model=model,
-        test_image=True,
-        test_video=False,
-    )
-    return result
-```
-
-### 6.2 内置能力基线
-
-```python
-# capability_baseline.py
-CAPABILITY_BASELINE = {
-    # GPT-4o 系列 - 全能型
-    "gpt-4o": {"vision": True, "video": False, "audio": False},
-    
-    # Claude 3.5 Sonnet - 强推理
-    "claude-3-5-sonnet-20241022": {"vision": True, "video": False, "audio": False},
-    
-    # Gemini 2.0 - 多模态领先
-    "gemini-2.0-flash": {"vision": True, "video": True, "audio": False},
-}
-```
-
----
-
-## 7. 本地模型配置
-
-### 7.1 Ollama 配置
-
-```bash
-# 1. 安装 Ollama
-# macOS/Linux: brew install ollama
-# Windows: 下载安装包
-
-# 2. 启动 Ollama 服务
-ollama serve
-
-# 3. 拉取模型
-ollama pull llama3.2
-ollama pull qwen2.5
-
-# 4. 测试
-curl http://localhost:11434/api/tags
-```
-
-**QwenPaw 配置**：
-```json
-{
-  "providers": {
-    "ollama": {
-      "enabled": true,
-      "base_url": "http://localhost:11434/v1",
-      "models": []
-    }
-  }
-}
-```
-
-### 7.2 LM Studio 配置
-
-```bash
-# 1. 下载 LM Studio
-# https://lmstudio.ai/
-
-# 2. 启动 LM Studio
-# - 选择模型
-# - 启动本地服务器（默认端口 1234）
-
-# 3. 配置 QwenPaw
-```
-
-```json
-{
-  "providers": {
-    "lmstudio": {
-      "enabled": true,
-      "base_url": "http://localhost:1234/v1",
-      "models": []
-    }
-  }
-}
-```
-
-### 7.3 llama.cpp 内置下载
-
-QwenPaw 内置 llama.cpp 支持，无需单独安装：
-
-1. 在 Web 界面中点击 `Download Llama.cpp`
-2. 选择模型并下载
-3. 自动配置并启用
-
----
-
-## 8. OpenRouter 聚合
-
-OpenRouter 聚合多个模型提供商的访问：
-
-```json
-{
-  "providers": {
-    "openrouter": {
-      "enabled": true,
-      "api_key": "sk-or-v1-xxxxx",
-      "base_url": "https://openrouter.ai/api/v1",
-      "models": []
-    }
-  }
-}
-```
-
-**优点**：
-- 统一接口访问多个模型
-- 内置积分管理
-- 自动路由最优模型
-
-**缺点**：
-- 额外的网络跳转
-- 可能的延迟增加
-
----
-
-## 9. 自定义 Provider
-
-### 9.1 实现自定义 Provider
-
-```python
-from qwenpaw.providers.provider import Provider, ModelInfo
-
-class MyCustomProvider(Provider):
-    """自定义 Provider 示例"""
-    
-    provider_id = "my-provider"
-    provider_name = "My Custom Provider"
-    
-    def __init__(self, config: ProviderConfig):
-        super().__init__(config)
-        self._client = self._create_client()
-    
-    def _create_client(self):
-        # 创建 API 客户端
-        pass
-    
-    def get_chat_model_instance(self, model_name: str) -> ChatModelBase:
-        # 返回模型实例
-        return MyCustomChatModel(
-            api_key=self.config.api_key,
-            base_url=self.config.base_url,
-            model=model_name,
-        )
-    
-    async def list_models(self) -> List[ModelInfo]:
-        # 实现模型发现
-        return [
-            ModelInfo(id="my-model-1", name="My Model 1", supports_image=False),
-        ]
-```
-
-### 9.2 注册自定义 Provider
-
-```python
-from qwenpaw.providers.provider_manager import ProviderManager
-
-# 方式1: 通过配置
-# 在 config.json 中添加 provider 配置
-
-# 方式2: 代码注册
-manager = ProviderManager.get_instance()
-manager.register_provider(MyCustomProvider(custom_config))
-```
-
----
-
-## 10. 故障排查
-
-### 10.1 常见错误
-
-| 错误 | 原因 | 解决方案 |
-|------|------|----------|
-| `ProviderError: API key missing` | 未配置 API Key | 在控制台配置 API Key |
-| `RateLimitError: 429` | 请求超限 | 等待后重试，或降低 QPM |
-| `AuthenticationError: 401` | API Key 无效 | 检查 API Key 是否正确 |
-| `ModelNotFoundError` | 模型不存在 | 检查模型名称是否正确 |
-| `ConnectionError` | 网络问题 | 检查网络连接和代理设置 |
-
-### 10.2 调试技巧
-
-```python
-import logging
-
-# 启用调试日志
-logging.getLogger("qwenpaw.providers").setLevel(logging.DEBUG)
-logging.getLogger("qwenpaw.providers.provider_manager").setLevel(logging.DEBUG)
-```
-
-### 10.3 诊断命令
-
-```bash
-# 检查提供商状态
-qwenpaw doctor --check models
-
-# 测试模型连接
-qwenpaw models test --provider openai --model gpt-4o
-
-# 查看详细配置
-qwenpaw models list --verbose
-```
-
----
-
-## 11. 最佳实践
-
-### 11.1 API Key 安全
-
-1. **使用环境变量**而非硬编码
-2. **启用 OS Keychain**存储（系统偏好设置）
-3. **定期轮换**API Key
-4. **最小权限**原则 - 只授权需要的模型
-
-### 11.2 性能优化
-
-| 场景 | 建议 |
-|------|------|
-| 高并发 | 启用 RetryChatModel，设置合适的 max_concurrent |
-| 低延迟 | 使用本地模型（Ollama/LM Studio） |
-| 成本控制 | 设置模型使用配额，监控用量 |
-| 可靠性 | 配置多个 Provider 作为备份 |
-
-### 11.2.1 OpenAIChatModelCompat 流式兼容 (openai_chat_model_compat.py)
-
-**源码路径**: `src/qwenpaw/providers/openai_chat_model_compat.py`
-
-**问题背景**: 不同模型在流式输出中会产生格式不一致的工具调用块
-
-**核心类**: `_SanitizedStream` (line 138-188) - 流式响应代理包装器
-
-**流式处理流程** `_parse_openai_stream_response()` (line 196-312):
-```
-1. _SanitizedStream 包装流
-2. _capture_extra_content() 捕获 tool_call chunk 中的 extra_content
-3. _sanitize_stream_item() 修复/丢弃格式错误的 tool_call
-4. 如无结构化 tool_use 块 → 从 <tool_call> 标签提取
-5. 合并到 parsed.content
-```
-
-**extra_content 捕获** (line 170-188):
-```python
-# 从 Gemini thought_signature 提取 extra_content
-for tc in delta.tool_calls:
-    extra = tc.extra_content or tc.model_extra.get("extra_content")
-    self.extra_contents[tc_id] = extra
-```
-
-**工具调用标签解析** `tag_parser.py:parse_tool_calls_from_text()` (line 313):
-- 解析 `<tool_call>...</tool_call>` XML 块
-- 支持 JSON / 严格 XML / 无闭合标签宽松格式
-- 提取 text_before / tool_calls / has_open_tag
-
-**thinking 块处理** (line 240-266):
-```python
-# 从 <think>...</think> 文本中提取 <tool_call> 标签
-# 转换为合成 tool_use 块, ID 如 "think_call_{i}"
-```
-
-**集成点**: OpenAI/Ollama/OpenRouter Provider 的 `get_chat_model_instance()` 均返回 `OpenAIChatModelCompat(stream=True)`
-
----
-
-### 11.2.2 本地模型管理 (local_models)
 **源码路径**: `src/qwenpaw/local_models/`
 
 ```
@@ -900,13 +828,13 @@ local_models/
 └── tag_parser.py       # 标签解析
 ```
 
-#### LocalModelManager 单例 (manager.py:41-243)
+### 6.2 LocalModelManager 单例
 
 ```python
 class LocalModelManager:
     """本地模型管理器Facade"""
     def get_instance() -> "LocalModelManager": ...      # line 237
-    def get_config() -> LocalModelConfig: ...            # line 118
+    def get_config() -> LocalModelConfig: ...            # line 109
     def set_max_context_length(n: int): ...             # line 126
     def set_port(p: int): ...                          # line 134
     def start_llamacpp_download(): ...                  # line 147
@@ -914,14 +842,7 @@ class LocalModelManager:
     def shutdown_server(): ...                          # line 232
 ```
 
-**LocalModelConfig** (manager.py:23-38):
-```python
-class LocalModelConfig(BaseModel):
-    max_context_length: int = Field(default=65536, ge=32768)
-    port: int | None = Field(default=None, ge=1, le=65535)
-```
-
-#### Llama.cpp Server 生命周期 (llamacpp.py)
+### 6.3 Llama.cpp Server 生命周期
 
 **启动流程** `setup_server()` (line 181-236):
 ```
@@ -943,13 +864,7 @@ llama-server --host 127.0.0.1 --port <port> --model <path> \
   --gpu-layers auto [--ctx-size <n>] [--mmproj <path>]
 ```
 
-**关闭流程** `shutdown_server()` (line 279-289):
-```python
-# 使用 _server_shutdown_context() 上下文管理器
-# 优雅关闭 5s → 强制 kill 3s
-```
-
-#### ModelManager 下载管理 (model_manager.py:77-470)
+### 6.4 模型下载管理
 
 **下载源**:
 ```python
@@ -959,16 +874,6 @@ class DownloadSource(str, Enum):
     AUTO = "auto"                  # 先HF后MS
 ```
 
-**下载流程** `start_download()` (line 186-242):
-```
-1. 验证无活跃下载
-2. 解析下载源 (HuggingFace/ModelScope)
-3. 估算下载大小
-4. 验证远程有 GGUF 文件
-5. 创建 ProcessDownloadTaskSpec (暂存目录)
-6. 委托 ProcessDownloadController.start()
-```
-
 **推荐模型** (按内存):
 | 内存 | 推荐模型 |
 |------|----------|
@@ -976,28 +881,10 @@ class DownloadSource(str, Enum):
 | ≤16GB | QwenPaw-Flash-4B |
 | >16GB | QwenPaw-Flash-9B |
 
-#### ProcessDownloadController (download_manager.py:253-421)
+### 6.5 API 端点
 
-```python
-class ProcessDownloadController:
-    """后台进程下载控制器"""
-    def start(): ...     # 启动下载线程
-    def cancel(): ...    # 优雅/kill 关闭下载进程
-    def get_progress() -> DownloadProgress: ...
-```
+**`routers/local_models.py`**:
 
-#### ProviderManager 集成 (provider_manager.py)
-
-**本地模型恢复** `_resume_local_model()` (line 1578-1630):
-```
-1. 获取 qwenpaw-local provider 的上次活跃模型
-2. 检查 llama.cpp 安装
-3. 检查模型已下载
-4. 调用 local_manager.setup_server(model_id)
-5. 更新 provider: base_url = http://127.0.0.1:<port>/v1
-```
-
-**API 端点** (`routers/local_models.py`):
 | 端点 | 功能 |
 |------|------|
 | `GET /local-models/server` | 检查服务器状态 |
@@ -1008,7 +895,32 @@ class ProcessDownloadController:
 
 ---
 
-### 11.3 模型选择指南
+## 7. 应用场景
+
+### 7.1 云端 API 模型使用
+
+适用于需要高性能、强算力的场景：
+- **优势**: 无需本地硬件配置，随时切换不同模型
+- **场景**: 复杂推理、长文本生成、多轮对话
+- **推荐**: GPT-4o、Claude 3.5 Sonnet、Qwen3-max
+
+### 7.2 本地模型使用
+
+适用于隐私敏感或需要离线使用的场景：
+- **优势**: 数据不离开本地，支持离线使用，成本为零
+- **场景**: 隐私文档处理、内网环境、频繁调用
+- **推荐**: Ollama + Llama 3.2、Qwen2.5
+
+### 7.3 多模型协作
+
+适用于需要不同模型互补的场景：
+- **架构**: 主模型负责对话 + 专业模型处理特定任务
+- **场景**: 代码生成用 Claude、翻译用 DeepSeek、对话用 GPT-4o
+- **实现**: 通过 `delegate_external_agent` 委托任务
+
+---
+
+## 8. 模型选择指南
 
 | 需求 | 推荐模型 |
 |------|----------|
@@ -1021,9 +933,95 @@ class ProcessDownloadController:
 
 ---
 
-## 12. 参考资料
+## 9. 常见问题
+
+### 9.1 模型连接失败
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| API Key 错误 | Key 无效或过期 | 在控制台重新设置 API Key |
+| 限流触发 | 请求频率超出限制 | 启用 RetryChatModel 或降低并发 |
+| 网络问题 | 防火墙/代理阻止 | 检查网络设置或配置代理 |
+
+### 9.2 本地模型问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| llama.cpp 启动失败 | 未下载或路径错误 | 运行 `qwenpaw local-models setup` |
+| 模型加载慢 | GPU 内存不足 | 减少 gpu-layers 或使用量化模型 |
+| 端口被占用 | 已有进程占用端口 | 修改端口或关闭占用进程 |
+
+### 9.3 Token 使用问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| Token 记录不准确 | 模型不支持 usage 返回 | 依赖估算值而非精确值 |
+| 上下文溢出 | 对话历史过长 | 启用 MemoryCompactionHook 自动压缩 |
+
+---
+
+## 10. 最佳实践
+
+### 10.1 安全建议
+
+1. **API Key 保护**: 使用加密存储，避免明文写在配置中
+2. **最小权限**: 仅启用需要的模型，禁用不使用的提供商
+3. **定期轮换**: 定期更换 API Key 并更新配置
+4. **监控使用**: 启用 TokenRecordingModelWrapper 监控使用量
+
+### 10.2 性能优化
+
+| 场景 | 优化方案 |
+|------|----------|
+| 高并发 | 调整 LLM_MAX_CONCURRENT 和 LLM_MAX_QPM |
+| 成本控制 | 使用 GPT-4o-mini 等低成本模型处理简单任务 |
+| 响应速度 | 本地模型处理简单请求，云端模型处理复杂推理 |
+| 缓存结果 | 启用 embedding cache 避免重复计算 |
+
+### 10.3 可靠性保障
+
+1. **配置重试**: 始终启用 RetryChatModel 处理临时性故障
+2. **多模型备份**: 配置多个 provider，当主模型不可用时自动切换
+3. **健康检查**: 使用 `qwenpaw doctor --check models` 定期检查模型状态
+
+---
+
+## 11. 总结
+
+### 核心要点
+
+1. **ProviderManager 单例**: 统一管理 20+ 内置提供商和自定义提供商
+2. **三层包装器**: OpenAIChatModelCompat → TokenRecordingModelWrapper → RetryChatModel
+3. **并发控制**: 信号量 + 指数退避 + 随机抖动
+4. **本地模型**: 内置 llama.cpp 支持，支持 HuggingFace/ModelScope 下载
+5. **API Key 安全**: Fernet 对称加密 + OS Keychain 存储
+
+### 关键配置
+
+| 配置项 | 位置 | 说明 |
+|--------|------|------|
+| `~/.qwenpaw/config.json` | providers | 提供商配置 |
+| `~/.qwenpaw/.secret/` | master_key | 加密密钥 |
+| 环境变量 | QWENPAW_LLM_* | 运行时限制 |
+
+### 故障排查流程
+
+```
+模型无法连接
+    │
+    ├─► 检查 API Key: qwenpaw doctor --check models
+    │
+    ├─► 检查网络: curl <provider_url>/models
+    │
+    └─► 检查限流: 查看日志中的 RateLimitError
+```
+
+---
+
+## 参考资料
 
 - 源码路径：`src/qwenpaw/providers/`
 - Provider 基类：`src/qwenpaw/providers/provider.py`
 - 管理器：`src/qwenpaw/providers/provider_manager.py`
 - 配置模型：`src/qwenpaw/config/config.py`
+- 本地模型：`src/qwenpaw/local_models/`

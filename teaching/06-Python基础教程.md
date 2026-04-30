@@ -4,6 +4,19 @@
 
 本教程为有 Java 背景的开发者快速掌握 Python 基础而编写。Python 和 Java 在很多概念上是相通的，但语法和编程风格有显著差异。通过类比 Java 语法，可以帮助 Java 开发者更快上手 Python。
 
+本教程涵盖 Python 核心语法、异步编程基础、类型提示系统以及项目管理工具。完成学习后，你将能够阅读 QwenPaw 源码并参与项目开发。
+
+**前置知识**：熟悉 Java 编程，理解面向对象概念。
+
+**学习目标**：
+- 理解 Python 与 Java 的核心差异
+- 掌握 Python 基本语法和数据结构
+- 理解 async/await 异步编程模型
+- 掌握类型提示的用法
+- 熟悉 pip 和虚拟环境的使用
+
+---
+
 ## 1. Python 与 Java 的核心差异对比
 
 | 特性 | Java | Python |
@@ -20,9 +33,12 @@
 | 接口实现 | `implements Interface` | 直接继承或多继承 |
 | 访问控制 | `public`/`private`/`protected` | `_`/`__` 前缀约定 |
 
-### 关键区别
+### 关键区别详解
 
 **1. 缩进代替花括号**
+
+Python 使用缩进定义代码块，这是 Java 开发者需要适应的重要差异。统一的缩进风格使代码更具可读性，但需要借助 IDE 的自动格式化功能避免缩进错误。
+
 ```python
 # Python - 缩进定义代码块
 if x > 0:
@@ -33,14 +49,32 @@ else:
     print("non-positive")
 ```
 
+```java
+// Java - 花括号界定代码块
+if (x > 0) {
+    System.out.println("positive");
+    if (x > 10) {
+        System.out.println("large");
+    }
+} else {
+    System.out.println("non-positive");
+}
+```
+
 **2. 动态类型 + 类型提示**
+
+Python 是动态类型语言，变量可以随时指向不同类型的对象。类型提示（Type Hints）是 Python 3.5+ 引入的可选特性，用于为 IDE 和静态检查工具提供类型信息。
+
 ```python
 # Python 可以不声明类型，但可以用类型提示
-name: str = "QwenPaw"  # 类型提示
+name: str = "QwenPaw"  # 类型提示（不影响运行时）
 age: int = 25
 ```
 
 **3. Everything is an object**
+
+在 Python 中，一切皆为对象——函数、类、模块甚至代码块都是对象。这使得函数式编程模式成为可能。
+
 ```python
 # Python 中函数也是对象
 def greet():
@@ -56,6 +90,8 @@ print(say())  # 输出: Hello
 
 ### 2.1 变量与数据类型
 
+Python 的内置数据类型比 Java 更简洁，没有 int/float/double 的区分，而是通过自动类型推断处理。
+
 ```python
 # 字符串
 name = "QwenPaw"
@@ -63,7 +99,7 @@ version = '1.0'
 multi_line = """多行
 字符串"""
 
-# 数字
+# 数字（Python 自动区分整数和浮点数）
 integer = 42
 floating = 3.14
 hex_num = 0xFF  # 255
@@ -93,16 +129,36 @@ tags = {"python", "java", "golang"}
 point = (10, 20)
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 String name = "QwenPaw";
 List<Integer> numbers = Arrays.asList(1, 2, 3);
 Map<String, Object> config = new HashMap<>();
 config.put("host", "localhost");
+config.put("port", 8080);
+config.put("debug", true);
+Set<String> tags = new HashSet<>(Arrays.asList("python", "java"));
+```
+
+**类型转换**：
+
+```python
+# Python 的类型转换
+int("42")             # 字符串转整数
+float("3.14")         # 字符串转浮点数
+str(123)              # 转字符串
+list((1, 2, 3))       # 元组转列表
+bool(0)               # False
+bool(1)               # True
+bool("")              # False
+bool("hello")         # True
 ```
 
 ### 2.2 控制流
+
+Python 的控制流语法比 Java 更简洁，但功能相同。
 
 ```python
 # 条件语句
@@ -118,11 +174,14 @@ else:
 status = "成年" if age >= 18 else "未成年"
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 String status = age >= 18 ? "成年" : "未成年";
 ```
+
+**循环结构**：
 
 ```python
 # for 循环 - 遍历列表
@@ -155,7 +214,8 @@ for i in range(10):
     print(i)
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 for (int i = 0; i < 5; i++) {
@@ -167,6 +227,8 @@ for (String fruit : fruits) {
 ```
 
 ### 2.3 函数定义
+
+Python 函数定义使用 `def` 关键字，支持默认参数、可变参数和关键字参数。
 
 ```python
 # 基本函数
@@ -195,7 +257,8 @@ user = create_user(name="Alice", age=30)
 user = create_user(age=25, name="Bob")  # 关键字参数可以打乱顺序
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 public String greet(String name) {
@@ -209,13 +272,15 @@ public void connect(String host, int port) {
 
 ### 2.4 类定义
 
+Python 的类定义比 Java 更简洁，但概念相通。需要注意 `self` 参数相当于 Java 的 `this`。
+
 ```python
 class Agent:
     """智能体基类"""
-    
+
     # 类变量（相当于 Java 的 static 变量）
     count = 0
-    
+
     def __init__(self, name: str, model: str = "gpt-4"):
         """构造函数（相当于 Java 的构造器）"""
         self.name = name          # 实例变量
@@ -223,31 +288,31 @@ class Agent:
         self._active = False      # _ 前缀表示受保护
         self.__secret = None     # __ 前缀表示私有
         Agent.count += 1
-    
+
     def start(self) -> None:
         """启动智能体"""
         self._active = True
         print(f"{self.name} started with {self.model}")
-    
+
     def stop(self) -> None:
         """停止智能体"""
         self._active = False
         print(f"{self.name} stopped")
-    
+
     def __str__(self) -> str:
         """字符串表示（相当于 Java 的 toString）"""
         return f"Agent({self.name}, {self.model})"
-    
+
     @property
     def is_active(self) -> bool:
         """属性（相当于 Java 的 getter）"""
         return self._active
-    
+
     @classmethod
     def get_count(cls) -> int:
         """类方法（相当于 Java 的静态方法）"""
         return cls.count
-    
+
     @staticmethod
     def validate_name(name: str) -> bool:
         """静态方法"""
@@ -259,30 +324,31 @@ class ChatAgent(Agent):
     def __init__(self, name: str, model: str = "gpt-4", temperature: float = 0.7):
         super().__init__(name, model)
         self.temperature = temperature
-    
+
     def chat(self, message: str) -> str:
         """聊天方法"""
         return f"{self.name}: Processing '{message}' with temp={self.temperature}"
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 public class Agent {
     private String name;
     private String model;
     private boolean active;
-    
+
     public Agent(String name, String model) {
         this.name = name;
         this.model = model;
         this.active = false;
     }
-    
+
     public void start() {
         this.active = true;
     }
-    
+
     public boolean isActive() {
         return active;
     }
@@ -290,6 +356,8 @@ public class Agent {
 ```
 
 ### 2.5 异常处理
+
+Python 的异常处理与 Java 类似，但语法更简洁。
 
 ```python
 try:
@@ -309,7 +377,8 @@ def validate_age(age: int) -> None:
         raise ValueError("Age is unrealistic")
 ```
 
-**Java 对比：**
+**Java 对比**：
+
 ```java
 // Java
 try {
@@ -323,8 +392,11 @@ try {
 
 ### 2.6 常用内置函数
 
+Python 提供了丰富的内置函数，无需导入即可使用。
+
+**字符串操作**：
+
 ```python
-# 字符串操作
 text = "  Hello, Python!  "
 text.strip()           # "Hello, Python!"
 text.lower()           # "  hello, python!  "
@@ -332,30 +404,37 @@ text.upper()           # "  HELLO, PYTHON!  "
 text.replace("Python", "Java")  # "  Hello, Java!  "
 text.split(",")        # ["  Hello", " Python!  "]
 ",".join(["a", "b", "c"])  # "a,b,c"
+text.find("Python")    # 4（找不到返回 -1）
+text.startswith("  ")  # True
+text.endswith("!  ")  # True
+```
 
-# 列表操作
+**列表操作**：
+
+```python
 numbers = [3, 1, 4, 1, 5, 9, 2, 6]
 sorted(numbers)        # [1, 1, 2, 3, 4, 5, 6, 9] (返回新列表)
 numbers.sort()         # 就地排序
 numbers.append(7)     # 添加元素
 numbers.extend([8, 9])  # 合并列表
 numbers.pop()         # 弹出并返回最后一个元素
+numbers.insert(0, 0)  # 在指定位置插入
+numbers.remove(1)     # 移除第一个匹配的元素
+numbers.reverse()     # 反转列表
+len(numbers)          # 列表长度
+```
 
-# 字典操作
+**字典操作**：
+
+```python
 config = {"host": "localhost", "port": 8080}
 config.keys()         # dict_keys(['host', 'port'])
 config.values()       # dict_values(['localhost', 8080])
 config.items()        # dict_items([('host', 'localhost'), ('port', 8080)])
 config.get("debug", False)  # 获取值，不存在返回默认值
 config.update({"debug": True})  # 合并字典
-
-# 类型转换
-int("42")             # 字符串转整数
-float("3.14")         # 字符串转浮点数
-str(123)              # 转字符串
-list((1, 2, 3))       # 元组转列表
-bool(0)               # False
-bool(1)               # True
+config.pop("port")    # 弹出并返回指定键的值
+config.setdefault("timeout", 30)  # 设置默认值
 ```
 
 ---
@@ -413,14 +492,14 @@ asyncio.run(main())
 async def concurrent_demo():
     """并发执行多个任务（相当于 Java 的 CompletableFuture.allOf）"""
     start = time.time()
-    
+
     # 并发执行：gather 等待所有任务完成
     results = await asyncio.gather(
         fetch_data(1.0, "API1"),
         fetch_data(2.0, "API2"),
         fetch_data(1.5, "API3"),
     )
-    
+
     elapsed = time.time() - start
     print(f"Concurrent took: {elapsed:.2f}s")  # ~2.0s（最长任务的耗时）
     print(f"Results: {results}")
@@ -460,26 +539,26 @@ class MultiAgentManager:
     def __init__(self):
         self.agents: Dict[str, Workspace] = {}
         self._lock = asyncio.Lock()  # 异步锁
-    
+
     async def get_agent(self, agent_id: str) -> Workspace:
         """异步获取智能体（懒加载）"""
         # 快速路径：已缓存则直接返回
         if agent_id in self.agents:
             return self.agents[agent_id]
-        
+
         # 使用锁保护共享状态
         async with self._lock:
             # 双重检查锁定
             if agent_id in self.agents:
                 return self.agents[agent_id]
-            
+
             # 创建新实例
             instance = Workspace(agent_id=agent_id)
             await instance.start()  # 异步启动
-            
+
             self.agents[agent_id] = instance
             return instance
-    
+
     async def reload_agent(self, agent_id: str) -> None:
         """异步重载智能体"""
         async with self._lock:
@@ -500,23 +579,23 @@ async def background_task():
 async def main():
     # 创建任务（不立即执行）
     task = asyncio.create_task(background_task())
-    
+
     # 可以取消任务
     # task.cancel()
-    
+
     # 等待任务完成（带超时）
     try:
         await asyncio.wait_for(task, timeout=5.0)
     except asyncio.TimeoutError:
         print("Task timed out")
-    
+
     # 或等待一组任务
     task1 = asyncio.create_task(do_something())
     task2 = asyncio.create_task(do_something_else())
     done, pending = await asyncio.wait([task1, task2])
 ```
 
-### 3.7 与 Java 对比
+### 3.7 Java 对照表
 
 | Java | Python |
 |------|--------|
@@ -532,6 +611,8 @@ async def main():
 ## 4. Python 类型提示（Type Hints）
 
 Python 3.5+ 引入了类型提示，允许为变量、函数参数和返回值声明类型。这使得静态检查工具（如 mypy）可以检测类型错误，同时保持代码的可读性。
+
+**进阶内容**：详见 [06.1-Python进阶教程.md](./06.1-Python进阶教程.md) 第3章 Pydantic 数据模型和第4章 dataclass。
 
 ### 4.1 基本类型提示
 
@@ -639,7 +720,7 @@ V = TypeVar('V')
 class Box(Generic[T]):
     def __init__(self, content: T):
         self.content = content
-    
+
     def get(self) -> T:
         return self.content
 
@@ -668,7 +749,7 @@ class EnvVarLoader:
     @staticmethod
     def get_bool(env_var: str, default: bool = False) -> bool:
         ...
-    
+
     @staticmethod
     def get_float(
         env_var: str,
@@ -693,7 +774,7 @@ if TYPE_CHECKING:
 class MyClass:
     def __init__(self, name: str):
         self.name = name
-    
+
     def process(self, other: "SomeClass") -> None:  # 前向引用
         ...
 ```
@@ -807,7 +888,7 @@ pipx install mypy
 pipx run black .
 ```
 
-### 5.5 与 Java 对比
+### 5.5 Java 对照表
 
 | Java | Python |
 |------|--------|
@@ -857,14 +938,377 @@ make lint  # 或 python -m pre_commit run --all-files
 
 ---
 
-## 6. 总结
+## 6. 应用场景
 
-作为 Java 开发者学习 Python，需要关注以下几点：
+### 6.1 Web 开发
 
-1. **缩进代替花括号** - 这是最直观的差异，需要适应
-2. **动态类型 + 类型提示** - Python 是动态类型，但可以用类型提示辅助
-3. **async/await** - 这是 Java 没有的概念，需要重点学习
-4. **虚拟环境** - 每个项目使用独立环境是最佳实践
-5. **现代包管理** - 使用 pyproject.toml 而非 requirements.txt
+Python 的异步特性使其非常适合构建高性能 Web 服务。QwenPaw 使用 FastAPI 作为 Web 框架。
 
-QwenPaw 项目是一个很好的参考，展示了 Python 在实际应用中的最佳实践，包括类型提示的广泛使用、异步编程模式等。
+```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "healthy"}
+
+@app.post("/api/agents")
+async def create_agent(request: CreateAgentRequest):
+    agent = await agent_manager.create_agent(request)
+    return agent
+```
+
+### 6.2 脚本与自动化
+
+Python 是编写系统脚本的理想语言：
+
+```python
+#!/usr/bin/env python3
+"""自动化脚本示例"""
+import asyncio
+from pathlib import Path
+
+async def cleanup_old_files(directory: Path, days: int = 7):
+    """清理指定目录下超过指定天数的文件"""
+    from datetime import datetime, timedelta
+    cutoff = datetime.now() - timedelta(days=days)
+
+    for file in directory.rglob("*.log"):
+        if datetime.fromtimestamp(file.stat().st_mtime) < cutoff:
+            file.unlink()
+            print(f"Deleted: {file}")
+
+if __name__ == "__main__":
+    asyncio.run(cleanup_old_files(Path.home() / "logs"))
+```
+
+### 6.3 数据处理
+
+Python 的列表推导式和丰富的标准库使数据处理变得简洁：
+
+```python
+# 列表推导式
+squares = [x**2 for x in range(10)]
+evens = [x for x in range(100) if x % 2 == 0]
+
+# 字典推导式
+word_lengths = {word: len(word) for word in ["apple", "banana", "cherry"]}
+
+# 聚合操作
+from collections import defaultdict
+word_count = defaultdict(int)
+for word in ["apple", "banana", "apple", "cherry", "banana"]:
+    word_count[word] += 1
+# {'apple': 2, 'banana': 2, 'cherry': 1}
+```
+
+### 6.4 QwenPaw 中的典型场景
+
+**异步初始化**：
+
+```python
+async def initialize_application():
+    """应用初始化场景：并发加载多个组件"""
+    # 顺序初始化（慢）
+    config = await load_config()
+    plugins = await load_plugins()
+    agents = await create_agents()
+
+    # 并发初始化（快）
+    config, plugins, agents = await asyncio.gather(
+        load_config(),
+        load_plugins(),
+        create_agents()
+    )
+```
+
+**带超时的操作**：
+
+```python
+async def call_with_timeout():
+    """需要设置超时的场景"""
+    try:
+        async with asyncio.timeout(30.0):
+            result = await long_running_operation()
+    except asyncio.TimeoutError:
+        logger.warning("Operation timed out after 30 seconds")
+        result = None
+    return result
+```
+
+---
+
+## 7. 最佳实践
+
+### 7.1 代码风格
+
+**使用 Black 格式化代码**：
+
+Black 是 Python 最流行的代码格式化工具，遵循 PEP 8 规范但更加严格。
+
+```bash
+# 安装
+pip install black
+
+# 格式化文件
+black src/
+
+# 检查格式（不修改）
+black --check src/
+```
+
+**使用 Ruff 进行 linting**：
+
+Ruff 是 Python 最快的 linter，比 flake8 快 10-100 倍。
+
+```bash
+pip install ruff
+ruff check src/
+ruff check --fix src/  # 自动修复
+```
+
+### 7.2 虚拟环境管理
+
+**使用 pyenv 管理 Python 版本**：
+
+```bash
+# 安装 pyenv
+brew install pyenv
+
+# 安装特定版本
+pyenv install 3.11.5
+
+# 设置项目 Python 版本
+echo "3.11.5" > .python-version
+pyenv local
+```
+
+**使用 Direnv 管理环境变量**：
+
+```bash
+# 安装
+brew install direnv
+
+# 在项目目录创建 .envrc
+echo 'export OPENAI_API_KEY="sk-xxx"' > .envrc
+direnv allow
+```
+
+### 7.3 类型检查
+
+**使用 mypy 进行静态类型检查**：
+
+```bash
+pip install mypy
+mypy src/
+
+# 严格模式
+mypy --strict src/
+```
+
+**在 IDE 中启用类型检查**：
+
+VS Code 用户应安装 Pylance 扩展，它提供实时类型检查和智能补全。
+
+### 7.4 测试实践
+
+**使用 pytest + pytest-asyncio**：
+
+```python
+import pytest
+
+@pytest.fixture
+def sample_agent():
+    """测试夹具"""
+    return Agent(name="test", model="gpt-4")
+
+@pytest.mark.asyncio
+async def test_agent_lifecycle(sample_agent):
+    """测试智能体生命周期"""
+    assert not sample_agent.is_active
+    await sample_agent.start()
+    assert sample_agent.is_active
+    await sample_agent.stop()
+    assert not sample_agent.is_active
+```
+
+---
+
+## 8. 常见问题
+
+### 8.1 为什么 Python 的 `==` 比较和 `is` 不同？
+
+- `==` 比较值是否相等
+- `is` 比较对象身份（内存地址）
+
+```python
+a = [1, 2, 3]
+b = [1, 2, 3]
+print(a == b)  # True（值相等）
+print(a is b)  # False（不同对象）
+
+c = a
+print(a is c)  # True（同一个对象）
+```
+
+**注意**：对于小整数和小字符串，Python 会进行 interning优化，可能出现 `a is b` 为 True 的情况，但这不是可靠的行为。
+
+### 8.2 如何正确比较字符串？
+
+始终使用 `==` 比较字符串值：
+
+```python
+name1 = "Alice"
+name2 = "Alice"
+print(name1 == name2)  # True
+print(name1 is name2)  # 可能 True（interning），但不可靠
+```
+
+### 8.3 为什么不要使用 `time.sleep()` 在 async 代码中？
+
+`time.sleep()` 会阻塞整个线程，而 `asyncio.sleep()` 只会暂停当前协程，让事件循环处理其他任务。
+
+```python
+# ❌ 错误：在 async 函数中使用 time.sleep
+async def bad_example():
+    time.sleep(5)  # 阻塞整个程序 5 秒
+
+# ✅ 正确：使用 asyncio.sleep
+async def good_example():
+    await asyncio.sleep(5)  # 暂停 5 秒，但允许其他任务运行
+```
+
+### 8.4 为什么函数参数默认值不要使用可变对象？
+
+```python
+# ❌ 危险：默认参数在函数定义时创建，所有调用共享同一个对象
+def add_item(item, items=[]):
+    items.append(item)
+    return items
+
+print(add_item("a"))  # ['a']
+print(add_item("b"))  # ['a', 'b'] — 预期之外！
+
+# ✅ 正确：使用 None 作为默认值
+def add_item(item, items=None):
+    if items is None:
+        items = []
+    items.append(item)
+    return items
+```
+
+### 8.5 如何处理循环导入？
+
+循环导入是 Python 项目中的常见问题。有几种解决方案：
+
+**方案1：延迟导入（在函数内部导入）**：
+
+```python
+# module_a.py
+def func_a():
+    from module_b import ClassB  # 延迟导入
+    return ClassB()
+```
+
+**方案2：使用 TYPE_CHECKING**：
+
+```python
+# module_a.py
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from module_b import ClassB  # 仅类型检查时导入
+
+class ClassA:
+    def method(self, other: "ClassB") -> None:  # 前向引用
+        pass
+```
+
+**方案3：重构代码结构**：将共享的类型和常量移到独立的模块中。
+
+### 8.6 如何调试 Python 异步代码？
+
+**使用 `asyncio.run()` 配合异常堆栈**：
+
+```python
+import asyncio
+
+async def problematic_async_func():
+    raise ValueError("test error")
+
+try:
+    asyncio.run(problematic_async_func())
+except Exception as e:
+    import traceback
+    traceback.print_exc()
+```
+
+**使用 breakpoint() 和 pdb**：
+
+```python
+async def debug_async():
+    import pdb
+    pdb.set_trace()
+    result = await some_async_operation()
+    return result
+```
+
+### 8.7 pip 安装失败怎么办？
+
+```bash
+# 清理 pip 缓存
+pip cache purge
+
+# 使用国内镜像
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple some-package
+
+# 升级 pip
+python -m pip install --upgrade pip
+
+# 创建新的虚拟环境
+python -m venv new_venv
+source new_venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## 9. 总结
+
+### 学习要点回顾
+
+作为 Java 开发者学习 Python，需要关注以下核心差异：
+
+| 序号 | 要点 | 说明 |
+|------|------|------|
+| 1 | **缩进代替花括号** | 这是最直观的差异，需要适应使用空格/Tab 界定代码块 |
+| 2 | **动态类型 + 类型提示** | Python 是动态类型，但类型提示可以提供静态检查能力 |
+| 3 | **async/await** | Java 没有的并发模型，是处理 I/O 密集型任务的关键 |
+| 4 | **虚拟环境** | 每个项目使用独立环境是 Python 开发最佳实践 |
+| 5 | **现代包管理** | 使用 pyproject.toml 而非 requirements.txt |
+| 6 | **访问控制约定** | `_` 和 `__` 前缀代替 `private`/`protected` 关键字 |
+
+### 进阶学习路径
+
+完成本教程后，建议继续学习：
+
+1. **[06.1-Python进阶教程.md](./06.1-Python进阶教程.md)** — 装饰器、上下文管理器、Pydantic、 dataclass、ABC 等高级特性
+2. **[07-智能体核心架构.md](./07-智能体核心架构.md)** — 理解 QwenPaw 的智能体设计
+3. **[08-消息渠道系统.md](./08-消息渠道系统.md)** — 消息传递与并发处理
+
+### QwenPaw 项目参考
+
+QwenPaw 项目展示了 Python 在实际应用中的最佳实践：
+
+- **类型提示**：全面使用类型注解，便于 IDE 和 mypy 检查
+- **异步编程**：大量使用 async/await 处理并发任务
+- **项目结构**：遵循 `src/` layout，清晰的分层架构
+- **代码质量**：使用 Black、Ruff、mypy 保证代码风格和类型安全
+
+建议通过阅读 QwenPaw 源码来巩固 Python 知识，特别是以下模块：
+
+- `src/qwenpaw/app/_app.py` — 应用入口和异步上下文管理
+- `src/qwenpaw/app/multi_agent_manager.py` — 异步锁和并发模式
+- `src/qwenpaw/config/config.py` — Pydantic 配置模型
+- `src/qwenpaw/agents/` — 智能体核心实现
