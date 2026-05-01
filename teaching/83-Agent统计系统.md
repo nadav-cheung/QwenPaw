@@ -394,6 +394,24 @@ async def get_stats_parallel(workspace_dir: Path) -> AgentStatsSummary:
 
 ---
 
+## 🐍 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| Micrometer | Agent 统计 (AgentStatsService) | Micrometer 通过 MeterRegistry 收集指标；QwenPaw 通过 AgentStatsService 聚合每日/渠道统计 |
+| MeterRegistry | StatsManager | MeterRegistry 是指标注册中心；QwenPaw 的统计管理由 StatsManager 协调各统计服务 |
+| @Timed | Token 追踪 (TokenRecordingModelWrapper) | @Timed 注解在方法级别计时；QwenPaw 通过模型包装器透明拦截每次调用并记录 Token |
+| Prometheus + Grafana | 内置统计面板 | Java 生态通常外挂 Prometheus 采集 + Grafana 展示；QwenPaw 将统计直接内嵌在服务中 |
+| Counter / Gauge | token_count / input_tokens | Micrometer 的 Counter 递增计数、Gauge 实时快照；QwenPaw 直接在统计模型中记录 Token 维度 |
+
+### 关键差异
+
+Java 生态的监控指标通常通过独立的时序数据库（Prometheus、InfluxDB）存储和查询，而 QwenPaw 将统计数据持久化在本地数据库中，无需额外基础设施。Token 维度的统计在 Java 应用中需要手动埋点，而 QwenPaw 通过模型包装器实现了自动化的 Token 透明追踪。
+
+---
+
 ## 知识检查
 
 1. AgentStatsService 的统计数据来源是什么？它是通过数据库查询还是文件解析实现的？

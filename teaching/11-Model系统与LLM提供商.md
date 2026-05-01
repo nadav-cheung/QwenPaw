@@ -959,7 +959,7 @@ class DownloadSource(str, Enum):
 
 | 问题 | 原因 | 解决方案 |
 |------|------|----------|
-| llama.cpp 启动失败 | 未下载或路径错误 | 运行 `qwenpaw local-models setup` |
+| llama.cpp 启动失败 | 未下载或路径错误 | 运行 `qwenpaw models local` |
 | 模型加载慢 | GPU 内存不足 | 减少 gpu-layers 或使用量化模型 |
 | 端口被占用 | 已有进程占用端口 | 修改端口或关闭占用进程 |
 
@@ -994,7 +994,7 @@ class DownloadSource(str, Enum):
 
 1. **配置重试**: 始终启用 RetryChatModel 处理临时性故障
 2. **多模型备份**: 配置多个 provider，当主模型不可用时自动切换
-3. **健康检查**: 使用 `qwenpaw doctor --check models` 定期检查模型状态
+3. **健康检查**: 使用 `qwenpaw doctor --deep` 定期检查模型状态
 
 ---
 
@@ -1021,7 +1021,7 @@ class DownloadSource(str, Enum):
 ```
 模型无法连接
     │
-    ├─► 检查 API Key: qwenpaw doctor --check models
+    ├─► 检查 API Key: qwenpaw doctor --deep
     │
     ├─► 检查网络: curl <provider_url>/models
     │
@@ -1294,7 +1294,7 @@ qwenpaw models list --provider ollama
 
 ### 基础练习
 
-1. **Provider 列表**：运行 `qwenpaw models list` 查看所有可用模型
+1. **Provider 列表**：运行 `qwenpaw models list` 查看所有可用模型和提供商
 2. **配置查看**：查看 `~/.qwenpaw/config.json` 中的 providers 配置
 3. **模型切换**：使用 `/model gpt-4o-mini` 在对话中切换模型
 
@@ -1318,8 +1318,6 @@ qwenpaw models list --provider ollama
 **练习 1：**
 ```bash
 qwenpaw models list
-# 或
-qwenpaw providers list
 ```
 
 **练习 2：**
@@ -1334,7 +1332,7 @@ cat ~/.qwenpaw/config.json | jq '.providers'
 
 **练习 4：**
 ```bash
-qwenpaw providers configure openai
+qwenpaw models config openai
 # 输入 API Key
 # 查看 config.json 中变为 encrypted:xxxxx
 ```
@@ -1346,8 +1344,8 @@ brew install ollama
 ollama serve
 ollama pull llama3.2
 
-# QwenPaw 配置
-qwenpaw providers configure ollama
+# QwenPaw 添加本地模型提供商
+qwenpaw models add-provider ollama
 ```
 
 **练习 6：**

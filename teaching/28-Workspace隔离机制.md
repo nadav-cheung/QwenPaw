@@ -396,9 +396,113 @@ MultiAgentManager (全局单一实例)
 
 ---
 
-## 9. 设计模式总结
+## 9. ContextVar 异步隔离
 
-### 9.1 隔离层次
+除了文件系统和服务实例级别的隔离外，QwenPaw 还在 HTTP 请求层面使用 Python 的 `ContextVar` 实现协程级别的上下文隔离，确保多 Agent 并发请求时每个请求能正确路由到对应的 Workspace。
+
+### 9.1 核心定义
+
+源码路径：`src/qwenpaw/app/agent_context.py`
+
+```python
+# src/qwenpaw/app/agent_context.py
+_current_agent_id: ContextVar[Optional[str]] = ContextVar("current_agent_id", default=None)
+_current_session_id: ContextVar[Optional[str]] = ContextVar("current_session_id", default=None)
+```
+
+**ContextVar 的优势**：
+- **协程安全**：每个协程有独立的值副本，无需加锁
+- **自动传递**：在 `async with` 块中自动继承外层值
+- **无锁开销**：比 `threading.local` 更轻量，适合 asyncio 单线程模型
+
+### 9.2 AgentContextMiddleware — 请求级隔离
+
+源码路径：`src/qwenpaw/app/routers/agent_scoped.py:14`
+
+```python
+class AgentContextMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        agent_id = None
+
+        # 优先级 1: 路径提取 /api/agents/{agentId}/...
+        path_parts = request.url.path.split("/")
+        if len(path_parts) >= 4 and path_parts[2] == "agents":
+            agent_id = path_parts[3]
+
+        # 优先级 2: X-Agent-Id header
+        if not agent_id:
+            agent_id = request.headers.get("X-Agent-Id")
+
+        # 优先级 3: 查询参数
+        if not agent_id:
+            agent_id = request.query_params.get("agent_id")
+
+        # 设置上下文变量
+        token = set_current_agent_id(agent_id)
+        try:
+            response = await call_next(request)
+        finally:
+            reset_current_agent_id(token)
+
+        return response
+```
+
+**多层回退机制**确保在各种客户端场景下都能正确识别目标 Agent：
+1. **URL 路径**（如 `/api/agents/agent-123/chats`）—— 最可靠，RESTful 风格
+2. **HTTP Header**（`X-Agent-Id`）—— 适合代理/网关场景
+3. **查询参数**（`?agent_id=agent-123`）—— 适合简单客户端
+
+### 9.3 ContextVar vs threading.local
+
+| 维度 | ContextVar | threading.local |
+|------|------------|-----------------|
+| 协程安全 | 每个 asyncio Task 有独立副本 | 基于线程 ID，同一线程的所有协程共享 |
+| 开销 | 无锁，协程切换时自动保存/恢复 | 线程级隔离，异步场景不适用 |
+| 传递方式 | 自动继承外层值 | 需要手动传递 |
+| 适用场景 | asyncio 单线程事件循环 | 多线程环境 |
+
+**为什么 QwenPaw 选择 ContextVar**：在 asyncio 协程场景下，`threading.local` 无法区分同一线程中的不同协程。多个 HTTP 请求可能在同一线程中交替执行，`threading.local` 会导致 Agent 上下文串扰。`ContextVar` 通过协程级别的隔离，确保每个请求始终路由到正确的 Workspace。
+
+---
+
+## 10. 服务工厂模式
+
+Workspace 中的某些服务（如 ChannelManager）需要复杂的初始化逻辑，不适合直接通过 `ServiceDescriptor.service_class` 实例化。QwenPaw 使用工厂函数模式处理这类场景。
+
+源码路径：`src/qwenpaw/app/workspace/service_factories.py`
+
+```python
+# src/qwenpaw/app/workspace/service_factories.py:67
+async def create_channel_service(ws: "Workspace", _) -> Optional[ChannelManager]:
+    """根据配置创建渠道管理器"""
+    if not ws._config.channels:
+        return None  # 无渠道配置时不创建实例
+
+    cm = ChannelManager.from_config(
+        process=make_process_from_runner(runner),
+        config=temp_config,
+        on_last_dispatch=on_last_dispatch,
+        workspace_dir=ws.workspace_dir,
+    )
+
+    # 注入 workspace 到 ChannelManager 和所有 channels
+    cm.set_workspace(ws)
+
+    # 注入 workspace 到 runner 用于控制命令处理
+    runner.set_workspace(ws)
+    return cm
+```
+
+**工厂模式的优势**：
+- **延迟实例化**：配置不存在时不创建无用实例，节省资源
+- **配置驱动**：通过 JSON/YAML 配置即可定制服务行为，无需修改代码
+- **依赖注入**：Workspace 通过参数传递依赖的服务实例（如将 Runner 注入 ChannelManager）
+
+---
+
+## 11. 设计模式总结
+
+### 11.1 隔离层次
 
 | 层次 | 机制 | 说明 |
 |------|------|------|
@@ -406,8 +510,9 @@ MultiAgentManager (全局单一实例)
 | **进程隔离** | 每个 Workspace 独立的服务实例 | 内存级别 |
 | **线程安全** | `asyncio.Lock` | 并发访问保护 |
 | **服务隔离** | `ServiceManager` + `ServiceDescriptor` | 声明式生命周期 |
+| **请求隔离** | `ContextVar` + `AgentContextMiddleware` | 协程级上下文隔离 |
 
-### 9.2 关键设计模式
+### 11.2 关键设计模式
 
 1. **声明式服务配置** — 使用 `ServiceDescriptor` 替代硬编码初始化
 2. **优先级驱动启动** — 确保依赖顺序正确
@@ -415,10 +520,23 @@ MultiAgentManager (全局单一实例)
 4. **零停机重载** — 新旧实例平滑切换
 5. **延迟清理** — 后台任务完成后再清理旧实例
 6. **懒加载 + 双重检查** — 并行启动加速，只初始化需要的 Agent
+7. **锁外并行初始化** — 快速释放锁，多个 Agent 同时初始化，锁只保护字典写操作
+
+**锁外并行初始化的性能收益**：
+
+```python
+# 快速释放锁，允许其他 Agent 并行启动
+instance = Workspace(...)      # 锁外：创建实例
+await instance.start()        # 锁外：初始化（可能耗时）
+async with self._lock:        # 锁内：快速交换
+    self.agents[agent_id] = instance
+```
+
+多个 Agent 同时启动时，初始化并行化，锁只保护字典写操作，持有时间极短。
 
 ---
 
-## 10. 应用场景
+## 12. 应用场景
 
 ### 场景1: 多租户隔离
 
@@ -433,6 +551,11 @@ workspace_b = await multi_agent_manager.get_agent("customer-b")
 
 # 两者完全隔离，有独立的配置、记忆、渠道
 ```
+
+**隔离保证**：
+- **文件系统隔离**：租户 A 无法读写租户 B 的工作区文件
+- **内存隔离**：ContextVar 确保请求路由到正确的租户上下文
+- **配置隔离**：每个租户有独立的 agent.json
 
 ### 场景2: 开发/生产环境隔离
 
@@ -455,7 +578,7 @@ await multi_agent_manager.reload_agent("default")
 
 ---
 
-## 11. 常见问题
+## 13. 常见问题
 
 ### Q1: Workspace 隔离的开销有多大？
 
@@ -500,9 +623,49 @@ await multi_agent_manager.create_agent("new-agent-id")
 
 但需要确保 `agents/` 目录下有对应的配置文件。
 
+### Q6: 如何解决 ContextVar 值丢失问题？
+
+**原因**：中间件未正确设置上下文，或异步调用链断裂。
+
+**解决**：
+```python
+# 确保所有入口都通过 AgentContextMiddleware
+app.add_middleware(AgentContextMiddleware)
+
+# 手动传递 context（如果需要跨线程）
+token = set_current_agent_id(agent_id)
+# ... 在同一协程内使用
+reset_current_agent_id(token)
+```
+
+### Q7: 多个 Agent 并发启动时性能下降？
+
+**原因**：锁竞争严重，或服务初始化串行化。
+
+**优化**：
+```python
+# 确保同类服务使用 concurrent_init=True
+sm.register(ServiceDescriptor(
+    name="mcp_manager",
+    concurrent_init=True,  # 允许多个 MCP Manager 并发初始化
+    ...
+))
+```
+
+### Q8: 重载后内存占用增加如何处理？
+
+**原因**：旧 Workspace 实例未完全释放。
+
+**解决**：
+```python
+# 确保 stop() 被调用且无引用
+import gc
+gc.collect()  # 强制垃圾回收
+```
+
 ---
 
-## 12. 最佳实践
+## 14. 最佳实践
 
 ### 实践1: 合理设计 Agent ID
 
@@ -532,6 +695,47 @@ await multi_agent_manager.stop_agent("unused-agent")
 # 修改 agent.json 后
 await multi_agent_manager.reload_agent("agent-id")
 # 而非停止再启动
+```
+
+### 实践5: 服务注册规范
+
+```python
+# 推荐：明确的优先级声明
+sm.register(ServiceDescriptor(
+    name="my_service",
+    service_class=MyService,
+    init_args=lambda ws: {"config": ws._config.my_service},
+    start_method="start",
+    stop_method="stop",
+    priority=35,           # 明确数字，避免魔法值
+    concurrent_init=False, # 有依赖时设为 False
+))
+
+# 避免：模糊的优先级
+priority=100  # 不推荐，未表明意图
+```
+
+### 实践6: 避免循环依赖
+
+```python
+# 错误：循环依赖
+# Service A (priority=10) imports Service B
+# Service B (priority=20) imports Service A
+
+# 正确：单向依赖
+# A 启动后，B 在更高优先级时启动
+```
+
+### 实践7: 确保 ContextVar 正确设置
+
+```python
+# 确保所有入口都通过 AgentContextMiddleware
+app.add_middleware(AgentContextMiddleware)
+
+# 手动传递 context（如果需要跨线程）
+token = set_current_agent_id(agent_id)
+# ... 在同一协程内使用
+reset_current_agent_id(token)
 ```
 
 ---
@@ -611,9 +815,10 @@ public class AgentClassLoader extends URLClassLoader {
 
 ## 知识检查
 
-1. **Workspace 的三层隔离（目录、服务、线程安全）分别解决什么问题？**
+1. **Workspace 的多层隔离（目录、服务、线程安全、请求级 ContextVar）分别解决什么问题？**
 2. **ServiceManager 的优先级分组启动中，为什么 Runner (priority=10) 必须先于 ChannelManager (priority=30) 启动？**
 3. **热重载时为什么采用「先建后停」策略，而不是先停止旧实例再创建新实例？**
+4. **ContextVar vs threading.local**：QwenPaw 使用 ContextVar 而非 threading.local 实现请求上下文隔离。请解释在 asyncio 协程场景下，threading.local 存在什么问题，而 ContextVar 如何解决。
 
 ## 练习题
 
@@ -677,10 +882,10 @@ public class AgentClassLoader extends URLClassLoader {
 
 ---
 
-## 13. 相关章节
+## 15. 相关章节
 
 - [请求处理与Runner](./21-请求处理与Runner.md) — Runner 在 Workspace 中的角色
-- [消息渠道架构](./26-消息渠道架构.md) — ChannelManager 与 Workspace 交互
+- [消息渠道系统](./08-消息渠道系统.md) — ChannelManager 与 Workspace 交互
 - [定时任务与心跳](./25-定时任务与心跳.md) — CronManager 与 Workspace 交互
 - [MCP系统详解](./29-MCP系统详解.md) — MCPClientManager 与 Workspace 交互
 
@@ -688,7 +893,6 @@ public class AgentClassLoader extends URLClassLoader {
 
 ## 延伸阅读
 
-- [工作区隔离机制](./51-工作区隔离机制.md) — 更深入的隔离设计分析
 - [生命周期管理](./94-生命周期管理.md) — 全局生命周期与 Workspace 的关系
 - [多智能体协作](./14-多智能体协作.md) — 多 Agent 协作场景下的隔离与通信
 - [请求处理与Runner](./21-请求处理与Runner.md) — Runner 与 Workspace 的双向引用机制

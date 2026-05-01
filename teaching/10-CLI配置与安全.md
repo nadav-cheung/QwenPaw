@@ -182,14 +182,14 @@ qwenpaw skills uninstall my_skill
 #### 提供商配置
 
 ```bash
-# 列出配置的 LLM 提供商
-qwenpaw providers list
+# 列出配置的 LLM 提供商和模型
+qwenpaw models list
 
 # 添加提供商
-qwenpaw providers add openai --api-key xxx
+qwenpaw models add-provider openai --api-key xxx
 
 # 配置提供商
-qwenpaw providers configure anthropic
+qwenpaw models config anthropic
 ```
 
 #### 诊断工具

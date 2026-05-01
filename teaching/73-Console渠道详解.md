@@ -284,6 +284,24 @@ await self._push_to_frontend(to_handle, text, meta)
 
 ---
 
+## 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| JSP / Thymeleaf | React 前端 | Java 用服务端模板引擎渲染页面，QwenPaw 用 React 前端 + JSON API |
+| Spring MVC `@Controller` | FastAPI SSE (`StreamingResponse`) | Spring MVC 返回 ModelAndView，FastAPI 通过 SSE 流式推送 Agent 响应 |
+| WebSocket (Java EE / Spring) | WebSocket (FastAPI `websocket`) | Java 用 `@ServerEndpoint` 或 Spring WebSocketHandler，FastAPI 用 `@router.websocket` 装饰器 |
+| Server-Sent Events (SSE) | SSE 流 (`stream_one`) | Java 需要 `SseEmitter` 或 `SseEventSink`，FastAPI 用 AsyncGenerator 直接 yield SSE 事件 |
+| `ModelAndView` | JSON Response (`OutgoingContentPart`) | Spring MVC 用 ModelAndView 封装视图数据，QwenPaw 用 OutgoingContentPart 区分 TEXT/IMAGE/VIDEO 等内容类型 |
+
+### 关键差异
+
+Java Web 应用通常使用请求-响应模型（Servlet），QwenPaw 的 Console 渠道使用 SSE（Server-Sent Events）实现流式推送。Java 开发者需要注意：`ConsoleChannel` 是纯输出渠道，输入由独立的 HTTP 端点处理（`/agent/process`），这种输入/输出分离设计与 Spring MVC 的 `@RequestMapping` 同时处理输入输出不同。另外，ANSI 颜色通过 `os.isatty()` 运行时检测终端能力，而非 Java 中常见的 Logback/Log4j 着色方案。
+
+---
+
 ## 知识检查
 
 1. `ConsoleChannel` 被描述为"纯输出渠道"，输入由独立的 HTTP 端点处理。这种输入/输出分离设计在跨渠道架构中有什么优势？
@@ -311,7 +329,7 @@ print(os.isatty(sys.stdout.fileno()))  # False = 非终端
 ```cmd
 chcp 65001
 set PYTHONIOENCODING=utf-8
-qwenpaw run
+qwenpaw app
 ```
 
 ### Q3: 管道断开时进程崩溃？
@@ -319,7 +337,7 @@ qwenpaw run
 `_safe_print` 已处理 `OSError errno=22`（无效参数），但管道持续断开时仍建议重定向到文件：
 
 ```bash
-qwenpaw run > output.log 2>&1
+qwenpaw app > output.log 2>&1
 ```
 
 ---

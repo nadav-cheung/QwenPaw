@@ -314,7 +314,91 @@ def create_agent_scoped_router() -> APIRouter:
 
 ---
 
-## 4. 特殊路由
+## 4. 服务初始化顺序
+
+源码路径：`src/qwenpaw/app/workspace/service_manager.py:173`
+
+在两阶段启动的第二阶段，每个 Agent 的工作区按**优先级分组**启动内部服务。同优先级的服务并发启动，不同优先级串行执行。
+
+### 4.1 服务优先级表
+
+| 优先级 | 服务 | 并发 | 说明 |
+|--------|------|------|------|
+| 10 | Runner | 否 | AgentRunner，必须首先就绪 |
+| 20 | memory_manager | 是 | 记忆管理器（可复用） |
+| 20 | mcp_manager | 是 | MCP 管理器 |
+| 20 | chat_manager | 是 | 聊天管理器 |
+| 25 | runner_start | 否 | Runner 启动（依赖 Runner 就绪） |
+| 30 | channel_manager | 否 | 渠道管理器 |
+| 40 | cron_manager | 否 | 定时任务管理器 |
+| 50 | agent_config_watcher | 否 | Agent 配置监听（热重载） |
+
+### 4.2 并发初始化执行图解
+
+```
+Priority 10: Runner [串行]
+    ↓
+Priority 20: memory_manager || mcp_manager || chat_manager [三者并发]
+    ↓
+Priority 25: runner_start [串行]
+    ↓
+Priority 30: channel_manager [串行]
+    ↓
+Priority 40: cron_manager [串行]
+    ↓
+Priority 50: agent_config_watcher [串行]
+```
+
+**设计要点**：Priority 20 的三个服务互相独立，可以安全地并发启动以减少总启动时间。Runner 必须最先就绪（P10），因为后续的 `runner_start`（P25）和渠道管理器（P30）都依赖它。
+
+### 4.3 Agent 并行启动
+
+源码路径：`src/qwenpaw/app/multi_agent_manager.py:454`
+
+```python
+async def start_all_configured_agents():
+    # 并行启动所有已启用 Agent
+    await asyncio.gather(*[start_one_agent(id) for id in enabled_ids])
+```
+
+每个 Agent 的工作区独立初始化，多个 Agent 之间也通过 `asyncio.gather` 并行启动。
+
+### 4.4 完整启动序列图
+
+```
+python -m qwenpaw app
+         ↓
+uvicorn.run("qwenpaw.app._app:app")
+         ↓
+FastAPI(lifespan=lifespan)
+         ↓
+=== Phase 1 (同步, <100ms) ===
+创建 MultiAgentManager / ProviderManager / LocalModelManager
+         ↓
+服务器开始接收 HTTP 请求 ← 此时 Agent 尚未启动
+         ↓
+=== Phase 2 (后台) ===
+start_all_configured_agents()
+         ↓
+对每个 Agent:
+    Workspace.start() → ServiceManager.start_all()
+         ↓
+服务按优先级启动:
+    Runner (P10) →
+    Memory/MCP/Chat (P20, 并发) →
+    RunnerStart (P25) →
+    ChannelManager (P30) →
+    CronManager (P40) →
+    ConfigWatcher (P50)
+         ↓
+print_ready_banner()
+```
+
+**注意**：`workers=1` 是硬编码的，不支持多进程。原因：QwenPaw 的多 Agent 共享状态在单进程内通过内存管理，多进程会破坏这一设计。如需多实例，应使用容器层面负载均衡而非进程内多 worker。
+
+---
+
+## 5. 特殊路由
 
 ### 4.1 根路由
 
@@ -350,9 +434,9 @@ app.include_router(voice_router, tags=["voice"])
 
 ---
 
-## 5. 应用场景
+## 6. 应用场景
 
-### 5.1 多 Agent 路由
+### 6.1 多 Agent 路由
 
 **场景**：通过 URL 路径区分不同 Agent。
 
@@ -362,7 +446,7 @@ app.include_router(voice_router, tags=["voice"])
 
 `AgentContextMiddleware` 从路径提取 `agentId` 并设置到 `request.state`。
 
-### 5.2 认证与授权
+### 6.2 认证与授权
 
 **场景**：保护 API 端点，需要 JWT Token 认证。
 
@@ -372,7 +456,7 @@ app.include_router(voice_router, tags=["voice"])
 3. 将用户信息设置到 `request.state.user`
 4. 路由处理器可通过 `request.state.user` 访问用户信息
 
-### 5.3 静态文件服务
+### 6.3 静态文件服务
 
 **场景**：提供 Web UI 静态文件。
 
@@ -385,17 +469,75 @@ def read_root():
         return FileResponse(_CONSOLE_INDEX)
 ```
 
-### 5.4 WebSocket 实时通信
+### 6.4 WebSocket 实时通信
 
 **场景**：Voice 渠道需要 WebSocket 双向通信。
 
 **端点**：`WS /voice/ws`
 
+### 6.5 滚动更新
+
+```
+新请求 → FastAPI 处理（Phase 1 已就绪）
+               ↓
+        Agent 仍在启动中
+               ↓
+        请求进入队列或返回 503（取决于配置）
+```
+
+### 6.6 插件热加载
+
+```python
+# 插件的 on_startup 钩子在 Phase 2 执行
+class MyPlugin:
+    async def on_startup(self, app):
+        # 注册自定义路由
+        app.include_router(my_router)
+        # 初始化资源
+        await self.init_resources()
+```
+
+### 6.7 健康检查前置
+
+```bash
+# 在 Agent 完全启动前，健康检查已可用
+curl http://localhost:8000/api/version
+# 返回 {"version": "1.0.0"}
+
+# 但 Agent 相关 API 可能返回 503
+curl http://localhost:8000/api/agents
+# 返回 {"error": "agents not ready"}
+```
+
 ---
 
-## 6. 最佳实践
+## 7. 健康检查端点
 
-### 6.1 两阶段启动
+| 端点 | 说明 |
+|------|------|
+| `GET /api/config/channels/{name}/health` | 频道健康状态 |
+| `GET /api/auth/status` | 认证状态 |
+| `GET /api/version` | 应用版本 |
+| `GET /api/doctor/runtime` | 运行时诊断 |
+
+**健康检查响应示例**：
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-04-30T10:00:00Z",
+  "channels": {
+    "console": "healthy",
+    "telegram": "healthy"
+  }
+}
+```
+
+---
+
+## 8. 最佳实践
+
+### 8.1 两阶段启动
 
 ```python
 # Phase 1: 快速（< 100ms）
@@ -407,7 +549,7 @@ bg_task = asyncio.create_task(heavy_initialization())
 
 **优势**：服务器快速响应，用户无需等待所有初始化完成。
 
-### 6.2 中间件顺序
+### 8.2 中间件顺序
 
 ```python
 # 后注册先执行
@@ -416,7 +558,7 @@ app.add_middleware(Second)
 app.add_middleware(First)   # 请求时最后
 ```
 
-### 6.3 作用域路由工厂
+### 8.3 作用域路由工厂
 
 ```python
 def create_agent_scoped_router() -> APIRouter:
@@ -425,7 +567,7 @@ def create_agent_scoped_router() -> APIRouter:
     return router
 ```
 
-### 6.4 跳过认证路径配置
+### 8.4 跳过认证路径配置
 
 ```python
 # 将公开端点添加到 _PUBLIC_PATHS
@@ -438,7 +580,7 @@ _PUBLIC_PATHS = frozenset({
 
 ---
 
-## 7. 常见问题
+## 9. 常见问题
 
 ### Q1: 中间件顺序不正确导致问题？
 
@@ -482,9 +624,9 @@ app.add_middleware(CORSMiddleware)         # 最先注册，最后执行
 
 ---
 
-## 8. 设计模式
+## 10. 设计模式
 
-### 8.1 两阶段启动
+### 10.1 两阶段启动
 
 ```python
 # Phase 1: 快速（< 100ms）
@@ -494,7 +636,7 @@ managers = create_managers_without_io()
 bg_task = asyncio.create_task(heavy_initialization())
 ```
 
-### 8.2 中间件顺序
+### 10.2 中间件顺序
 
 ```python
 # 后注册先执行
@@ -503,7 +645,7 @@ app.add_middleware(Second)
 app.add_middleware(First)   # 请求时最后
 ```
 
-### 8.3 作用域路由工厂
+### 10.3 作用域路由工厂
 
 ```python
 def create_agent_scoped_router() -> APIRouter:
@@ -548,7 +690,7 @@ def create_agent_scoped_router() -> APIRouter:
 
 ---
 
-## 9. 关键文件索引
+## 11. 关键文件索引
 
 | 组件 | 文件路径 |
 |------|----------|
@@ -557,6 +699,8 @@ def create_agent_scoped_router() -> APIRouter:
 | AuthMiddleware | `src/qwenpaw/app/auth.py:567` |
 | 路由聚合 | `src/qwenpaw/app/routers/__init__.py` |
 | Agent 作用域路由 | `src/qwenpaw/app/routers/agent_scoped.py:49` |
+| 多 Agent 管理 | `src/qwenpaw/app/multi_agent_manager.py` |
+| 服务管理 | `src/qwenpaw/app/workspace/service_manager.py` |
 
 ---
 
@@ -628,7 +772,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 | 章节 | 说明 |
 |------|------|
-| [65-FastAPI应用结构与启动流程](./65-FastAPI应用结构与启动流程.md) | 更详细的启动流程分析 |
 | [67-API路由系统详解](./67-API路由系统详解.md) | API 路由系统的完整设计 |
 | [50-认证授权系统详解](./50-认证授权系统详解.md) | 认证与授权中间件的实现细节 |
 | [72-错误处理与日志记录](./72-错误处理与日志记录.md) | 全局错误处理与日志记录机制 |

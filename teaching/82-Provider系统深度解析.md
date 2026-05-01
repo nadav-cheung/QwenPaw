@@ -885,6 +885,24 @@ llava:13b
 
 ---
 
+## 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| JPA Provider (Hibernate/EclipseLink) | Model Provider (OpenAI/Ollama) | JPA 用 Provider 抽象不同 ORM 实现，QwenPaw 用 Provider 抽象不同 LLM API |
+| `DriverManager` / `DataSource` | `ProviderManager` | Java 用 DriverManager 管理 JDBC 驱动，QwenPaw 用 ProviderManager 管理模型供应者（同样有单例模式） |
+| `@Entity` + `@Table` | `ModelInfo` / `ProviderInfo` (Pydantic) | JPA 用注解定义实体映射，QwenPaw 用 Pydantic BaseModel 定义数据模型（含类型验证） |
+| Connection Pool (HikariCP) | 连接管理 (`AsyncOpenAI` client) | Java 用连接池管理数据库连接，QwenPaw 用 AsyncOpenAI 客户端管理 API 连接（无池化） |
+| Hibernate Dialect | Provider 抽象层 | Hibernate Dialect 适配不同数据库方言，Provider 抽象层适配不同 LLM API 的调用方式 |
+
+### 关键差异
+
+JPA Provider 管理的是 ORM 映射（对象-关系映射），QwenPaw Provider 管理的是 LLM API 调用（模型-请求映射）。Java 开发者需要注意：ProviderManager 的 `activate_model()` 类似于 `DataSource.getConnection()`，但这里不是获取连接而是设置全局活跃模型；`check_connection()` 类似于 JDBC 的连接测试，但返回的是 `(bool, str)` 元组而非抛异常。密钥管理方面，Java 通常用 JCEKS 密钥库，QwenPaw 用 Fernet 对称加密存储在文件系统。
+
+---
+
 ## 知识检查
 
 1. ProviderManager 采用什么设计模式管理所有 Provider 实例？它如何保证全局唯一性？

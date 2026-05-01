@@ -401,6 +401,24 @@ allow_origins = os.getenv("CORS_ORIGINS", "").split(",") or ["*"]
 
 ---
 
+## 🐍 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| Spring CORS (@CrossOrigin) | FastAPI CORSMiddleware | Spring 通过注解或全局配置处理跨域；FastAPI 通过 CORSMiddleware 统一配置 |
+| @CrossOrigin | CORSMiddleware 配置 | @CrossOrigin 可标注在 Controller/方法级别；QwenPaw 在应用启动时全局注册中间件 |
+| Filter Chain (javax.servlet) | 中间件链 (FastAPI Middleware) | Servlet Filter 通过 doFilter 链式调用；FastAPI 中间件通过 ASGI 协议的 send/receive 组成调用链 |
+| OncePerRequestFilter | FastAPI Depends | OncePerRequestFilter 确保每个请求只过滤一次；FastAPI 的 Depends 在路由级别注入依赖 |
+| HandlerInterceptor | middleware function | Spring 的 preHandle/postHandle/afterCompletion 三段式拦截；FastAPI 中间件只有 before/after 两段 |
+
+### 关键差异
+
+Spring 的 CORS 配置可以精细到单个 Controller 方法级别（@CrossOrigin 注解），而 FastAPI 的 CORSMiddleware 是应用级全局配置。中间件执行顺序方面，Spring Filter 链按注册顺序执行，FastAPI 中间件是洋葱模型——最后注册的中间件最先处理请求（最先处理响应），这点与 Java 开发者的直觉相反。
+
+---
+
 ## 知识检查
 
 1. FastAPI 中间件的执行顺序与注册顺序是什么关系？三个中间件（CORS、Auth、AgentContext）的实际请求处理顺序是什么？

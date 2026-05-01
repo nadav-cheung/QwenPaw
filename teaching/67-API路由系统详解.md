@@ -412,6 +412,24 @@ wss://localhost:8000/voice/ws?token=VALID_TOKEN
 
 ---
 
+## 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| `@RestController` | FastAPI `APIRouter()` | Spring 用 `@RestController` 定义 REST 控制器，FastAPI 用 `APIRouter()` 定义路由分组 |
+| `@RequestMapping` / `@GetMapping` | `@router.api_route()` / `@router.get()` | Spring 用注解映射 HTTP 方法到方法，FastAPI 用装饰器实现同样功能 |
+| `@PathVariable` | Path 参数（函数参数直接声明） | Spring 需要 `@PathVariable` 注解提取路径变量，FastAPI 通过函数参数类型声明自动提取 |
+| Spring WebFlux | `async def` 处理器 | Spring WebFlux 用 Mono/Flux 做响应式编程，FastAPI 用 `async def` 原生协程 |
+| Swagger / Springfox | OpenAPI 自动文档 | Spring 需要额外引入 Springfox/Swagger 依赖，FastAPI 内置自动生成 OpenAPI 文档 |
+
+### 关键差异
+
+Spring Boot 通过 `@Controller` + `@RequestMapping` 注解驱动路由注册，需要组件扫描（Component Scan）；FastAPI 通过 `app.include_router()` 显式注册路由分组，路由是 Python 对象而非注解。Java 开发者需要注意：FastAPI 的中间件是洋葱模型（从外到内），而非 Spring 的 `HandlerInterceptor` 链式调用。
+
+---
+
 ## 知识检查
 
 1. 全局路由 `/api/*` 和 Agent 作用域路由 `/api/agents/{agentId}/*` 的区别是什么？为什么需要两套路由体系？

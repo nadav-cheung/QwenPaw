@@ -1386,7 +1386,7 @@ Spring 通过 `SseEmitter` 或 `WebFlux` 实现 SSE。QwenPaw 通过 `TaskTracke
 
 - [智能体钩子系统](./23-智能体钩子系统.md) -- 钩子机制与 Agent 核心流程
 - [Provider与模型路由](./24-Provider与模型路由.md) -- 模型管理与路由
-- [消息渠道架构](./26-消息渠道架构.md) -- 渠道与 Runner 的交互
+- [消息渠道系统](./08-消息渠道系统.md) -- 渠道与 Runner 的交互
 - [Workspace隔离机制](./28-Workspace隔离机制.md) -- Workspace 管理
 
 ---

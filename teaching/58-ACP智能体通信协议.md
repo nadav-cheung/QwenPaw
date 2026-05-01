@@ -343,7 +343,198 @@ class ACPAgentConfig(BaseModel):
 
 ---
 
-## 8. CLI 入口
+## 8. 高级特性
+
+### 8.1 ACP 异常体系
+
+ACP 协议定义了统一的异常层次结构，便于精确定位通信过程中的故障类型：
+
+```python
+# src/qwenpaw/agents/acp/core.py:16
+class ACPErrors(Exception):
+    def __init__(self, message: str, *, agent: Optional[str] = None):
+        super().__init__(message)
+        self.agent = agent  # 关联的智能体 ID
+
+class ACPConfigurationError(ACPErrors): pass  # 配置错误
+class ACPTransportError(ACPErrors): pass      # 传输错误（网络/连接）
+class ACPProtocolError(ACPErrors): pass       # 协议错误（格式/版本）
+class ACPSessionError(ACPErrors): pass        # 会话错误（超时/状态）
+```
+
+| 异常类型 | 典型原因 | 恢复策略 |
+|----------|----------|----------|
+| `ACPConfigurationError` | 配置文件缺失、字段非法 | 修正配置后重启 |
+| `ACPTransportError` | 网络中断、目标服务不可达 | 指数退避重试 |
+| `ACPProtocolError` | 消息格式不兼容、版本不匹配 | 检查两端 ACP 版本 |
+| `ACPSessionError` | 会话超时、会话状态非法 | 创建新会话重试 |
+
+### 8.2 完整权限挂起流程
+
+第 6 节介绍了 `SuspendedPermission` 数据结构，这里展示其完整的交互流程：
+
+**权限检查流程：**
+
+```python
+async def handle_tool_request(tool_request: ToolRequest):
+    """处理工具调用请求"""
+
+    # 1. 检查工具是否需要权限
+    if not tool.requires_permission:
+        return await tool.execute()
+
+    # 2. 检查权限策略
+    decision = await permission_checker.check(tool_request)
+
+    if decision.allowed:
+        return await tool.execute()
+    elif decision.suspended:
+        # 3. 权限挂起，等待用户确认
+        return SuspendedPermission(...)
+    else:
+        raise ACPProtocolError("Permission denied")
+```
+
+**用户确认处理（approve / deny / modify 三种操作）：**
+
+```python
+async def handle_permission_response(
+    suspended: SuspendedPermission,
+    action: str,  # "approve" | "deny" | "modify"
+    options: dict | None = None,
+):
+    """处理用户对挂起权限的响应"""
+
+    if action == "approve":
+        # 执行原请求
+        return await tool.execute(suspended.payload)
+
+    elif action == "modify":
+        # 用户修改了参数
+        modified_payload = options.get("payload")
+        return await tool.execute(modified_payload)
+
+    else:  # deny
+        raise ACPSessionError("Permission denied by user")
+```
+
+**挂起超时处理：**
+
+```python
+# 设置挂起超时
+suspended.timeout = 300  # 5 分钟超时
+
+# 超时后自动取消
+if time.time() > suspended.created_at + suspended.timeout:
+    raise ACPSessionError("Permission response timeout")
+
+# 主动取消挂起
+await acp_service.cancel_suspended(suspended_id)
+```
+
+### 8.3 ACP 请求与响应消息格式
+
+除了底层 JSON-RPC 消息外，ACP 还定义了应用层的请求-响应模型：
+
+```python
+# ACP 请求消息
+class ACPRequest(BaseModel):
+    id: str                    # 请求唯一 ID
+    agent_id: str              # 目标智能体 ID
+    message: str               # 发送给智能体的消息
+    tools: list[str] | None   # 允许使用的工具（可选）
+    timeout: float = 30.0      # 超时时间
+
+# ACP 响应消息
+class ACPResponse(BaseModel):
+    id: str                    # 请求 ID
+    status: str                # success | error | permission_required
+    result: Any | None         # 执行结果
+    error: str | None          # 错误信息
+    suspended: SuspendedPermission | None  # 权限挂起信息
+```
+
+### 8.4 Server/Tool 模式架构图
+
+**Server 模式架构：**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      远程智能体                              │
+│  ┌─────────────┐                                           │
+│  │ ACPService  │                                           │
+│  └──────┬──────┘                                           │
+└─────────┼───────────────────────────────────────────────────┘
+          │ HTTP/REST
+          │ call_agent(agent_id, message)
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   QwenPaw ACP Server                        │
+│  ┌─────────────────┐    ┌─────────────────┐               │
+│  │ QwenPawACPAgent │───▶│  Tool Registry  │               │
+│  └────────┬────────┘    └─────────────────┘               │
+│           │                                                │
+│           ▼                                                │
+│  ┌─────────────────┐    ┌─────────────────┐               │
+│  │  Request        │───▶│  Permission     │               │
+│  │  Handler        │    │  Checker        │               │
+│  └────────┬────────┘    └─────────────────┘               │
+│           │                                                │
+│           ▼ (if permission suspended)                       │
+│  ┌─────────────────┐                                       │
+│  │ SuspendedPermission│ ──── 等待用户确认 ────▶ 执行      │
+│  └─────────────────┘                                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Tool 模式架构：**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   QwenPaw 本地 Agent                        │
+│  ┌─────────────┐                                           │
+│  │ ReActAgent  │                                           │
+│  └──────┬──────┘                                           │
+│         │ Tool Call (acp_call_agent)                       │
+└─────────┼───────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  ACPService.call_agent()                                   │
+│  ┌─────────────┐                                           │
+│  │ HTTP Client │                                           │
+│  └──────┬──────┘                                           │
+└─────────┼───────────────────────────────────────────────────┘
+          │ HTTP/REST
+          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   远程 ACP 智能体                           │
+│  ┌─────────────────┐                                       │
+│  │ QwenPawACPAgent │                                       │
+│  └─────────────────┘                                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 8.5 服务初始化与生命周期管理
+
+```python
+# src/qwenpaw/agents/acp/service.py
+async def init_acp_service(config: ACPConfig) -> ACPService:
+    """初始化 ACP 服务客户端"""
+    return ACPService(config=config)
+
+async def get_acp_service() -> ACPService:
+    """获取全局 ACP 服务单例"""
+
+async def close_acp_service() -> None:
+    """关闭 ACP 服务客户端，清理连接"""
+```
+
+> **提示**：ACP 客户端采用单例模式，通过 `get_acp_service()` 获取全局实例。应用退出时应调用 `close_acp_service()` 清理所有连接。
+
+---
+
+## 9. CLI 入口
 
 ```bash
 # 启动 QwenPaw 作为 ACP 智能体
@@ -356,9 +547,9 @@ qwenpaw acp --agent <agent_id> --workspace <workspace_dir>
 
 ---
 
-## 9. 设计模式
+## 10. 设计模式
 
-### 9.1 双重角色
+### 10.1 双重角色
 
 ```python
 # ACP Server: 被动接收请求
@@ -376,7 +567,7 @@ class ACPService:
         await self.conn.prompt(session_id=..., prompt=prompt_blocks)
 ```
 
-### 9.2 流式追踪
+### 10.2 流式追踪
 
 ```python
 # 增量更新 vs 完整快照
@@ -390,7 +581,7 @@ for tc in tool_calls:
         updates.append(start_tool_call(...))
 ```
 
-### 9.3 会话锁定
+### 10.3 会话锁定
 
 ```python
 # turn_lock 防止同一会话并发 prompt
@@ -402,9 +593,9 @@ async with conversation.turn_lock:
 
 ---
 
-## 10. 应用场景
+## 11. 应用场景
 
-### 10.1 外部智能体调用 QwenPaw
+### 11.1 外部智能体调用 QwenPaw
 
 **场景：** ReAct 智能体通过 ACP 协议调用 QwenPaw 作为工具。
 
@@ -425,7 +616,7 @@ async for update in client.prompt(
     print(update)
 ```
 
-### 10.2 QwenPaw 调用外部智能体工具
+### 11.2 QwenPaw 调用外部智能体工具
 
 **场景：** QwenPaw 通过 ACP Tool 调用 Claude Code 的工具。
 
@@ -454,7 +645,7 @@ result = await acp_service.run_turn(
 )
 ```
 
-### 10.3 智能体间通信
+### 11.3 智能体间通信
 
 **场景：** 多个智能体协作完成任务。
 
@@ -466,7 +657,7 @@ result = await acp_service.run_turn(
 
 ---
 
-## 11. 常见问题
+## 12. 常见问题
 
 ### Q1: 会话建立失败？
 
@@ -534,9 +725,9 @@ grep "ACP\|jsonrpc" qwenpaw.log
 
 ---
 
-## 12. 最佳实践
+## 13. 最佳实践
 
-### 12.1 会话管理
+### 13.1 会话管理
 
 ```python
 # 推荐：复用会话
@@ -549,7 +740,7 @@ for query in queries:
 # 每次新建会话有连接开销
 ```
 
-### 12.2 错误处理
+### 13.2 错误处理
 
 ```python
 # 推荐：完整的错误处理
@@ -563,7 +754,7 @@ async for update in client.prompt(session_id, prompt):
 #     print(update)  # 不处理 Error 类型
 ```
 
-### 12.3 权限安全
+### 13.3 权限安全
 
 ```python
 # 推荐：非信任智能体限制权限
@@ -577,7 +768,7 @@ async for update in client.prompt(session_id, prompt):
 # "trusted": true  # 允许所有操作
 ```
 
-### 12.4 流式处理
+### 13.4 流式处理
 
 ```python
 # 推荐：增量处理
@@ -591,7 +782,7 @@ async for update in client.prompt(session_id, prompt):
 
 ---
 
-## 13. 总结
+## 14. 总结
 
 ### 核心要点
 
@@ -604,6 +795,8 @@ async for update in client.prompt(session_id, prompt):
 | **工具调用** | ToolCallStart/Progress 追踪工具执行 |
 | **流式追踪** | `_StreamTracker` 避免重复发送 |
 | **会话锁定** | `turn_lock` 防止并发 prompt |
+| **异常体系** | 4 类异常精确区分 Configuration/Transport/Protocol/Session 错误 |
+| **权限挂起** | SuspendedPermission 支持 approve/deny/modify 三种用户操作 |
 
 ### 消息流
 
@@ -621,7 +814,7 @@ QwenPaw → run_turn() → ACPService
 
 ### 相关章节
 
-- [51-工作区隔离机制](./51-工作区隔离机制.md) — Workspace 提供 ACP Server 的运行环境
+- [Workspace 隔离机制](./28-Workspace隔离机制.md) — Workspace 提供 ACP Server 的运行环境
 - [54-MCP系统深入解析](./54-MCP系统深入解析.md) — MCP 是另一种工具调用协议
 - [55-CLI命令系统详解](./55-CLI命令系统详解.md) — ACP CLI 入口
 
@@ -631,12 +824,32 @@ QwenPaw → run_turn() → ACPService
 
 | 组件 | 文件路径 | 核心职责 |
 |------|----------|----------|
+| ACP 异常类 | `src/qwenpaw/agents/acp/core.py:16` | 异常体系定义 |
 | ACP Server | `src/qwenpaw/agents/acp/server.py` | 服务器模式实现 |
 | ACP Service | `src/qwenpaw/agents/acp/service.py` | 客户端模式实现 |
 | ACP Core | `src/qwenpaw/agents/acp/core.py` | 消息格式定义 |
 | ACP 权限 | `src/qwenpaw/agents/acp/permissions.py` | 权限管理 |
+| ACP Client | `src/qwenpaw/agents/acp/client.py` | HTTP 客户端 |
 | CLI 入口 | `src/qwenpaw/cli/acp_cmd.py` | 命令行接口 |
 | ACP 配置 | `src/qwenpaw/config/config.py:56` | 配置模型 |
+
+---
+
+## 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| RMI / IIOP | ACP Protocol (JSON-RPC over stdio) | Java 用 RMI/IIOP 做远程方法调用，ACP 用 JSON-RPC over stdio 做智能体间通信 |
+| gRPC Stub | ACP Client (`ACPService`) | gRPC 通过自动生成的 Stub 调用远程服务，ACP 通过 ACPService 发起智能体交互 |
+| EJB Remote Interface | ACP Server mode (`QwenPawACPAgent`) | EJB 通过 Remote Interface 暴露业务方法，ACP Server 模式通过 prompt/new_session 暴露智能体能力 |
+| `@Remote` 注解 | ACP Tool 模式 | `@Remote` 标记可远程调用的 EJB 接口，ACP Tool 模式让 QwenPaw 调用外部智能体的工具 |
+| JNDI Lookup | Service Registry / `get_acp_service()` | JNDI 通过名字查找远程对象，ACP 通过全局单例 `get_acp_service()` 获取服务实例 |
+
+### 关键差异
+
+Java RMI 要求接口必须继承 `Remote`、方法必须声明 `RemoteException`，且依赖 Java 序列化；ACP 使用 JSON-RPC over stdio，语言无关且无需预定义接口。此外，ACP 内置了 `SuspendedPermission` 权限挂起机制（approve/deny/modify），这在 Java RMI 中没有对应概念，需要开发者自行实现安全拦截。
 
 ---
 
@@ -652,5 +865,4 @@ QwenPaw → run_turn() → ACPService
 
 ## 延伸阅读
 
-- [84-ACP协议深度解析](./84-ACP协议深度解析.md) -- ACP 协议的底层实现与协议规范
 - [14-多智能体协作](./14-多智能体协作.md) -- 多智能体协作的整体架构与设计模式

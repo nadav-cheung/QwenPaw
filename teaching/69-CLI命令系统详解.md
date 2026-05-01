@@ -639,6 +639,24 @@ qwenpaw doctor --deep
 
 ---
 
+## 来自 Java 的你
+
+### 核心概念对照
+
+| Java | Python / QwenPaw | 说明 |
+|------|-------------------|------|
+| picocli | Click | Java 用 picocli 构建命令行应用（注解驱动），Python 用 Click 构建命令行应用（装饰器驱动） |
+| `@Command(name = "app")` | `@click.command("app")` | picocli 用 `@Command` 注解定义命令，Click 用 `@click.command` 装饰器 |
+| `@Option(names = "--host")` | `@click.option("--host")` | picocli 用 `@Option` 注解定义参数，Click 用 `@click.option` 装饰器 |
+| args4j / Apache Commons CLI | argparse / Click | Java 有多种 CLI 框架可选（args4j、Commons CLI、picocli），Python 标准库自带 argparse，Click 是第三方增强 |
+| `CommandLine.execute()` | `cli()` (Click Group) | picocli 通过 `CommandLine` 类驱动命令执行，Click 通过函数调用触发 |
+
+### 关键差异
+
+picocli 通过注解 + 反射在编译期确定命令结构；Click 通过装饰器在运行时构建命令树。QwenPaw 的 `LazyGroup` 实现了命令的按需加载（首次调用时才 import 模块），这在 Java 中通常通过类加载器延迟加载实现，但 picocli 本身不提供此特性。Java 开发者需要注意：Click 的 `ctx.obj` 字典等价于 picocli 的 `@Spec CommandSpec`，但用字典而非强类型对象传递上下文。
+
+---
+
 ## 知识检查
 
 1. LazyGroup 的 `get_command` 方法在命令未加载时执行了哪些操作？为什么这种按需加载能显著提升 `qwenpaw --help` 的响应速度？

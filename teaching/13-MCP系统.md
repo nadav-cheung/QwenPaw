@@ -896,9 +896,9 @@ if __name__ == "__main__":
 
 ---
 
-## 10. 如果你来自 Java...
+## 9. 如果你来自 Java...
 
-### 10.1 MCP 对比 Java RPC 框架
+### 9.1 MCP 对比 Java RPC 框架
 
 | 特性 | MCP (Python/JS SDK) | Java RPC (gRPC/Thrift) |
 |------|---------------------|------------------------|
@@ -908,7 +908,7 @@ if __name__ == "__main__":
 | 状态管理 | 有状态会话 | 无状态（通常） |
 | 上下文传递 | 原生支持 | 需手动处理 |
 
-### 10.2 MCP 的 Java 类比
+### 9.2 MCP 的 Java 类比
 
 | MCP 概念 | Java 类比 | 说明 |
 |----------|-----------|------|
@@ -918,7 +918,7 @@ if __name__ == "__main__":
 | Tool | RPC Method | 远程可调用方法 |
 | Resource | DataSource | 可读取的数据 |
 
-### 10.3 等价代码对比
+### 9.3 等价代码对比
 
 **Java gRPC：**
 ```java
@@ -968,7 +968,7 @@ async def call_tool(name, arguments):
         return [TextContent(type="text", text=str(user))]
 ```
 
-### 10.4 QwenPaw MCP 的特殊性
+### 9.4 QwenPaw MCP 的特殊性
 
 MCP 在 QwenPaw 中的定位**不是**微服务间通信，而是**LLM 与外部工具的桥梁**：
 
@@ -982,7 +982,7 @@ QwenPaw MCP 架构：
                 (智能体)        (客户端管理)  (协议端点)
 ```
 
-### 10.5 与 Spring AI 的对比
+### 9.5 与 Spring AI 的对比
 
 Spring AI 是 Java 生态中类似 MCP 的框架：
 
@@ -1003,7 +1003,7 @@ public class MathService {
 }
 ```
 
-### 10.6 MCP 生态优势
+### 9.6 MCP 生态优势
 
 MCP 相比传统 Java RPC 的优势：
 1. **开放标准**：任何厂商可实现，不依赖特定云服务商
@@ -1013,9 +1013,9 @@ MCP 相比传统 Java RPC 的优势：
 
 ---
 
-## 9. 故障排查
+## 10. 故障排查
 
-### 9.1 常见错误
+### 10.1 常见错误
 
 | 错误 | 原因 | 解决方案 |
 |------|------|----------|
@@ -1024,7 +1024,7 @@ MCP 相比传统 Java RPC 的优势：
 | `Tool not found` | 工具名拼写错误 | 使用正确的工具名 |
 | `Permission denied` | 权限不足 | 检查文件权限或 sudo |
 
-### 9.2 调试技巧
+### 10.2 调试技巧
 
 ```python
 import logging
@@ -1034,57 +1034,36 @@ logging.getLogger("qwenpaw.app.mcp").setLevel(logging.DEBUG)
 logging.getLogger("mcp").setLevel(logging.DEBUG)
 ```
 
-### 9.3 诊断命令
+### 10.3 诊断命令
 
 ```bash
-# 检查 MCP 客户端状态
-qwenpaw mcp list
-
-# 测试 MCP 连接
-qwenpaw mcp test --client filesystem
-
-# 查看 MCP 配置
-qwenpaw mcp show --client github
+# MCP 客户端配置通过配置文件操作
+# 编辑 ~/.qwenpaw/config.json 中的 mcp.clients 部分
+# 或通过 API 端点管理
+# GET  /api/config/mcp             查看 MCP 配置
+# PUT  /api/config/mcp             更新 MCP 配置
+# 配置变更后 MCPConfigWatcher 自动热重载
 ```
 
 ---
 
-## 10. 最佳实践
+## 11. 应用场景
 
-### 10.1 安全建议
-
-1. **最小权限**: 只授予必要的文件/目录访问权限
-2. **环境变量**: 使用环境变量而非硬编码敏感信息
-3. **输入验证**: MCP 服务器应验证所有输入
-4. **审计日志**: 记录工具调用以便审计
-
-### 10.2 性能优化
-
-| 问题 | 解决方案 |
-|------|----------|
-| 连接慢 | 使用 stdio 替代 HTTP |
-| 超时 | 增加 timeout 配置 |
-| 工具过多 | 按需加载，而非全部加载 |
-
----
-
-## 10. 应用场景
-
-### 10.1 文件系统操作
+### 11.1 文件系统操作
 
 通过 MCP 服务器实现安全的文件系统访问：
 - **场景**: 文档处理、代码读取、日志分析
 - **服务器**: `@modelcontextprotocol/server-filesystem`
 - **优势**: 细粒度权限控制，限制访问目录范围
 
-### 10.2 GitHub 集成
+### 11.2 GitHub 集成
 
 通过 MCP 服务器操作 GitHub：
 - **场景**: Issue 管理、PR 审查、仓库分析
 - **服务器**: `@modelcontextprotocol/server-github`
 - **优势**: 无需配置 API Token，通过 MCP 协议安全访问
 
-### 10.3 数据库连接
+### 11.3 数据库连接
 
 通过 MCP 连接 PostgreSQL、MySQL 等数据库：
 - **场景**: 数据查询、报表生成、数据库管理
@@ -1093,9 +1072,9 @@ qwenpaw mcp show --client github
 
 ---
 
-## 11. 常见问题
+## 12. 常见问题
 
-### 11.1 连接问题
+### 12.1 连接问题
 
 | 问题 | 原因 | 解决方案 |
 |------|------|----------|
@@ -1103,7 +1082,7 @@ qwenpaw mcp show --client github
 | `Timeout` | 连接超时 | 增加 timeout 配置或检查网络 |
 | `stdio not found` | npx 命令不可用 | 安装 Node.js 或使用 Python MCP 服务器 |
 
-### 11.2 工具调用问题
+### 12.2 工具调用问题
 
 | 问题 | 原因 | 解决方案 |
 |------|------|----------|
@@ -1111,32 +1090,29 @@ qwenpaw mcp show --client github
 | `Permission denied` | 权限不足 | 检查 mcp.json 配置的权限 |
 | 工具无响应 | 服务器崩溃 | 重启 MCP 服务器 |
 
-### 11.3 调试方法
+### 12.3 调试方法
 
 ```bash
-# 检查 MCP 客户端状态
-qwenpaw mcp list
-
-# 测试 MCP 连接
-qwenpaw mcp test --client filesystem
+# 检查 MCP 配置（通过配置文件）
+cat ~/.qwenpaw/config.json | grep -A 20 mcp
 
 # 启用调试日志
 export LOG_LEVEL=DEBUG
-qwenpaw logs | grep mcp
+qwenpaw daemon logs | grep mcp
 ```
 
 ---
 
-## 12. 最佳实践
+## 13. 最佳实践
 
-### 12.1 安全建议
+### 13.1 安全建议
 
 1. **最小权限**: 只授予必要的文件/目录访问权限
 2. **环境变量**: 使用环境变量而非硬编码敏感信息
 3. **输入验证**: MCP 服务器应验证所有输入参数
 4. **定期更新**: 保持 MCP 服务器版本最新
 
-### 12.2 性能优化
+### 13.2 性能优化
 
 | 问题 | 解决方案 |
 |------|----------|
@@ -1145,7 +1121,7 @@ qwenpaw logs | grep mcp
 | 工具过多 | 按需加载，而非全部加载 |
 | 重复连接 | 启用客户端重用，避免频繁建立连接 |
 
-### 12.3 开发建议
+### 13.3 开发建议
 
 1. **自定义服务器**: 使用 Python/Node.js SDK 开发专用 MCP 服务器
 2. **测试驱动**: 先在本地测试 MCP 服务器，再集成到 QwenPaw
@@ -1153,7 +1129,7 @@ qwenpaw logs | grep mcp
 
 ---
 
-## 13. 总结
+## 14. 总结
 
 ### 核心要点
 
@@ -1176,9 +1152,9 @@ qwenpaw logs | grep mcp
 ```
 MCP 工具无法调用
     │
-    ├─► 检查客户端状态: qwenpaw mcp list
+    ├─► 检查客户端状态: 查看配置文件 mcp.clients 部分
     │
-    ├─► 测试连接: qwenpaw mcp test --client <name>
+    ├─► 测试连接: 通过 API 端点或查看日志
     │
     ├─► 检查服务器日志: 查看 MCP 服务器进程输出
     │
@@ -1193,7 +1169,7 @@ MCP 工具无法调用
 
 ---
 
-## 14. 参考资料
+## 15. 参考资料
 
 - 源码路径：`src/qwenpaw/app/mcp/`
 - MCP 官方文档：https://modelcontextprotocol.io/
@@ -1201,7 +1177,7 @@ MCP 工具无法调用
 
 ---
 
-## 15. 知识检查
+## 16. 知识检查
 
 ### 题目一
 
@@ -1242,7 +1218,7 @@ MCPConfigWatcher 使用了哪些优化手段来减少不必要的配置重载？
 
 ---
 
-## 16. 延伸阅读
+## 17. 延伸阅读
 
 - [07-智能体核心架构](./07-智能体核心架构.md) -- 理解 MCP 在智能体工具调用链中的位置
 - [18-插件系统](./18-插件系统.md) -- 了解插件如何通过 MCP 规则文件注册自定义服务器
