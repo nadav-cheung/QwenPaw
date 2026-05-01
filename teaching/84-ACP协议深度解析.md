@@ -1,5 +1,17 @@
 # ACP 协议深度解析
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 分析 ACP 消息的高级特性 2) 理解会话管理和错误恢复 3) 实现自定义 ACP 代理 |
+| **前置知识** | [58-ACP智能体通信协议](./58-ACP智能体通信协议.md)、[14-多智能体协作](./14-多智能体协作.md) |
+| **预计时长** | 40 分钟（阅读 30 分钟 + 练习 10 分钟） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `ACP` `会话` `错误恢复` |
+
+> **一句话概述**：本章深入分析 ACP 智能体通信协议的架构设计，包括 Server/Tool 双模式、SuspendedPermission 权限挂起机制和异常体系，帮助读者掌握多智能体间安全通信的实现方法。
+
 ## 概述
 
 ACP（Agent Communication Protocol）是 QwenPaw 的智能体间通信协议，支持 Server 模式和 Tool 模式，实现智能体间的互操作性。通过 ACP，不同的 QwenPaw 实例可以相互通信，共享工具能力，构建分布式多智能体系统。
@@ -575,3 +587,20 @@ if remote_version != local_version:
 | ACPService | `src/qwenpaw/agents/acp/service.py` |
 | ACP 客户端 | `src/qwenpaw/agents/acp/client.py` |
 | ACP 配置 | `src/qwenpaw/config/config.py` |
+
+---
+
+## 知识检查
+
+1. ACP 的 Server 模式和 Tool 模式在角色定位和通信方向上有什么本质区别？什么场景应该同时使用两种模式？
+
+2. SuspendedPermission 权限挂起机制的完整流程是什么？用户可以执行哪些操作（approve/deny/modify）？每种操作后续如何处理？
+
+3. ACPErrors 的四个子类（ConfigurationError/TransportError/ProtocolError/SessionError）分别对应什么类型的故障？如何根据异常类型选择恢复策略？
+
+---
+
+## 延伸阅读
+
+- [58-ACP智能体通信协议](58-ACP智能体通信协议.md) -- ACP 协议的基础概念和入门用法
+- [14-多智能体协作](14-多智能体协作.md) -- 多智能体协作的架构设计和编排模式

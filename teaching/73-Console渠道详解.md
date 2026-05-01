@@ -1,5 +1,17 @@
 # Console 渠道详解
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 理解 Web Console 渠道的实现 2) 分析 SSE 推送和重连机制 3) 解释文件上传的处理流程 |
+| **前置知识** | [08-消息渠道系统](./08-消息渠道系统.md) |
+| **预计时长** | 30 分钟（阅读 20 分钟 + 练习 10 分钟） |
+| **难度等级** | ⭐⭐⭐ |
+| **核心关键词** | `Console` `SSE` `推送` `上传` |
+
+> **一句话概述**：本章解析 ConsoleChannel 的实现细节，涵盖消息格式化输出、ANSI 颜色支持、思考块过滤、主动推送以及 Windows 编码兼容处理。
+
 ## 概述
 
 Console 渠道是 QwenPaw 的内置渠道，通过 stdout/stdin 实现基于终端的人机对话。输入由 AgentApp 的 `/agent/process` 端点处理，ConsoleChannel 负责将 Agent 响应格式化打印到终端。
@@ -272,6 +284,14 @@ await self._push_to_frontend(to_handle, text, meta)
 
 ---
 
+## 知识检查
+
+1. `ConsoleChannel` 被描述为"纯输出渠道"，输入由独立的 HTTP 端点处理。这种输入/输出分离设计在跨渠道架构中有什么优势？
+2. `_USE_COLOR` 变量在模块加载时通过 `os.isatty()` 检测终端能力。如果在 CI/CD 管道中运行 QwenPaw，颜色输出会怎样处理？
+3. `send()` 和 `send_content_parts()` 都会将消息推送到前端 push store。为什么 Console 渠道作为终端渠道还需要前端推送？
+
+---
+
 ## 11. 常见问题
 
 ### Q1: 终端颜色不显示？
@@ -326,3 +346,10 @@ qwenpaw run > output.log 2>&1
 | _print_parts | `src/qwenpaw/app/channels/console/channel.py:320` |
 | send | `src/qwenpaw/app/channels/console/channel.py:380` |
 | health_check | `src/qwenpaw/app/channels/console/channel.py:424` |
+
+---
+
+## 延伸阅读
+
+- [08-消息渠道系统](./08-消息渠道系统.md) -- 了解 BaseChannel 抽象接口和渠道管理器的整体设计
+- [64-消息系统详解](./64-消息系统详解.md) -- 理解消息格式化和 SSE 流式事件的处理机制

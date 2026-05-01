@@ -1,6 +1,16 @@
-✅ 内容增强完成
-
 # Workspace 隔离机制
+
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 解释 Workspace 隔离的设计原理 2) 分析 ServiceManager 的服务编排机制 3) 理解多 Agent 环境下的资源隔离 |
+| **前置知识** | [项目架构](./03-项目架构.md)、[智能体核心架构](./07-智能体核心架构.md) |
+| **预计时长** | 40 分钟（阅读 25 + 练习 15） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `Workspace` `ServiceManager` `隔离` |
+
+> **一句话概述**：每个 Agent 运行在独立的 Workspace 中，通过目录隔离、服务隔离和声明式 ServiceManager 实现多租户资源隔离与零停机热重载。
 
 ## 概述
 
@@ -599,6 +609,12 @@ public class AgentClassLoader extends URLClassLoader {
 
 ---
 
+## 知识检查
+
+1. **Workspace 的三层隔离（目录、服务、线程安全）分别解决什么问题？**
+2. **ServiceManager 的优先级分组启动中，为什么 Runner (priority=10) 必须先于 ChannelManager (priority=30) 启动？**
+3. **热重载时为什么采用「先建后停」策略，而不是先停止旧实例再创建新实例？**
+
 ## 练习题
 
 ### 基础练习
@@ -667,6 +683,15 @@ public class AgentClassLoader extends URLClassLoader {
 - [消息渠道架构](./26-消息渠道架构.md) — ChannelManager 与 Workspace 交互
 - [定时任务与心跳](./25-定时任务与心跳.md) — CronManager 与 Workspace 交互
 - [MCP系统详解](./29-MCP系统详解.md) — MCPClientManager 与 Workspace 交互
+
+---
+
+## 延伸阅读
+
+- [工作区隔离机制](./51-工作区隔离机制.md) — 更深入的隔离设计分析
+- [生命周期管理](./94-生命周期管理.md) — 全局生命周期与 Workspace 的关系
+- [多智能体协作](./14-多智能体协作.md) — 多 Agent 协作场景下的隔离与通信
+- [请求处理与Runner](./21-请求处理与Runner.md) — Runner 与 Workspace 的双向引用机制
 
 ---
 

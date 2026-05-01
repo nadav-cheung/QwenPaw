@@ -1,5 +1,17 @@
 # FastAPI 应用结构与启动流程
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 追踪 FastAPI 应用从创建到就绪的完整流程 2) 理解两阶段启动的优先级排序 3) 分析服务依赖和并发初始化 |
+| **前置知识** | [40-FastAPI应用结构](./40-FastAPI应用结构.md)、[27-应用启动与插件系统](./27-应用启动与插件系统.md) |
+| **预计时长** | 40 分钟（阅读 30 分钟 + 练习 10 分钟） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `两阶段启动` `服务依赖` `并发初始化` |
+
+> **一句话概述**：本章追踪 FastAPI 应用从创建到完全就绪的全过程，重点分析两阶段启动架构的设计意图和服务优先级排序机制。
+
 ## 概述
 
 QwenPaw 基于 FastAPI 实现，采用两阶段启动架构：第一阶段同步初始化（<100ms），第二阶段后台初始化，支持在启动过程中响应 HTTP 请求。
@@ -387,6 +399,14 @@ python -c "from qwenpaw.config.config import migrate_legacy_config_to_multi_agen
 
 ---
 
+## 知识检查
+
+1. 两阶段启动中，Phase 1 为什么必须在 100ms 内完成？如果 Phase 1 耗时过长，对用户体验和系统行为有什么影响？
+2. ServiceManager 的优先级分组中，Priority 20 的三个服务（memory_manager、mcp_manager、chat_manager）为什么可以并发启动？它们之间存在依赖关系吗？
+3. 为什么 `workers=1` 是硬编码的？如果改为多 worker 模式，会破坏哪些共享状态？
+
+---
+
 ## 12. 总结
 
 ### 核心要点
@@ -408,3 +428,10 @@ python -c "from qwenpaw.config.config import migrate_legacy_config_to_multi_agen
 | 服务管理 | `src/qwenpaw/app/workspace/service_manager.py` |
 | 频道管理 | `src/qwenpaw/app/channels/manager.py` |
 | 启动横幅 | `src/qwenpaw/utils/startup_display.py` |
+
+---
+
+## 延伸阅读
+
+- [94-生命周期管理](./94-生命周期管理.md) -- 深入了解 lifespan 上下文管理器和优雅关闭机制
+- [27-应用启动与插件系统](./27-应用启动与插件系统.md) -- 理解插件系统在启动流程中的初始化时序

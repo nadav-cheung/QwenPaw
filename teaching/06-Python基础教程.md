@@ -1,6 +1,16 @@
-✅ 内容增强完成
-
 # Python 基础教程（面向 Java 开发者）
+
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 使用 Python 基本语法编写简单脚本 2) 理解 Python 与 Java 的关键差异 3) 阅读 QwenPaw 项目中的 Python 代码 |
+| **前置知识** | [01-项目介绍](./01-项目介绍.md)、[03-项目架构](./03-项目架构.md) |
+| **预计时长** | 60 分钟（阅读 40 分钟 + 练习 20 分钟） |
+| **难度等级** | ⭐⭐ |
+| **核心关键词** | `Python语法` `类型提示` `异步编程` `装饰器` |
+
+> **一句话概述**：本章以 Java 开发者视角讲解 Python 核心语法，帮助你快速掌握阅读 QwenPaw 源码所需的 Python 基础。
 
 ## 概述
 
@@ -1422,3 +1432,17 @@ QwenPaw 项目展示了 Python 在实际应用中的最佳实践：
 - `src/qwenpaw/app/multi_agent_manager.py` — 异步锁和并发模式
 - `src/qwenpaw/config/config.py` — Pydantic 配置模型
 - `src/qwenpaw/agents/` — 智能体核心实现
+
+## 知识检查
+
+1. Python 的列表推导式与 Java Stream 有什么异同？
+2. Python 的 `async/await` 与 Java 的 `CompletableFuture` 有何区别？
+3. 为什么 Python 推荐使用 `pathlib.Path` 而非字符串拼接路径？
+
+## 延伸阅读
+
+| 方向 | 章节 | 说明 |
+|------|------|------|
+| 进阶学习 | [06.1-Python进阶教程](./06.1-Python进阶教程.md) | 基于源码的 Python 进阶 |
+| 核心架构 | [07-智能体核心架构](./07-智能体核心架构.md) | 理解智能体设计 |
+| 下一章 | [06.1-Python进阶教程](./06.1-Python进阶教程.md) | 继续深入学习 |

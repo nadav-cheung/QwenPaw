@@ -1,9 +1,16 @@
 # 工具 Guard 安全系统
----
-✅ 内容增强完成
-增强内容: 多层防御体系、规则扩展、审计日志合规、Java Spring Security对比、练习题
----
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 理解 ToolGuard 三层防护架构的设计与协作方式 2) 掌握 FilePathGuardian、RuleBasedGuardian、ShellEvasionGuardian 的检测机制 3) 分析审批决策流程与 MRO 拦截原理 |
+| **前置知识** | [19-安全系统详解](./19-安全系统详解.md)、[26-安全守卫系统](./26-安全守卫系统.md) |
+| **预计时长** | 50 分钟（阅读 30 分钟 + 练习 20 分钟） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `ToolGuard` `三层防护` `MRO拦截` `审批流程` |
+
+> **一句话概述**：本章讲解 ToolGuard 如何通过 Mixin + MRO 拦截工具调用，实现文件路径保护、危险命令检测和 Shell 混淆检测三层安全防护。
 
 ## 概述
 
@@ -792,6 +799,16 @@ except Exception:
 
 ---
 
+## 知识检查
+
+1. **ToolGuardMixin 是如何通过 Python MRO 机制拦截工具调用的？如果 QwenPawAgent 的继承顺序改为 `ReActAgent, ToolGuardMixin`，会发生什么？**
+
+2. **FilePathToolGuardian 的 `always_run=True` 属性在实际运行中意味着什么？为什么它必须始终运行，即使工具不在 `guarded_tools` 列表中？**
+
+3. **ShellEvasionGuardian 的 QuoteState 状态机如何区分 `echo '$(whoami)'`（无害）和 `echo $(whoami)`（危险）？描述其逐字符解析的逻辑。**
+
+---
+
 ## 附录：企业级安全防护进阶
 
 ### 多层防御体系
@@ -1009,3 +1026,13 @@ if guard_result.findings:
    severity: HIGH
    ```
 
+---
+
+## 延伸阅读
+
+| 章节 | 说明 |
+|------|------|
+| [19-安全系统详解](./19-安全系统详解.md) | QwenPaw 整体安全架构概览 |
+| [26-安全守卫系统](./26-安全守卫系统.md) | 安全守卫的配置与管理 |
+| [41-审批系统详解](./41-审批系统详解.md) | 审批服务的完整生命周期管理 |
+| [53-文件操作与安全机制](./53-文件操作与安全机制.md) | 文件操作的权限控制与沙箱隔离 |

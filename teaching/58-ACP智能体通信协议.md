@@ -1,5 +1,17 @@
 # ACP 智能体通信协议
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| 学习目标 | 解释 ACP 协议的消息格式；理解智能体间的委托和协作机制；分析权限管理和错误处理 |
+| 前置知识 | 14-多智能体协作、07-智能体核心架构 |
+| 预计时长 | 40 分钟 |
+| 难度等级 | ⭐⭐⭐⭐ |
+| 核心关键词 | `ACP` `通信` `委托` `权限` |
+
+本章详解 QwenPaw 的 ACP 智能体通信协议，包括 Server/Tool 双重角色、JSON-RPC over stdio 消息格式、会话管理、流式追踪机制，以及挂起权限的安全模型。
+
 ## 概述
 
 QwenPaw 支持两种 ACP 模式：**ACP Server**（外部客户端连接 QwenPaw）和 **ACP Tool**（QwenPaw 连接外部 ACP 智能体），通过 JSON-RPC over stdio 实现智能体间通信。
@@ -625,3 +637,20 @@ QwenPaw → run_turn() → ACPService
 | ACP 权限 | `src/qwenpaw/agents/acp/permissions.py` | 权限管理 |
 | CLI 入口 | `src/qwenpaw/cli/acp_cmd.py` | 命令行接口 |
 | ACP 配置 | `src/qwenpaw/config/config.py:56` | 配置模型 |
+
+---
+
+## 知识检查
+
+1. **双重角色**：QwenPaw 在 ACP 协议中可以扮演哪两种角色？请分别描述 ACP Server 模式和 ACP Tool 模式下，QwenPaw 是请求的发起方还是接收方。
+
+2. **流式追踪**：`_StreamTracker` 通过 `_seen_tool_calls` 集合追踪已发送的工具调用 ID。如果不使用追踪器，在流式响应场景下会出现什么问题？请举例说明重复发送的后果。
+
+3. **会话锁定**：`Conversation` 类中的 `turn_lock` 防止同一会话的并发 prompt。如果去掉这个锁，两个并发请求同时调用 `run_turn()` 会发生什么？
+
+---
+
+## 延伸阅读
+
+- [84-ACP协议深度解析](./84-ACP协议深度解析.md) -- ACP 协议的底层实现与协议规范
+- [14-多智能体协作](./14-多智能体协作.md) -- 多智能体协作的整体架构与设计模式

@@ -1,5 +1,17 @@
 # Shell 命令执行系统
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| 学习目标 | 理解跨平台 Shell 执行的兼容处理；分析安全沙箱和超时机制；配置命令白名单和黑名单 |
+| 前置知识 | 07-智能体核心架构、19-安全系统详解 |
+| 预计时长 | 30 分钟 |
+| 难度等级 | ⭐⭐⭐ |
+| 核心关键词 | `Shell` `跨平台` `沙箱` `超时` |
+
+本章详解 `execute_shell_command` 的跨平台实现，包括 Windows 线程池与 Unix asyncio.subprocess 的差异、命令预处理、进程树终止、智能解码，以及完整的执行流程。
+
 ## 概述
 
 `execute_shell_command` 是 QwenPaw 的核心 shell 执行工具，处理跨平台（Windows/macOS/Linux）命令执行、超时控制、进程树终止和 LLM 输出的特殊转义。
@@ -730,6 +742,16 @@ result = await execute_shell_command(
 
 ---
 
+## 知识检查
+
+1. **平台差异**：Windows 使用线程池 + `subprocess.call`，Unix 使用 `asyncio.create_subprocess_shell`。为什么 Windows 不使用 asyncio subprocess？Windows 上管道继承会导致什么具体问题？
+
+2. **进程组管理**：Unix 平台上 `start_new_session=True` 的作用是什么？如果不设置此参数，超时后 `os.killpg()` 会影响哪些进程？这对父进程有什么潜在风险？
+
+3. **命令预处理**：LLM 输出的命令 `echo "hello\nworld"` 在 Windows 和 Unix 上分别如何处理？`_sanitize_win_cmd()` 解决的是什么类型的 LLM 常见错误？
+
+---
+
 ## 练习题
 
 ### 基础练习
@@ -770,3 +792,10 @@ result = await execute_shell_command(
 | Windows 进程终止 | `src/qwenpaw/agents/tools/shell.py:23` | Windows 进程树终止 |
 | 换行符处理 | `src/qwenpaw/agents/tools/shell.py:109` | 跨平台换行符处理 |
 | 智能解码 | `src/qwenpaw/agents/tools/shell.py:447` | 编码处理 |
+
+---
+
+## 延伸阅读
+
+- [38-工具Guard安全系统](./38-工具Guard安全系统.md) -- Shell 命令的安全沙箱与 Guard 防护
+- [60-工具模块详解](./60-工具模块详解.md) -- 工具注册与 command_runner 的底层实现

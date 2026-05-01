@@ -1,6 +1,16 @@
-✅ 内容增强完成
-
 # MCP 系统 (Model Context Protocol)
+
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 解释 MCP 协议的通信模型 2) 配置和管理 MCP 客户端 3) 理解热重载和生命周期管理机制 4) 分析 StdIO 客户端的跨任务生命周期解决方案 |
+| **前置知识** | [07-智能体核心架构](./07-智能体核心架构.md)、[03-项目架构](./03-项目架构.md) |
+| **预计时长** | 45 分钟（阅读 25 分钟 + 练习 20 分钟） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `MCP` `StdIO` `热重载` `工具注册` |
+
+> **一句话概述**：深入讲解 MCP 协议在 QwenPaw 中的实现，包括客户端管理、热重载和跨任务生命周期等核心机制。
 
 ## 概述
 
@@ -1188,3 +1198,52 @@ MCP 工具无法调用
 - 源码路径：`src/qwenpaw/app/mcp/`
 - MCP 官方文档：https://modelcontextprotocol.io/
 - 官方服务器仓库：https://github.com/modelcontextprotocol/servers
+
+---
+
+## 15. 知识检查
+
+### 题目一
+
+StdIOStatefulClient 为什么将整个生命周期放在单一后台任务中运行？如果在 `connect()` 和 `close()` 中分别使用不同的 asyncio Task 会产生什么问题？
+
+<details>
+<summary>参考答案</summary>
+
+原始 AgentScope 的 StatefulClientBase 在 `connect()` 中进入 AsyncExitStack，在 `close()` 中退出。在 uvicorn/FastAPI 环境中，这两个调用可能分别运行在不同的 asyncio Task 中（例如任务 A 处理请求时调用 connect，任务 B 处理后续请求时调用 close）。跨任务退出 AsyncExitStack 会触发 anyio.CancelScope 错误，导致资源泄漏。
+
+StdIOStatefulClient 的 `_run_lifecycle` 方法在同一个后台 Task 中完成 connect 和 close，AsyncExitStack 的进入和退出始终在同一 Task 的 cancel scope 内，从根本上避免了这个问题。
+</details>
+
+### 题目二
+
+MCPClientManager 的 `replace_client` 方法为什么采用"锁外连接，锁内替换"的策略？如果改为全程持锁会有什么后果？
+
+<details>
+<summary>参考答案</summary>
+
+新客户端的 `connect()` 可能耗时较长（网络连接、进程启动等）。如果全程持锁，其他所有需要访问 `_clients` 字典的操作（如 `get_clients`、其他客户端的热重载）都会被阻塞，导致系统吞吐量下降。
+
+"锁外连接，锁内替换"的策略让耗时的连接操作在锁外执行，只在交换引用时短暂持锁，将锁竞争降到最低。这与 ChannelManager 的热重载策略思路一致。
+</details>
+
+### 题目三
+
+MCPConfigWatcher 使用了哪些优化手段来减少不必要的配置重载？
+
+<details>
+<summary>参考答案</summary>
+
+1. **mtime 快速跳过**：先检查配置文件的修改时间（st_mtime），如果与上次相同则直接跳过，避免重新加载和解析配置文件。
+2. **hash 快速比较**：即使 mtime 变了，也对配置内容计算 hash，如果 hash 与上次相同说明文件内容未实际变化（可能是 touch 等操作导致的 mtime 更新）。
+3. **重载去重**：如果已有重载任务正在进行（`_reload_task` 未完成），跳过新的重载请求。
+4. **失败重试限制**：对连续失败的客户端跟踪失败次数（最多 3 次），超过限制后不再重试，避免无限循环。
+</details>
+
+---
+
+## 16. 延伸阅读
+
+- [07-智能体核心架构](./07-智能体核心架构.md) -- 理解 MCP 在智能体工具调用链中的位置
+- [18-插件系统](./18-插件系统.md) -- 了解插件如何通过 MCP 规则文件注册自定义服务器
+- [09-技能扩展系统](./09-技能扩展系统.md) -- 技能系统中工具注册与 MCP 工具注册的对比

@@ -1,5 +1,17 @@
 # API 路由系统详解
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 分析 REST API 的路由注册模式 2) 理解路由工厂和中间件链 3) 使用 API 进行集成开发 |
+| **前置知识** | [40-FastAPI应用结构](./40-FastAPI应用结构.md) |
+| **预计时长** | 35 分钟（阅读 25 分钟 + 练习 10 分钟） |
+| **难度等级** | ⭐⭐⭐ |
+| **核心关键词** | `REST API` `路由` `中间件` |
+
+> **一句话概述**：本章解析 QwenPaw 的分层路由架构，涵盖全局路由、Agent 作用域路由、认证中间件以及自定义路由注册的完整模式。
+
 ## 概述
 
 QwenPaw 的 API 采用分层路由结构：全局路由 `/api/*`、Agent 作用域路由 `/api/agents/{agentId}/*`、专用路由（voice）独立于 `/api` 前缀。
@@ -400,6 +412,14 @@ wss://localhost:8000/voice/ws?token=VALID_TOKEN
 
 ---
 
+## 知识检查
+
+1. 全局路由 `/api/*` 和 Agent 作用域路由 `/api/agents/{agentId}/*` 的区别是什么？为什么需要两套路由体系？
+2. `AuthMiddleware` 跳过认证的两个条件分别是什么？本地回环地址跳过认证的设计在什么场景下可能带来安全风险？
+3. 自定义渠道路由为什么必须使用 `/api/` 前缀？如果不加前缀会被什么机制拦截？
+
+---
+
 ## 10. 总结
 
 ### 核心要点
@@ -421,3 +441,10 @@ wss://localhost:8000/voice/ws?token=VALID_TOKEN
 | 配置路由 | `src/qwenpaw/app/routers/config.py` |
 | 认证路由 | `src/qwenpaw/app/routers/auth.py` |
 | 语音路由 | `src/qwenpaw/app/routers/voice.py` |
+
+---
+
+## 延伸阅读
+
+- [40-FastAPI应用结构](./40-FastAPI应用结构.md) -- 理解 FastAPI 应用的整体架构和模块组织
+- [93-CORS与中间件](./93-CORS与中间件.md) -- 深入了解跨域配置和中间件链的工作原理

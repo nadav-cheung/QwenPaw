@@ -1,6 +1,16 @@
-✅ 内容增强完成
-
 # Mission Mode 详解：自主迭代式复杂任务执行
+
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 描述 Mission 的两阶段执行模型 2) 理解 PRD 生成和验证流程 3) 分析迭代循环和验证命令机制 |
+| **前置知识** | [智能体核心架构](./07-智能体核心架构.md)、[请求处理与Runner](./21-请求处理与Runner.md) |
+| **预计时长** | 50 分钟（阅读 30 + 练习 20） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `Mission` `PRD` `迭代` `验证` |
+
+> **一句话概述**：Mission Mode 通过两阶段执行（PRD 生成 + 迭代执行）将复杂软件开发任务分解为可验证的用户故事，Master Agent 调度 Worker 完成实现并自动验证。
 
 ## 概述
 
@@ -552,6 +562,12 @@ if isinstance(mission_result, dict):
 
 ---
 
+## 知识检查
+
+1. **Mission Mode 的 Phase 1 和 Phase 2 分别完成什么工作？为什么 Phase 2 要禁用实现工具？**
+2. **PRD 中的 `userStories` 必须包含哪些必填字段？`validate_prd()` 函数如何处理格式错误的 PRD？**
+3. **`--verify` 参数的作用是什么？它如何与每个 story 的验证流程结合？**
+
 ## 11. 练习题
 
 ### 练习 1: 创建 Mission 任务
@@ -786,3 +802,11 @@ if all(s.get("passes") for s in stories):
 4. **文件状态持久化**: Mission Mode 使用文件系统持久化状态，类似于 Java 的持久化队列。
 
 5. **异步迭代循环**: Phase 2 的迭代模型类似于 Java 的 `while(!isComplete() && hasMoreIterations())` 循环。
+
+---
+
+## 延伸阅读
+
+- [请求处理与Runner](./21-请求处理与Runner.md) — Runner 如何检测和启动 Mission Mode
+- [任务追踪系统](./33-任务追踪系统.md) — Mission 执行中的任务追踪机制
+- [多智能体协作](./14-多智能体协作.md) — Master Agent 与 Worker 的协作模式

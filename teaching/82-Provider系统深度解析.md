@@ -1,5 +1,17 @@
 # Provider 系统深度解析
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 分析 Provider 抽象层的设计模式 2) 理解模型路由和切换策略 3) 扩展自定义 Provider |
+| **前置知识** | [11-Model系统与LLM提供商](./11-Model系统与LLM提供商.md) |
+| **预计时长** | 45 分钟（阅读 35 分钟 + 练习 10 分钟） |
+| **难度等级** | ⭐⭐⭐⭐ |
+| **核心关键词** | `Provider` `路由策略` `模型切换` |
+
+> **一句话概述**：本章深入分析 QwenPaw 的 Provider 抽象层架构，涵盖 ProviderManager 单例管理、模型激活流程、多模态探测机制和密钥加密存储，帮助读者理解模型路由策略并掌握自定义 Provider 的扩展方法。
+
 ## 概述
 
 Provider 是 QwenPaw 的模型供应抽象层，通过 ProviderManager 统一管理，支持本地模型、OpenAI 兼容 API 和多 Provider 路由。系统内置 24+ Provider，支持模型探测、多模态检测和密钥加密存储。
@@ -870,3 +882,20 @@ model_name  # 例如 "llama3.1:8b"
 llava:7b
 llava:13b
 ```
+
+---
+
+## 知识检查
+
+1. ProviderManager 采用什么设计模式管理所有 Provider 实例？它如何保证全局唯一性？
+
+2. 当调用 `activate_model()` 激活一个模型时，系统会依次执行哪些步骤？如果模型不在 Provider 的模型列表中会发生什么？
+
+3. OllamaProvider 继承自 OpenAIProvider，它的 `_normalize_base_url` 和 `_openai_compatible_base_url` 两个方法分别解决什么问题？为什么需要双重转换？
+
+---
+
+## 延伸阅读
+
+- [11-Model系统与LLM提供商](11-Model系统与LLM提供商.md) -- Provider 系统的上层调用方，理解模型选择如何传递到 Provider 层
+- [85-模型探测与能力检测](85-模型探测与能力检测.md) -- 多模态探测的完整机制，包含探测数据和偏差检测

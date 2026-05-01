@@ -1,5 +1,17 @@
 # CORS 与中间件
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 配置 CORS 安全策略 2) 分析中间件链的执行顺序 3) 实现自定义中间件 |
+| **前置知识** | [40-FastAPI应用结构](./40-FastAPI应用结构.md) |
+| **预计时长** | 25 分钟（阅读 20 分钟 + 练习 5 分钟） |
+| **难度等级** | ⭐⭐⭐ |
+| **核心关键词** | `CORS` `中间件` `安全策略` |
+
+> **一句话概述**：本章讲解 QwenPaw 的中间件栈架构，包括 AgentContextMiddleware、AuthMiddleware 和 CORS 的执行顺序、agentId 提取优先级和认证跳过条件，帮助读者理解请求处理管道并掌握自定义中间件的扩展方法。
+
 ## 概述
 
 QwenPaw 的中间件栈包括 AgentContextMiddleware（上下文注入）、AuthMiddleware（认证）和 CORS 配置，按顺序执行以确保请求正确处理和安全性。
@@ -386,3 +398,20 @@ allow_origins = os.getenv("CORS_ORIGINS", "").split(",") or ["*"]
 | [94-生命周期管理](./94-生命周期管理.md) | 中间件在应用启动时注册 |
 | [97-安全加固与最佳实践](./97-安全加固与最佳实践.md) | AuthMiddleware 是安全体系的一部分 |
 | [99-部署与运维指南](./99-部署与运维指南.md) | systemd 服务配置与中间件启动顺序 |
+
+---
+
+## 知识检查
+
+1. FastAPI 中间件的执行顺序与注册顺序是什么关系？三个中间件（CORS、Auth、AgentContext）的实际请求处理顺序是什么？
+
+2. AuthMiddleware 的 `_should_skip_auth` 函数有哪几个跳过条件？为什么本地请求（127.0.0.1）需要跳过认证？
+
+3. 当 `allow_origins=["*"]` 同时设置 `allow_credentials=True` 时，浏览器会报什么错误？正确的做法是什么？
+
+---
+
+## 延伸阅读
+
+- [40-FastAPI应用结构](40-FastAPI应用结构.md) -- FastAPI 应用结构和中间件注册机制
+- [50-认证授权系统详解](50-认证授权系统详解.md) -- AuthMiddleware 的认证流程和 Token 管理详解

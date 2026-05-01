@@ -1,9 +1,16 @@
 # MCP 模块 (Model Context Protocol)
----
-✅ 内容增强完成
-增强内容: Streamable HTTP传输协议(2025.3替代SSE)、Java Spring AI MCP Server对比、FastMCP官方SDK示例、练习题
----
 
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 理解 MCP 模块的路由和管理 2) 配置 MCP 客户端连接 3) 分析 MCP 工具的注册流程 |
+| **前置知识** | [MCP系统](./13-MCP系统.md)、[智能体核心架构](./07-智能体核心架构.md) |
+| **预计时长** | 30 分钟（阅读 20 + 练习 10） |
+| **难度等级** | ⭐⭐⭐ |
+| **核心关键词** | `MCP` `工具注册` `路由` |
+
+> **一句话概述**：MCP 模块通过 MCPClientManager 统一管理 StdIO 和 HTTP 两种传输模式的客户端，支持热更新、跨任务生命周期管理和工具自动注册到 Agent。
 
 MCP 模块管理 MCP 客户端连接，支持热更新和多种传输协议。
 
@@ -358,6 +365,12 @@ public class McpServerApplication {
 
 ---
 
+## 知识检查
+
+1. **StdIOStatefulClient 和 HttpStatefulClient 分别适用于什么场景？它们的传输协议有什么区别？**
+2. **`_run_lifecycle()` 为什么需要在独立的 asyncio 任务中运行？直接在请求处理流程中运行会有什么问题？**
+3. **`MCPConfigWatcher` 的热更新机制是如何检测配置变更的？**
+
 ## 练习题
 
 ### 选择题
@@ -421,3 +434,10 @@ public class McpServerApplication {
    - 配置包括：name, transport, command/args（stdio）或 url/headers（HTTP）
    - QwenPaw 启动时 MCPClientManager.init_from_config() 自动初始化
    - 或运行时通过 POST /mcp API 动态添加
+
+---
+
+## 延伸阅读
+
+- [MCP系统](./13-MCP系统.md) — MCP 协议的核心概念与架构
+- [插件系统](./18-插件系统.md) — MCP 与插件系统的集成方式
