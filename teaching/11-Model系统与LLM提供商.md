@@ -991,7 +991,7 @@ class DownloadSource(str, Enum):
 
 1. **配置重试**: 始终启用 RetryChatModel 处理临时性故障
 2. **多模型备份**: 配置多个 provider，当主模型不可用时自动切换
-3. **健康检查**: 使用 `qwenpaw doctor --check models` 定期检查模型状态
+3. **健康检查**: 使用 `qwenpaw doctor` 定期检查模型状态
 
 ---
 
@@ -1018,7 +1018,7 @@ class DownloadSource(str, Enum):
 ```
 模型无法连接
     │
-    ├─► 检查 API Key: qwenpaw doctor --check models
+    ├─► 检查 API Key: qwenpaw doctor
     │
     ├─► 检查网络: curl <provider_url>/models
     │
