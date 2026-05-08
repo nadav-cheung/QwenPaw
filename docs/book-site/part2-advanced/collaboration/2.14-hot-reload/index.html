@@ -1,0 +1,3231 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Java开发者的AI Agent转型指南">
+      
+      
+        <meta name="author" content="QwenPaw Community">
+      
+      
+        <link rel="canonical" href="https://qwenpaw.github.io/book/part2-advanced/collaboration/2.14-hot-reload/">
+      
+      
+        <link rel="prev" href="../2.13-lifecycle/">
+      
+      
+        <link rel="next" href="../2.15-key-security/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>2.14 配置热重载 - QwenPaw智能体开发实战</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#214" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-header__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QwenPaw智能体开发实战
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2.14 配置热重载
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-tabs__link">
+          
+  
+  
+  入门篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../core/2.1-agent-core/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-核心机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2.10-multi-agent/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-协作机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-tabs__link">
+          
+  
+  
+  实战篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../appendix/A-python-quick-reference/" class="md-tabs__link">
+          
+  
+  
+  附录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-nav__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QwenPaw智能体开发实战
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入门篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    入门篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 QwenPaw概述
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.2-environment-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 环境搭建
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.3-python-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Java开发者的Python指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.4-agent-core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4 智能体核心概念
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.5-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 技能系统入门
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.6-channel-basics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 消息渠道基础
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-核心机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-核心机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.1-agent-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.1 Agent核心架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.2-runner-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.2 Runner与请求处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.3-memory-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.3 Memory记忆系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.4-provider-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.4 Provider与模型层
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.5-channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.5 Channel消息渠道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.6-guard-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.7-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.7 Skill技能系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.8-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../core/2.9-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.9 Plugin插件系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-协作机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-协作机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.10-multi-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.10 多智能体协作
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.11-message-routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.11 消息路由与分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.12-scheduler-heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.12 定时任务与心跳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.13-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.13 生命周期管理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 热重载概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 热重载概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么需要热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 QwenPaw 热重载架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 支持热重载的配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-agentconfigwatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. AgentConfigWatcher — 核心监听器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. AgentConfigWatcher — 核心监听器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 设计理念
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 核心类实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 哈希辅助函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 轮询循环
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 变更检测
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 配置变更处理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 配置变更处理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 渠道热重载 — 克隆替换策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-channelmanagerreplace_channel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 原子替换 — ChannelManager.replace_channel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 心跳热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 服务复用机制
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 服务复用机制">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-schedule_agent_reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 热重载触发 — schedule_agent_reload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-multiagentmanagerreload_agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 MultiAgentManager.reload_agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 重载状态机
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 服务类型对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-set_reusable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 set_reusable 实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 回滚机制
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 回滚机制">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 失败回滚原理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 回滚决策流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 配置合并策略
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 配置合并策略">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 合并策略类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 哈希合并优化
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 配置示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 配置示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 启用热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 热重载场景示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 设计意图分析
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 设计意图分析">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 轮询 vs 事件驱动
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 锁外启动的权衡
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 服务复用 vs 完全重建
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.15-key-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.15 密钥与安全
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实战篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实战篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.1 个人资讯助手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.2-smart-customer-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.2 智能客服系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.3-automation-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.3 自动化工作流
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.4-knowledge-base-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.4 企业知识库问答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    附录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    附录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/A-python-quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/B-config-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B 配置项索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/C-cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C 命令行参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/D-source-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/E-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E 常见问题解答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 热重载概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 热重载概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么需要热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 QwenPaw 热重载架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 支持热重载的配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-agentconfigwatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. AgentConfigWatcher — 核心监听器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. AgentConfigWatcher — 核心监听器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 设计理念
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 核心类实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 哈希辅助函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 轮询循环
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 变更检测
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 配置变更处理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 配置变更处理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 渠道热重载 — 克隆替换策略
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-channelmanagerreplace_channel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 原子替换 — ChannelManager.replace_channel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 心跳热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 服务复用机制
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 服务复用机制">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-schedule_agent_reload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 热重载触发 — schedule_agent_reload
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-multiagentmanagerreload_agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 MultiAgentManager.reload_agent
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 重载状态机
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 服务类型对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-set_reusable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 set_reusable 实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. 回滚机制
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. 回滚机制">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 失败回滚原理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 回滚决策流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 配置合并策略
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 配置合并策略">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 合并策略类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 哈希合并优化
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 配置示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 配置示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 启用热重载
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 热重载场景示例
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 设计意图分析
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 设计意图分析">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 轮询 vs 事件驱动
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 锁外启动的权衡
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-vs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 服务复用 vs 完全重建
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="214">第 2.14 章 配置热重载<a class="headerlink" href="#214" title="Permanent link">&para;</a></h1>
+<h2 id="_1">本章导览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>学习目标</strong></td>
+<td>1) 理解热重载的核心机制：mtime 轮询与哈希快速拒绝 2) 掌握 AgentConfigWatcher 的架构设计与实现原理 3) 分析服务复用策略与回滚机制</td>
+</tr>
+<tr>
+<td><strong>前置知识</strong></td>
+<td>第 2.13 章</td>
+</tr>
+<tr>
+<td><strong>预计时长</strong></td>
+<td>40 分钟</td>
+</tr>
+<tr>
+<td><strong>难度等级</strong></td>
+<td>⭐⭐⭐</td>
+</tr>
+<tr>
+<td><strong>核心关键词</strong></td>
+<td><code>AgentConfigWatcher</code> <code>热重载</code> <code>配置变更</code> <code>事件驱动</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>本章概述</strong>：深入分析配置热重载机制，解释如何通过 mtime 轮询检测变更、哈希快速拒绝避免深比较、服务复用减少重启开销，以及失败回滚保证系统稳定性。</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 热重载概述<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 为什么需要热重载<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<p>传统配置管理要求在修改配置后重启服务才能生效，这会导致：
+- <strong>服务中断</strong>：正在处理的任务被终止
+- <strong>用户体验差</strong>：用户请求失败
+- <strong>运维成本高</strong>：频繁变更配置需要反复重启</p>
+<p>热重载允许运行时动态更新配置，在不中断服务的情况下使配置变更立即生效。</p>
+<h3 id="12-qwenpaw">1.2 QwenPaw 热重载架构<a class="headerlink" href="#12-qwenpaw" title="Permanent link">&para;</a></h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     热重载架构                                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐     ┌──────────────┐     ┌──────────────┐    │
+│  │ agent.json   │────▶│AgentConfig   │────▶│  API 触发    │    │
+│  │  (mtime)     │     │  Watcher     │     │  /reload     │    │
+│  └──────────────┘     └──────────────┘     └──────────────┘    │
+│         │                   │                    │              │
+│         │ 轮询检测           │ 哈希比较            │ 后台任务     │
+│         ▼                   ▼                    ▼              │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              MultiAgentManager.reload_agent()            │  │
+│  │  ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐        │  │
+│  │  │ STOPPING│─▶│CREATING│─▶│ REUSING │─▶│STARTING│        │  │
+│  │  └────────┘  └────────┘  └────────┘  └────────┘        │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                              │                                  │
+│                              ▼                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │              Workspace 重建                             │   │
+│  │  可复用服务 ────────────────────────────────────────────▶│   │
+│  │  Channel 等不可复用服务 ─────────────────────────────────▶│   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="13">1.3 支持热重载的配置<a class="headerlink" href="#13" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>配置类型</th>
+<th>说明</th>
+<th>热重载范围</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AgentConfig</td>
+<td>智能体配置</td>
+<td>渠道、心跳、记忆任务</td>
+</tr>
+<tr>
+<td>ChannelConfig</td>
+<td>渠道配置</td>
+<td>单个渠道替换</td>
+</tr>
+<tr>
+<td>HeartbeatConfig</td>
+<td>心跳配置</td>
+<td>调度器重建</td>
+</tr>
+<tr>
+<td>MCPConfig</td>
+<td>MCP 配置</td>
+<td>MCP 客户端重连</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-agentconfigwatcher">2. AgentConfigWatcher — 核心监听器<a class="headerlink" href="#2-agentconfigwatcher" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 设计理念<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/agent_config_watcher.py:43</code></p>
+<p>AgentConfigWatcher 采用<strong>轮询 + 哈希快速拒绝</strong>的双层检测机制：</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    双层检测机制                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  第一层：mtime 轮询（O(1)）                                    │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  stat().st_mtime ──▶ 是否变化？                      │    │
+│  └─────────────────────────────────────────────────────┘    │
+│              │ mtime 变化         │ mtime 未变化            │
+│              ▼                    ▼                         │
+│  第二层：哈希比较（O(1)）      快速跳过                       │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │  hash(config) ──▶ 是否变化？                          │    │
+│  └─────────────────────────────────────────────────────┘    │
+│              │ 真正变化           │ 无变化                   │
+│              ▼                    ▼                         │
+│        触发热重载              快速跳过                       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<p>这种设计的<strong>核心优势</strong>：
+- <strong>mtime 比较</strong>：仅需一次系统调用，无需解析文件内容
+- <strong>哈希比较</strong>：O(1) 时间复杂度，避免深比较的性能损失</p>
+<h3 id="22">2.2 核心类实现<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:43
+class AgentConfigWatcher:
+    &quot;&quot;&quot;轮询 agent.json mtime 并自动重载变更的配置。
+
+    此监视器是 agent 作用域的，监视特定 agent 的
+    workspace/agent.json 文件的配置文件变更。
+    &quot;&quot;&quot;
+
+    def __init__(
+        self,
+        agent_id: str,
+        workspace_dir: Path,
+        channel_manager: Any,
+        cron_manager: Any = None,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,  # 2.0 秒
+    ):
+        self._agent_id = agent_id
+        self._workspace_dir = workspace_dir
+        self._config_path = workspace_dir / &quot;agent.json&quot;  # 监控路径
+        self._channel_manager = channel_manager
+        self._cron_manager = cron_manager
+        self._poll_interval = poll_interval
+
+        # 状态
+        self._last_mtime: float = 0
+        self._last_channels_hash: int = 0
+        self._last_heartbeat_hash: int = 0
+        self._last_memory_job_hash: int = 0
+</code></pre>
+<h3 id="23">2.3 哈希辅助函数<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:28
+def _heartbeat_hash(hb: Optional[HeartbeatConfig]) -&gt; int:
+    &quot;&quot;&quot;心跳配置的哈希，用于变更检测。&quot;&quot;&quot;
+    if hb is None:
+        return hash(&quot;None&quot;)
+    return hash(str(hb.model_dump(mode=&quot;json&quot;)))
+
+def _memory_job_hash(memory_summary: Optional[Any]) -&gt; int:
+    &quot;&quot;&quot;记忆任务配置的哈希，用于变更检测。&quot;&quot;&quot;
+    if memory_summary is None:
+        return hash(&quot;None&quot;)
+    cron_expr = getattr(memory_summary, &quot;dream_cron&quot;, &quot;&quot;)
+    return hash(str(cron_expr))
+</code></pre>
+<h3 id="24">2.4 轮询循环<a class="headerlink" href="#24" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:276
+async def _poll_loop(self) -&gt; None:
+    &quot;&quot;&quot;主轮询循环&quot;&quot;&quot;
+    while True:
+        try:
+            await asyncio.sleep(self._poll_interval)  # 默认 2.0s
+            await self._check()
+        except Exception:
+            logger.exception(&quot;Poll loop error&quot;)
+</code></pre>
+<h3 id="25">2.5 变更检测<a class="headerlink" href="#25" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:288
+async def _check(self) -&gt; None:
+    &quot;&quot;&quot;检查配置变更并在需要时重载&quot;&quot;&quot;
+    # 第一层：mtime 检测
+    try:
+        mtime = self._config_path.stat().st_mtime
+    except FileNotFoundError:
+        return
+
+    if mtime == self._last_mtime:
+        return  # mtime 未变化，快速跳过
+
+    self._last_mtime = mtime  # 更新 mtime
+
+    # 加载新配置
+    try:
+        agent_config = load_agent_config(self._agent_id)
+    except Exception:
+        logger.exception(&quot;Failed to load config&quot;)
+        return
+
+    # 第二层：哈希检测
+    new_channels_hash = self._channels_hash(agent_config.channels)
+    if new_channels_hash != self._last_channels_hash:
+        await self._apply_channel_changes(agent_config)
+
+    new_hb_hash = _heartbeat_hash(agent_config.heartbeat)
+    if new_hb_hash != self._last_heartbeat_hash:
+        await self._apply_heartbeat_change(agent_config)
+</code></pre>
+<hr />
+<h2 id="3">3. 配置变更处理<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 渠道热重载 — 克隆替换策略<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<p><strong>核心原则</strong>：不修改现有实例，而是克隆新实例后原子替换。</p>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:191
+async def _apply_channel_changes(self, agent_config: Any) -&gt; None:
+    &quot;&quot;&quot;diff 渠道并重载变更的渠道&quot;&quot;&quot;
+    if not agent_config.channels:
+        return
+
+    new_hash = self._channels_hash(agent_config.channels)
+    if new_hash == self._last_channels_hash:
+        return  # 哈希未变，快速跳过
+
+    # 遍历可用渠道，检测变更
+    for name in get_available_channels():
+        new_ch = getattr(agent_config.channels, name, None)
+        old_ch = getattr(self._current_channels, name, None)
+
+        if self._channel_dump(new_ch) != self._channel_dump(old_ch):
+            await self._reload_one_channel(name, new_ch, agent_config.channels)
+</code></pre>
+<p><strong>单渠道重载实现</strong>：</p>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:162
+async def _reload_one_channel(
+    self, name: str, new_ch: Any, new_channels: Any, old_ch: Any
+) -&gt; None:
+    &quot;&quot;&quot;重载单个渠道，失败时回退&quot;&quot;&quot;
+    try:
+        old_channel = await self._channel_manager.get_channel(name)
+        new_channel = old_channel.clone(new_ch)  # 用新配置克隆
+        await self._channel_manager.replace_channel(new_channel)
+        logger.info(f&quot;channel '{name}' reloaded&quot;)
+    except Exception:
+        logger.exception(f&quot;failed to reload channel '{name}'&quot;)
+        setattr(new_channels, name, old_ch)  # 失败时回退
+</code></pre>
+<h3 id="32-channelmanagerreplace_channel">3.2 原子替换 — ChannelManager.replace_channel<a class="headerlink" href="#32-channelmanagerreplace_channel" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/channels/manager.py:704
+async def replace_channel(self, new_channel: BaseChannel) -&gt; None:
+    &quot;&quot;&quot;按名称替换单个渠道&quot;&quot;&quot;
+    # 1) 在锁外启动新渠道（可能较慢）
+    await new_channel.start()
+
+    # 2) 在锁内交换 + 停止旧渠道
+    async with self._lock:
+        for i, ch in enumerate(self.channels):
+            if ch.channel == new_channel.channel:
+                self.channels[i] = new_channel  # 原子替换
+                await old_channel.stop()  # 优雅停止
+</code></pre>
+<p><strong>锁外启动的关键优势</strong>：
+- 减少锁持有时间
+- 允许并发操作
+- 降低死锁风险</p>
+<h3 id="33">3.3 心跳热重载<a class="headerlink" href="#33" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># src/qwenpaw/app/agent_config_watcher.py:231
+async def _apply_heartbeat_change(self, agent_config: Any) -&gt; None:
+    &quot;&quot;&quot;更新心跳哈希并在变更时重新调度&quot;&quot;&quot;
+    new_hb_hash = _heartbeat_hash(agent_config.heartbeat)
+    if new_hb_hash != self._last_heartbeat_hash:
+        self._last_heartbeat_hash = new_hb_hash
+        try:
+            await self._cron_manager.reschedule_heartbeat()
+            logger.info(&quot;heartbeat rescheduled&quot;)
+        except Exception:
+            logger.exception(&quot;failed to reschedule heartbeat&quot;)
+</code></pre>
+<hr />
+<h2 id="4">4. 服务复用机制<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41-schedule_agent_reload">4.1 热重载触发 — schedule_agent_reload<a class="headerlink" href="#41-schedule_agent_reload" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/utils.py:17</code></p>
+<p>当通过 API 更新配置时，使用异步后台任务触发重载：</p>
+<pre><code class="language-python"># src/qwenpaw/app/utils.py:17
+def schedule_agent_reload(request: &quot;Request&quot;, agent_id: str) -&gt; None:
+    &quot;&quot;&quot;在后台调度 Agent 重载（非阻塞）。&quot;&quot;&quot;
+    manager = request.app.state.multi_agent_manager
+
+    async def reload_in_background():
+        try:
+            await manager.reload_agent(agent_id)
+        except Exception as e:
+            logger.warning(f&quot;Background reload failed: {e}&quot;)
+
+    asyncio.create_task(reload_in_background())  # 非阻塞
+</code></pre>
+<p><strong>为什么使用 <code>asyncio.create_task</code> 而不是直接 await？</strong>
+- API 响应无需等待重载完成
+- 用户立即得到成功响应
+- 重载在后台异步进行</p>
+<h3 id="42-multiagentmanagerreload_agent">4.2 MultiAgentManager.reload_agent<a class="headerlink" href="#42-multiagentmanagerreload_agent" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># 重载完整流程
+async def reload_agent(self, agent_id: str) -&gt; None:
+    # 1. 获取当前 workspace
+    workspace = self._workspaces.get(agent_id)
+
+    # 2. 获取可复用服务（停止旧 workspace 前）
+    old_reusable = workspace.service_manager.get_reusable_services()
+
+    # 3. 停止旧 workspace（非 final 服务）
+    await workspace.service_manager.stop_all(final=False)
+
+    # 4. 重新加载配置
+    agent_config = load_agent_config(agent_id)
+
+    # 5. 重建 workspace
+    new_workspace = await self._create_workspace(agent_id, agent_config)
+
+    # 6. 复用可复用服务
+    for name, instance in old_reusable.items():
+        await new_workspace.service_manager.set_reusable(name, instance)
+
+    # 7. 启动新 workspace
+    await new_workspace.service_manager.start_all()
+
+    # 8. 更新 workspaces 字典
+    self._workspaces[agent_id] = new_workspace
+</code></pre>
+<h3 id="43">4.3 重载状态机<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    重载状态机                                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────┐                                             │
+│  │   IDLE     │ ← 初始状态 / 重载完成                          │
+│  └──────┬──────┘                                             │
+│         │ reload_agent()                                      │
+│         ▼                                                     │
+│  ┌─────────────┐                                             │
+│  │  STOPPING  │ ← 停止旧服务（保留可复用）                      │
+│  └──────┬──────┘                                             │
+│         │ stop_all() 完成                                     │
+│         ▼                                                     │
+│  ┌─────────────┐                                             │
+│  │  CREATING  │ ← 创建新 Workspace                            │
+│  └──────┬──────┘                                             │
+│         │ _create_workspace() 完成                            │
+│         ▼                                                     │
+│  ┌─────────────┐                                             │
+│  │   REUSING   │ ← 标记服务为可复用                            │
+│  └──────┬──────┘                                             │
+│         │ set_reusable() 完成                                 │
+│         ▼                                                     │
+│  ┌─────────────┐                                             │
+│  │  STARTING  │ ← 启动新服务                                  │
+│  └──────┬──────┘                                             │
+│         │ start_all() 完成                                    │
+│         ▼                                                     │
+│  ┌─────────────┐                                             │
+│  │   IDLE     │ ← 重载完成                                    │
+│  └─────────────┘                                              │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="44">4.4 服务类型对比<a class="headerlink" href="#44" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>服务类型</th>
+<th>reusable</th>
+<th>热重载行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MemoryManager</td>
+<td>True</td>
+<td>复用，记忆数据不丢失</td>
+</tr>
+<tr>
+<td>数据库连接</td>
+<td>True</td>
+<td>复用连接</td>
+</tr>
+<tr>
+<td>Channel (Telegram/Slack)</td>
+<td>False</td>
+<td>完全重建</td>
+</tr>
+<tr>
+<td>CronManager</td>
+<td>False</td>
+<td>重建调度器</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-set_reusable">4.5 set_reusable 实现<a class="headerlink" href="#45-set_reusable" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/workspace/service_manager.py:94</code></p>
+<pre><code class="language-python"># src/qwenpaw/app/workspace/service_manager.py:94
+async def set_reusable(self, name: str, instance: Any) -&gt; None:
+    &quot;&quot;&quot;将服务标记为从旧 workspace 复用。&quot;&quot;&quot;
+    if name not in self.descriptors:
+        return
+
+    descriptor = self.descriptors[name]
+    if not descriptor.reusable:
+        return  # 非可复用服务，不处理
+
+    self.services[name] = instance
+    self.reused_services.add(name)
+
+    # 调用 reload_func（如果提供）
+    if descriptor.reload_func is not None:
+        result = descriptor.reload_func(self.workspace, instance)
+        if asyncio.iscoroutine(result):
+            await result
+</code></pre>
+<hr />
+<h2 id="5">5. 回滚机制<a class="headerlink" href="#5" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 失败回滚原理<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p>当配置变更失败时，系统自动回退到旧配置，保证服务连续性：</p>
+<pre><code class="language-python">async def _reload_one_channel(
+    self, name: str, new_ch: Any, new_channels: Any, old_ch: Any
+) -&gt; None:
+    &quot;&quot;&quot;重载单个渠道，失败时回退&quot;&quot;&quot;
+    try:
+        old_channel = await self._channel_manager.get_channel(name)
+        new_channel = old_channel.clone(new_ch)
+        await self._channel_manager.replace_channel(new_channel)
+    except Exception:
+        logger.exception(f&quot;failed to reload channel '{name}'&quot;)
+        setattr(new_channels, name, old_ch)  # 回退到旧配置
+</code></pre>
+<h3 id="52">5.2 回滚决策流程<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    失败处理决策                               │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  配置变更 ──▶ 尝试应用                                        │
+│                    │                                         │
+│          ┌────────┴────────┐                                 │
+│          ▼                 ▼                                 │
+│     成功 ✓              失败 ✗                               │
+│          │                 │                                 │
+│          ▼                 ▼                                 │
+│     更新哈希           回退到旧配置                            │
+│     记录日志           记录错误日志                            │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr />
+<h2 id="6">6. 配置合并策略<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 合并策略类型<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>策略</th>
+<th>说明</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Override</td>
+<td>新值覆盖旧值</td>
+<td>大部分配置项</td>
+</tr>
+<tr>
+<td>Merge</td>
+<td>深度合并字典</td>
+<td>结构化配置</td>
+</tr>
+<tr>
+<td>ArrayAppend</td>
+<td>数组追加</td>
+<td>列表类配置</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 哈希合并优化<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<p>热重载中的"合并"实际上是通过<strong>哈希比较</strong>来决策是否需要合并：</p>
+<pre><code class="language-python">def _channels_hash(self, channels: Any) -&gt; int:
+    &quot;&quot;&quot;计算渠道配置的哈希&quot;&quot;&quot;
+    if not channels:
+        return hash(&quot;None&quot;)
+    return hash(str(channels.model_dump(mode=&quot;json&quot;)))
+</code></pre>
+<p>只有当哈希变化时才进行实际的 diff 和合并操作，避免每次轮询都执行昂贵的合并计算。</p>
+<hr />
+<h2 id="7">7. 配置示例<a class="headerlink" href="#7" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 启用热重载<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<p>QwenPaw 的热重载默认启用，配置文件路径：</p>
+<pre><code>workspace/
+└── agent.json          # Agent 配置文件（被监控）
+</code></pre>
+<h3 id="72">7.2 热重载场景示例<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<p><strong>场景 1：Telegram Bot Token 轮换</strong></p>
+<pre><code class="language-bash"># 更新 token 后自动触发热重载
+# 1. 修改 agent.json 中 channels.telegram.token
+# 2. mtime 变化触发 AgentConfigWatcher._check()
+# 3. _apply_channel_changes() 检测到渠道变更
+# 4. _reload_one_channel() 克隆并替换渠道
+# 5. 新 Token 立即生效
+</code></pre>
+<p><strong>场景 2：心跳频率调整</strong></p>
+<pre><code class="language-bash"># 修改 heartbeat.every 后
+# 1. _apply_heartbeat_change() 检测到哈希变化
+# 2. CronManager.reschedule_heartbeat() 重建调度
+# 3. 新频率立即生效
+</code></pre>
+<hr />
+<h2 id="8">8. 设计意图分析<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="81-vs">8.1 轮询 vs 事件驱动<a class="headerlink" href="#81-vs" title="Permanent link">&para;</a></h3>
+<p><strong>当前实现：轮询（Polling）</strong></p>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>原理</th>
+<th>延迟</th>
+<th>资源消耗</th>
+<th>实现复杂度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Polling（当前）</td>
+<td>定时检查 mtime</td>
+<td>轮询间隔</td>
+<td>低</td>
+<td>简单</td>
+</tr>
+<tr>
+<td>inotify/FSEvents</td>
+<td>内核事件通知</td>
+<td>毫秒级</td>
+<td>极低</td>
+<td>中等</td>
+</tr>
+<tr>
+<td>Watchdog 库</td>
+<td>跨平台封装</td>
+<td>毫秒级</td>
+<td>低</td>
+<td>中等</td>
+</tr>
+</tbody>
+</table>
+<p><strong>选择轮询的原因</strong>：
+- <strong>跨平台可靠</strong>：不依赖特定操作系统的文件监控 API
+- <strong>实现简单</strong>：无需额外依赖
+- <strong>足够高效</strong>：2 秒间隔对配置变更场景足够</p>
+<h3 id="82">8.2 锁外启动的权衡<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># 当前实现
+await new_channel.start()      # 锁外（可能较慢）
+async with self._lock:         # 锁内（快速）
+    self.channels[i] = new_channel
+    await old_channel.stop()
+</code></pre>
+<p><strong>优势</strong>：
+- 锁持有时间最小化
+- 新渠道启动期间其他操作不受阻塞
+- 降低死锁风险</p>
+<p><strong>权衡</strong>：
+- 短时间内存在两个渠道实例
+- 内存使用略有增加</p>
+<h3 id="83-vs">8.3 服务复用 vs 完全重建<a class="headerlink" href="#83-vs" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>方案</th>
+<th>优势</th>
+<th>劣势</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>完全重建</td>
+<td>状态干净</td>
+<td>数据丢失、服务中断</td>
+</tr>
+<tr>
+<td>服务复用</td>
+<td>零停机、数据保留</td>
+<td>需要正确设计 reload_func</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 知识检查<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>原理题</strong>：解释 AgentConfigWatcher 的双层检测机制（mtime 轮询 + 哈希快速拒绝）以及为什么这样设计。</p>
+</li>
+<li>
+<p><strong>分析题</strong>：在 <code>replace_channel</code> 方法中，为什么选择"锁外启动、锁内交换"的策略？如果反过来会怎样？</p>
+</li>
+<li>
+<p><strong>设计题</strong>：如果要添加一个新的可热重载配置项（如新的渠道类型），需要修改哪些组件？</p>
+</li>
+</ol>
+<hr />
+<h2 id="_2">本章小结<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>监听器</strong></td>
+<td>AgentConfigWatcher — mtime 轮询 + 哈希快速拒绝</td>
+</tr>
+<tr>
+<td><strong>变更检测</strong></td>
+<td>双层机制：mtime O(1) + 哈希 O(1)</td>
+</tr>
+<tr>
+<td><strong>渠道重载</strong></td>
+<td>克隆 + 原子替换，失败自动回退</td>
+</tr>
+<tr>
+<td><strong>心跳重载</strong></td>
+<td>CronManager 重建调度任务</td>
+</tr>
+<tr>
+<td><strong>服务复用</strong></td>
+<td>reusable=True 的服务（如 MemoryManager）复用</td>
+</tr>
+<tr>
+<td><strong>重载状态机</strong></td>
+<td>IDLE → STOPPING → CREATING → REUSING → STARTING → IDLE</td>
+</tr>
+<tr>
+<td><strong>触发方式</strong></td>
+<td>文件监控轮询 或 API 调用 schedule_agent_reload</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">延伸阅读<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>资源</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>源码：<code>src/qwenpaw/app/agent_config_watcher.py</code></td>
+<td>AgentConfigWatcher 完整实现</td>
+</tr>
+<tr>
+<td>源码：<code>src/qwenpaw/app/channels/manager.py</code></td>
+<td>ChannelManager.replace_channel</td>
+</tr>
+<tr>
+<td>源码：<code>src/qwenpaw/app/workspace/service_manager.py</code></td>
+<td>服务复用机制</td>
+</tr>
+<tr>
+<td>第 2.13 章</td>
+<td>配置系统基础</td>
+</tr>
+<tr>
+<td>第 2.15 章</td>
+<td>定时任务与调度器</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,2681 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Java开发者的AI Agent转型指南">
+      
+      
+        <meta name="author" content="QwenPaw Community">
+      
+      
+        <link rel="canonical" href="https://qwenpaw.github.io/book/appendix/D-source-structure/">
+      
+      
+        <link rel="prev" href="../C-cli-reference/">
+      
+      
+        <link rel="next" href="../E-faq/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>D 源码目录结构 - QwenPaw智能体开发实战</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#d-" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="QwenPaw智能体开发实战" class="md-header__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QwenPaw智能体开发实战
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              D 源码目录结构
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part1-intro/1.1-qwenpaw-overview/" class="md-tabs__link">
+          
+  
+  
+  入门篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part2-advanced/core/2.1-agent-core/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-核心机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part2-advanced/collaboration/2.10-multi-agent/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-协作机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part3-project/3.1-personal-news-assistant/" class="md-tabs__link">
+          
+  
+  
+  实战篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../A-python-quick-reference/" class="md-tabs__link">
+          
+  
+  
+  附录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="QwenPaw智能体开发实战" class="md-nav__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QwenPaw智能体开发实战
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入门篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    入门篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.1-qwenpaw-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 QwenPaw概述
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.2-environment-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 环境搭建
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.3-python-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Java开发者的Python指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.4-agent-core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4 智能体核心概念
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.5-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 技能系统入门
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.6-channel-basics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 消息渠道基础
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-核心机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-核心机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.1-agent-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.1 Agent核心架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.2-runner-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.2 Runner与请求处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.3-memory-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.3 Memory记忆系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.4-provider-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.4 Provider与模型层
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.5-channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.5 Channel消息渠道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.6-guard-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.7-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.7 Skill技能系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.8-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.9-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.9 Plugin插件系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-协作机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-协作机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.10-multi-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.10 多智能体协作
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.11-message-routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.11 消息路由与分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.12-scheduler-heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.12 定时任务与心跳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.13-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.13 生命周期管理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.14-hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.15-key-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.15 密钥与安全
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实战篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实战篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.1-personal-news-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.1 个人资讯助手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.2-smart-customer-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.2 智能客服系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.3-automation-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.3 自动化工作流
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.4-knowledge-base-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.4 企业知识库问答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    附录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    附录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../A-python-quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../B-config-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B 配置项索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../C-cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C 命令行参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#d1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.1 目录树
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d2-agents-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2 agents/ - 智能体核心
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.2 agents/ - 智能体核心">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.2 主要模块说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.3 关键类
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d3-app-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3 app/ - 应用层
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.3 app/ - 应用层">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.2 主要模块说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d33-routers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.3 routers/ 子目录
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d4-cli-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.4 cli/ - 命令行工具
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.4 cli/ - 命令行工具">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.4.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d5-providers-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5 providers/ - 模型提供商
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.5 providers/ - 模型提供商">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d52-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5.2 主要 Provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d6-plugins-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.6 plugins/ - 插件系统
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.6 plugins/ - 插件系统">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.6.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7 辅助模块
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.7 辅助模块">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d71-config-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.1 config/ - 配置管理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d72-security-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.2 security/ - 安全模块
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d73-local_models-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.3 local_models/ - 本地模型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.4 其他模块
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8 源码阅读指南
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.8 源码阅读指南">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.1 查找特定功能的源码
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.2 核心调用链
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d83" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.3 扩展开发建议
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../E-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E 常见问题解答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#d1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.1 目录树
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d2-agents-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2 agents/ - 智能体核心
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.2 agents/ - 智能体核心">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.2 主要模块说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.2.3 关键类
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d3-app-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3 app/ - 应用层
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.3 app/ - 应用层">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.2 主要模块说明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d33-routers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.3.3 routers/ 子目录
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d4-cli-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.4 cli/ - 命令行工具
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.4 cli/ - 命令行工具">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.4.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d5-providers-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5 providers/ - 模型提供商
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.5 providers/ - 模型提供商">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d52-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.5.2 主要 Provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d6-plugins-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.6 plugins/ - 插件系统
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.6 plugins/ - 插件系统">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.6.1 目录结构
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7 辅助模块
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.7 辅助模块">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d71-config-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.1 config/ - 配置管理
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d72-security-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.2 security/ - 安全模块
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d73-local_models-" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.3 local_models/ - 本地模型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d74" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.7.4 其他模块
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8 源码阅读指南
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D.8 源码阅读指南">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.1 查找特定功能的源码
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.2 核心调用链
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d83" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D.8.3 扩展开发建议
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="d-">附录 D - 源码目录结构<a class="headerlink" href="#d-" title="Permanent link">&para;</a></h1>
+<p>本附录描述 QwenPaw 智能体开发框架的源码组织结构，帮助开发者快速定位相关模块。</p>
+<h2 id="d1">D.1 目录树<a class="headerlink" href="#d1" title="Permanent link">&para;</a></h2>
+<pre><code>src/qwenpaw/
+├── agents/              # 智能体核心
+├── app/                 # 应用层（API服务、路由、渠道）
+├── cli/                 # 命令行工具
+├── config/              # 配置管理
+├── agent_stats/         # 智能体统计
+├── envs/                # 环境变量存储
+├── local_models/        # 本地模型管理
+├── plugins/             # 插件系统
+├── providers/           # 模型提供商
+├── security/            # 安全模块
+├── token_usage/         # Token使用统计
+├── tokenizer/           # 分词器资源
+├── tunnel/              # 隧道服务
+└── utils/               # 工具函数
+</code></pre>
+<h2 id="d2-agents-">D.2 agents/ - 智能体核心<a class="headerlink" href="#d2-agents-" title="Permanent link">&para;</a></h2>
+<p>智能体系统的核心实现，包含 Agent、Tools、Skills 等核心组件。</p>
+<h3 id="d21">D.2.1 目录结构<a class="headerlink" href="#d21" title="Permanent link">&para;</a></h3>
+<pre><code>agents/
+├── __init__.py
+├── react_agent.py       # ReAct Agent 实现
+├── model_factory.py     # 模型工厂
+├── routing_chat_model.py # 路由聊天模型
+├── schema.py            # 数据模型定义
+├── command_handler.py   # 命令处理器
+├── tool_guard_mixin.py  # 工具守卫
+├── prompt.py            # Prompt 管理
+├── templates.py         # 模板管理
+├── skills_hub.py        # Skills 中心
+├── skills_manager.py    # Skills 管理器
+├── acp/                 # ACP 协议
+├── hooks/               # 钩子函数
+├── memory/              # 记忆系统
+├── mission/             # 任务系统
+├── skills/              # Skills 定义
+└── tools/               # 工具实现
+</code></pre>
+<h3 id="d22">D.2.2 主要模块说明<a class="headerlink" href="#d22" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>核心</strong></td>
+<td><code>react_agent.py</code></td>
+<td>ReAct 范式 Agent 实现，支持多轮对话、工具调用</td>
+</tr>
+<tr>
+<td><strong>核心</strong></td>
+<td><code>model_factory.py</code></td>
+<td>模型实例化工厂，支持多种模型创建</td>
+</tr>
+<tr>
+<td><strong>核心</strong></td>
+<td><code>routing_chat_model.py</code></td>
+<td>智能路由，根据上下文选择合适模型</td>
+</tr>
+<tr>
+<td><strong>数据</strong></td>
+<td><code>schema.py</code></td>
+<td>核心数据模型定义（Agent、Message、Tool等）</td>
+</tr>
+<tr>
+<td><strong>工具</strong></td>
+<td><code>tools/</code></td>
+<td>内置工具集（文件操作、Shell、浏览器控制等）</td>
+</tr>
+<tr>
+<td><strong>记忆</strong></td>
+<td><code>memory/</code></td>
+<td>Agent 记忆系统实现</td>
+</tr>
+<tr>
+<td><strong>任务</strong></td>
+<td><code>mission/</code></td>
+<td>任务分解与执行系统</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d23">D.2.3 关键类<a class="headerlink" href="#d23" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># react_agent.py
+class ReactAgent          # ReAct 范式智能体
+
+# model_factory.py
+class ModelFactory        # 模型工厂类
+
+# schema.py
+class Agent               # 智能体定义
+class Message             # 消息模型
+class Tool                 # 工具定义
+</code></pre>
+<h2 id="d3-app-">D.3 app/ - 应用层<a class="headerlink" href="#d3-app-" title="Permanent link">&para;</a></h2>
+<p>FastAPI 应用服务，包含 API 路由、渠道适配器、认证授权等。</p>
+<h3 id="d31">D.3.1 目录结构<a class="headerlink" href="#d31" title="Permanent link">&para;</a></h3>
+<pre><code>app/
+├── __init__.py
+├── _app.py               # FastAPI 应用实例
+├── agent_config_watcher.py
+├── agent_context.py      # Agent 上下文
+├── migration.py          # 数据迁移
+├── multi_agent_manager.py # 多智能体管理
+├── approvals/            # 审批流程
+├── channels/            # 渠道适配器
+├── crons/                # 定时任务
+├── mcp/                  # MCP 服务端
+├── routers/              # API 路由
+├── runner/               # 任务运行器
+└── workspace/            # 工作空间
+</code></pre>
+<h3 id="d32">D.3.2 主要模块说明<a class="headerlink" href="#d32" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>核心</strong></td>
+<td><code>_app.py</code></td>
+<td>FastAPI 应用主入口</td>
+</tr>
+<tr>
+<td><strong>管理</strong></td>
+<td><code>multi_agent_manager.py</code></td>
+<td>多智能体协调与管理</td>
+</tr>
+<tr>
+<td><strong>路由</strong></td>
+<td><code>routers/</code></td>
+<td>REST API 端点定义</td>
+</tr>
+<tr>
+<td><strong>渠道</strong></td>
+<td><code>channels/</code></td>
+<td>多渠道适配（钉钉、飞书、微信等）</td>
+</tr>
+<tr>
+<td><strong>MCP</strong></td>
+<td><code>mcp/</code></td>
+<td>Model Context Protocol 服务端</td>
+</tr>
+<tr>
+<td><strong>工作区</strong></td>
+<td><code>workspace/</code></td>
+<td>沙盒工作空间管理</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d33-routers">D.3.3 routers/ 子目录<a class="headerlink" href="#d33-routers" title="Permanent link">&para;</a></h3>
+<pre><code>routers/
+├── agent.py              # 智能体管理 API
+├── agents.py             # 批量智能体操作
+├── auth.py               # 认证 API
+├── backup.py             # 备份 API
+├── config.py             # 配置 API
+├── console.py            # 控制台 API
+├── envs.py               # 环境变量 API
+├── files.py              # 文件管理 API
+├── local_models.py       # 本地模型 API
+├── mcp.py                # MCP API
+├── messages.py           # 消息 API
+├── plugins.py            # 插件 API
+├── providers.py          # 模型提供商 API
+├── schemas_config.py     # Schema 配置 API
+├── settings.py           # 设置 API
+├── skills.py             # Skills API
+├── token_usage.py        # Token 使用 API
+├── tools.py              # 工具 API
+└── workspace.py          # 工作空间 API
+</code></pre>
+<h2 id="d4-cli-">D.4 cli/ - 命令行工具<a class="headerlink" href="#d4-cli-" title="Permanent link">&para;</a></h2>
+<p>命令行接口实现，支持 agent、app、plugin 等命令。</p>
+<h3 id="d41">D.4.1 目录结构<a class="headerlink" href="#d41" title="Permanent link">&para;</a></h3>
+<pre><code>cli/
+├── __init__.py
+├── main.py               # CLI 入口
+├── utils.py              # CLI 工具函数
+├── process_utils.py     # 进程管理
+├── http.py               # HTTP 客户端
+├── acp_cmd.py            # ACP 命令
+├── agents_cmd.py         # Agent 命令
+├── app_cmd.py            # 应用命令
+├── auth_cmd.py           # 认证命令
+├── channels_cmd.py       # 渠道命令
+├── chats_cmd.py          # 聊天命令
+├── clean_cmd.py          # 清理命令
+├── cron_cmd.py           # 定时任务命令
+├── daemon_cmd.py         # 守护进程命令
+├── desktop_cmd.py        # 桌面命令
+├── doctor_cmd.py         # 诊断命令
+├── env_cmd.py            # 环境命令
+├── init_cmd.py           # 初始化命令
+├── mission_cmd.py        # 任务命令
+├── plugin_commands.py    # 插件命令
+├── providers_cmd.py      # 提供商命令
+├── shutdown_cmd.py       # 关闭命令
+├── skills_cmd.py         # Skills 命令
+├── task_cmd.py           # 任务命令
+└── update_cmd.py        # 更新命令
+</code></pre>
+<h2 id="d5-providers-">D.5 providers/ - 模型提供商<a class="headerlink" href="#d5-providers-" title="Permanent link">&para;</a></h2>
+<p>支持多种大语言模型提供商的适配实现。</p>
+<h3 id="d51">D.5.1 目录结构<a class="headerlink" href="#d51" title="Permanent link">&para;</a></h3>
+<pre><code>providers/
+├── __init__.py
+├── provider.py           # Provider 基类
+├── provider_manager.py   # 提供商管理器
+├── rate_limiter.py       # 速率限制器
+├── retry_chat_model.py   # 重试机制
+├── capability_baseline.py # 能力基线
+├── multimodal_prober.py  # 多模态探测
+├── openai_provider.py    # OpenAI
+├── anthropic_provider.py # Anthropic (Claude)
+├── gemini_provider.py    # Google Gemini
+├── ollama_provider.py    # Ollama
+├── lmstudio_provider.py  # LM Studio
+└── openrouter_provider.py # OpenRouter
+</code></pre>
+<h3 id="d52-provider">D.5.2 主要 Provider<a class="headerlink" href="#d52-provider" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Provider</th>
+<th>文件</th>
+<th>支持模型</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenAI</td>
+<td><code>openai_provider.py</code></td>
+<td>GPT-4, GPT-3.5-turbo</td>
+</tr>
+<tr>
+<td>Anthropic</td>
+<td><code>anthropic_provider.py</code></td>
+<td>Claude 3.5, Claude 3</td>
+</tr>
+<tr>
+<td>Google</td>
+<td><code>gemini_provider.py</code></td>
+<td>Gemini Pro, Gemini Flash</td>
+</tr>
+<tr>
+<td>Ollama</td>
+<td><code>ollama_provider.py</code></td>
+<td>Llama, Qwen, Mistral 等</td>
+</tr>
+<tr>
+<td>LM Studio</td>
+<td><code>lmstudio_provider.py</code></td>
+<td>本地开源模型</td>
+</tr>
+<tr>
+<td>OpenRouter</td>
+<td><code>openrouter_provider.py</code></td>
+<td>聚合多种模型</td>
+</tr>
+</tbody>
+</table>
+<h2 id="d6-plugins-">D.6 plugins/ - 插件系统<a class="headerlink" href="#d6-plugins-" title="Permanent link">&para;</a></h2>
+<p>插件化扩展系统，支持运行时加载外部功能。</p>
+<h3 id="d61">D.6.1 目录结构<a class="headerlink" href="#d61" title="Permanent link">&para;</a></h3>
+<pre><code>plugins/
+├── __init__.py
+├── api.py                # 插件 API
+├── architecture.py       # 插件架构
+├── loader.py             # 插件加载器
+├── registry.py           # 插件注册表
+└── runtime.py            # 插件运行时
+</code></pre>
+<h2 id="d7">D.7 辅助模块<a class="headerlink" href="#d7" title="Permanent link">&para;</a></h2>
+<h3 id="d71-config-">D.7.1 config/ - 配置管理<a class="headerlink" href="#d71-config-" title="Permanent link">&para;</a></h3>
+<pre><code>config/
+├── config.py             # 配置主文件
+├── context.py            # 配置上下文
+├── timezone.py           # 时区配置
+└── utils.py              # 配置工具
+</code></pre>
+<h3 id="d72-security-">D.7.2 security/ - 安全模块<a class="headerlink" href="#d72-security-" title="Permanent link">&para;</a></h3>
+<pre><code>security/
+├── secret_store.py       # 密钥存储
+├── skill_scanner/        # Skill 安全扫描
+└── tool_guard/           # 工具调用守卫
+</code></pre>
+<h3 id="d73-local_models-">D.7.3 local_models/ - 本地模型<a class="headerlink" href="#d73-local_models-" title="Permanent link">&para;</a></h3>
+<pre><code>local_models/
+├── download_manager.py   # 下载管理
+├── llamacpp.py           # Llama.cpp 集成
+├── manager.py            # 模型管理器
+├── model_manager.py      # 模型生命周期管理
+└── tag_parser.py         # 模型标签解析
+</code></pre>
+<h3 id="d74">D.7.4 其他模块<a class="headerlink" href="#d74" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>目录</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_stats/</code></td>
+<td>智能体运行统计与监控</td>
+</tr>
+<tr>
+<td><code>envs/</code></td>
+<td>环境变量存储（加密）</td>
+</tr>
+<tr>
+<td><code>token_usage/</code></td>
+<td>Token 使用量追踪</td>
+</tr>
+<tr>
+<td><code>tokenizer/</code></td>
+<td>BPE 分词器资源文件</td>
+</tr>
+<tr>
+<td><code>tunnel/</code></td>
+<td>Cloudflare 隧道服务</td>
+</tr>
+<tr>
+<td><code>utils/</code></td>
+<td>通用工具函数</td>
+</tr>
+</tbody>
+</table>
+<h2 id="d8">D.8 源码阅读指南<a class="headerlink" href="#d8" title="Permanent link">&para;</a></h2>
+<h3 id="d81">D.8.1 查找特定功能的源码<a class="headerlink" href="#d81" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>源码位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>创建新 Agent</strong></td>
+<td><code>agents/react_agent.py</code></td>
+</tr>
+<tr>
+<td><strong>添加 Tool</strong></td>
+<td><code>agents/tools/</code></td>
+</tr>
+<tr>
+<td><strong>添加 Skill</strong></td>
+<td><code>agents/skills/</code></td>
+</tr>
+<tr>
+<td><strong>API 路由</strong></td>
+<td><code>app/routers/</code></td>
+</tr>
+<tr>
+<td><strong>渠道适配</strong></td>
+<td><code>app/channels/</code></td>
+</tr>
+<tr>
+<td><strong>Provider 实现</strong></td>
+<td><code>providers/</code></td>
+</tr>
+<tr>
+<td><strong>CLI 命令</strong></td>
+<td><code>cli/</code></td>
+</tr>
+<tr>
+<td><strong>插件开发</strong></td>
+<td><code>plugins/</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="d82">D.8.2 核心调用链<a class="headerlink" href="#d82" title="Permanent link">&para;</a></h3>
+<pre><code>用户请求
+    ↓
+cli/main.py (命令行入口)
+    ↓
+app/_app.py (FastAPI 应用)
+    ↓
+app/routers/ (API 路由)
+    ↓
+agents/react_agent.py (Agent 核心)
+    ↓
+agents/tools/ (工具执行)
+    ↓
+providers/ (模型调用)
+</code></pre>
+<h3 id="d83">D.8.3 扩展开发建议<a class="headerlink" href="#d83" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>新增 Provider</strong>: 继承 <code>providers/provider.py</code> 中的 <code>ChatModelProvider</code> 基类</li>
+<li><strong>新增 Tool</strong>: 在 <code>agents/tools/</code> 创建新模块并注册</li>
+<li><strong>新增 Skill</strong>: 在 <code>agents/skills/</code> 创建新 Skill 目录</li>
+<li><strong>新增 Channel</strong>: 在 <code>app/channels/</code> 实现 <code>ChannelAdapter</code> 接口</li>
+<li><strong>新增 CLI 命令</strong>: 在 <code>cli/</code> 添加新命令模块</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

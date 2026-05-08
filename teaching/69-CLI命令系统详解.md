@@ -422,9 +422,10 @@ qwenpaw agents stop <id>      # 停止 Agent
 ```bash
 # 渠道管理
 qwenpaw channels list         # 列出所有渠道
-qwenpaw channels enable <name>   # 启用渠道
-qwenpaw channels disable <name>  # 禁用渠道
-qwenpaw channels status <name>   # 渠道状态
+qwenpaw channels add <name>      # 添加渠道
+qwenpaw channels remove <name>   # 移除渠道
+qwenpaw channels config <name>   # 配置渠道
+qwenpaw channels send            # 发送消息
 ```
 
 ### 6.7 qwenpaw shutdown
@@ -498,8 +499,8 @@ def sub2():
 qwenpaw init --dir /opt/qwenpaw
 
 # 配置渠道
-qwenpaw channels enable telegram
-qwenpaw channels enable discord
+qwenpaw channels add telegram
+qwenpaw channels add discord
 
 # 启动服务
 qwenpaw app --host 0.0.0.0 --port 8000 &
@@ -526,7 +527,7 @@ qwenpaw app
 qwenpaw doctor --deep
 
 # 查看日志
-qwenpaw logs --follow
+tail -f ~/.qwenpaw/logs/qwenpaw.log
 
 # 检查特定组件
 qwenpaw doctor fix
