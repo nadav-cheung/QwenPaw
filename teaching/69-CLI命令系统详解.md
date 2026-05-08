@@ -527,7 +527,7 @@ qwenpaw app
 qwenpaw doctor --deep
 
 # 查看日志
-qwenpaw logs --follow
+tail -f ~/.qwenpaw/logs/qwenpaw.log
 
 # 检查特定组件
 qwenpaw doctor fix
