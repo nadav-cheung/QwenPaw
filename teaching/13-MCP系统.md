@@ -1122,7 +1122,7 @@ qwenpaw mcp test --client filesystem
 
 # 启用调试日志
 export LOG_LEVEL=DEBUG
-qwenpaw logs | grep mcp
+grep mcp ~/.qwenpaw/logs/qwenpaw.log
 ```
 
 ---
