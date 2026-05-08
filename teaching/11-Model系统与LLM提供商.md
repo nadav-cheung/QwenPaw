@@ -33,8 +33,6 @@ providers/
 ├── ollama_provider.py     # Ollama 本地模型
 ├── lmstudio_provider.py   # LM Studio 本地模型
 ├── openrouter_provider.py # OpenRouter 聚合
-├── model_factory.py      # create_model_and_formatter - 模型工厂
-├── model_wrapper.py       # TokenRecordingModelWrapper - Token记录包装器
 ├── retry_chat_model.py    # RetryChatModel - 重试包装器
 ├── rate_limiter.py        # LLMRateLimiter - 速率限制器
 ├── capability_baseline.py # 模型能力探测
@@ -130,7 +128,6 @@ def _init_builtins(self):
 | `ollama` | OllamaProvider | 是 | 跨平台，自动发现本地模型 |
 | `lmstudio` | LMStudioProvider | 是 | 跨平台，API 兼容 OpenAI |
 | `qwenpaw-local` | OpenAIProvider | 是 | QwenPaw 内置 llama.cpp |
-| `llama.cpp` | LlamaCppProvider | 否 | 无需额外服务，内置下载 |
 
 ### 2.3 阿里云编程计划提供商
 

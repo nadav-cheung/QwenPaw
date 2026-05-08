@@ -32,12 +32,29 @@ src/qwenpaw/cli/
 ├── app_cmd.py           # 应用服务器命令
 ├── agents_cmd.py        # 多智能体管理
 ├── channels_cmd.py      # 渠道配置
+├── chats_cmd.py         # 聊天会话管理
+├── clean_cmd.py         # 清理命令
+├── cron_cmd.py          # 定时任务命令
+├── daemon_cmd.py        # 守护进程管理
 ├── desktop_cmd.py       # 桌面模式
 ├── doctor_cmd.py        # 诊断修复
+├── doctor_checks.py     # 诊断检查项
+├── doctor_connectivity.py # 连接诊断
+├── doctor_fix_runner.py  # 自动修复执行器
+├── doctor_registry.py   # 诊断注册表
+├── env_cmd.py          # 环境变量命令
 ├── init_cmd.py          # 初始化向导
+├── mission_cmd.py       # Mission 任务命令
+├── plugin_commands.py   # 插件管理命令
 ├── providers_cmd.py     # LLM 提供商配置
+├── shutdown_cmd.py      # 关闭命令
 ├── skills_cmd.py        # 技能管理
-└── ...
+├── task_cmd.py          # 任务命令
+├── uninstall_cmd.py     # 卸载命令
+├── update_cmd.py        # 更新命令
+├── acp_cmd.py          # ACP 协议命令
+├── auth_cmd.py         # 认证命令
+└── utils.py            # 工具函数
 ```
 
 ### 核心组件
@@ -147,19 +164,23 @@ qwenpaw agents chat --from-agent agent1 --to-agent agent2 --text "Hello"
 | 命令 | 说明 |
 |------|------|
 | `qwenpaw channels list` | 列出配置的渠道 |
-| `qwenpaw channels configure` | 配置渠道 |
-| `qwenpaw channels install` | 安装渠道依赖 |
+| `qwenpaw channels add` | 添加渠道到配置 |
+| `qwenpaw channels config` | 交互式配置渠道参数 |
+| `qwenpaw channels install` | 安装自定义渠道到 custom_channels/ |
 | `qwenpaw channels send` | 通过渠道发送消息 |
 
 ```bash
 # 列出所有渠道
 qwenpaw channels list
 
-# 配置新渠道
-qwenpaw channels configure telegram
+# 添加渠道到配置
+qwenpaw channels add telegram
 
-# 安装渠道依赖
-qwenpaw channels install discord
+# 交互式配置渠道
+qwenpaw channels config
+
+# 安装自定义渠道
+qwenpaw channels install mychannel --from-path ./my-channel
 ```
 
 #### 技能管理
@@ -168,28 +189,26 @@ qwenpaw channels install discord
 # 列出所有技能
 qwenpaw skills list
 
-# 安装技能
-qwenpaw skills install my_skill
+# 查看技能详情
+qwenpaw skills info pdf
 
-# 启用/禁用技能
-qwenpaw skills enable my_skill
-qwenpaw skills disable my_skill
+# 配置技能参数
+qwenpaw skills config
+```
 
-# 卸载技能
-qwenpaw skills uninstall my_skill
+技能在创建智能体时通过 `--skill` 参数安装：
+```bash
+qwenpaw agents create --name my_agent --skill pdf --skill browser_visible
 ```
 
 #### 提供商配置
 
 ```bash
 # 列出配置的 LLM 提供商
-qwenpaw providers list
-
-# 添加提供商
-qwenpaw providers add openai --api-key xxx
+qwenpaw models list
 
 # 配置提供商
-qwenpaw providers configure anthropic
+qwenpaw models config
 ```
 
 #### 诊断工具
@@ -505,12 +524,12 @@ class ChannelConfig(BaseModel):
     qq: Optional[QQChannelConfig]
     mattermost: Optional[MattermostChannelConfig]
     mqtt: Optional[MQTTChannelConfig]
-    console: Optional[ConsoleChannelConfig]
+    console: Optional[ConsoleConfig]
     matrix: Optional[MatrixChannelConfig]
     voice: Optional[VoiceChannelConfig]
-    wecom: Optional[WeComChannelConfig]
+    wecom: Optional[WecomChannelConfig]
     xiaoyi: Optional[XiaoYiChannelConfig]
-    wechat: Optional[WeChatChannelConfig]
+    weixin: Optional[WeixinChannelConfig]
     onebot: Optional[OneBotChannelConfig]
 ```
 
