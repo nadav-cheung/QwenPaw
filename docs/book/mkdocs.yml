@@ -1,0 +1,85 @@
+# MKDocs 配置文件 - 《QwenPaw智能体开发实战》
+
+site_name: "QwenPaw智能体开发实战"
+site_description: "Java开发者的AI Agent转型指南"
+site_author: "QwenPaw Community"
+site_url: "https://qwenpaw.github.io/book/"
+
+repo_name: "QwenPaw/QwenPaw"
+repo_url: "https://github.com/QwenPaw/QwenPaw"
+
+theme:
+  name: "material"
+  language: "zh"
+  palette:
+    primary: "blue"
+    accent: "light blue"
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+
+plugins:
+  - search:
+      lang:
+        - en
+        - zh
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tab:
+      enabled: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+nav:
+  - 入门篇:
+    - "1.1 QwenPaw概述": "part1-intro/1.1-qwenpaw-overview.md"
+    - "1.2 环境搭建": "part1-intro/1.2-environment-setup.md"
+    - "1.3 Java开发者的Python指南": "part1-intro/1.3-python-guide.md"
+    - "1.4 智能体核心概念": "part1-intro/1.4-agent-core-concepts.md"
+    - "1.5 技能系统入门": "part1-intro/1.5-skill-system.md"
+    - "1.6 消息渠道基础": "part1-intro/1.6-channel-basics.md"
+  - 进阶篇-核心机制:
+    - "2.1 Agent核心架构": "part2-advanced/core/2.1-agent-core.md"
+    - "2.2 Runner与请求处理": "part2-advanced/core/2.2-runner-request.md"
+    - "2.3 Memory记忆系统": "part2-advanced/core/2.3-memory-system.md"
+    - "2.4 Provider与模型层": "part2-advanced/core/2.4-provider-model.md"
+    - "2.5 Channel消息渠道": "part2-advanced/core/2.5-channel.md"
+    - "2.6 Guard安全系统": "part2-advanced/core/2.6-guard-security.md"
+    - "2.7 Skill技能系统": "part2-advanced/core/2.7-skill-system.md"
+    - "2.8 MCP扩展机制": "part2-advanced/core/2.8-mcp.md"
+    - "2.9 Plugin插件系统": "part2-advanced/core/2.9-plugin.md"
+  - 进阶篇-协作机制:
+    - "2.10 多智能体协作": "part2-advanced/collaboration/2.10-multi-agent.md"
+    - "2.11 消息路由与分发": "part2-advanced/collaboration/2.11-message-routing.md"
+    - "2.12 定时任务与心跳": "part2-advanced/collaboration/2.12-scheduler-heartbeat.md"
+    - "2.13 生命周期管理": "part2-advanced/collaboration/2.13-lifecycle.md"
+    - "2.14 配置热重载": "part2-advanced/collaboration/2.14-hot-reload.md"
+    - "2.15 密钥与安全": "part2-advanced/collaboration/2.15-key-security.md"
+  - 实战篇:
+    - "3.1 个人资讯助手": "part3-project/3.1-personal-news-assistant.md"
+    - "3.2 智能客服系统": "part3-project/3.2-smart-customer-service.md"
+    - "3.3 自动化工作流": "part3-project/3.3-automation-workflow.md"
+    - "3.4 企业知识库问答": "part3-project/3.4-knowledge-base-qa.md"
+  - 附录:
+    - "A Python快速参考": "appendix/A-python-quick-reference.md"
+    - "B 配置项索引": "appendix/B-config-index.md"
+    - "C 命令行参考": "appendix/C-cli-reference.md"
+    - "D 源码目录结构": "appendix/D-source-structure.md"
+    - "E 常见问题解答": "appendix/E-faq.md"
