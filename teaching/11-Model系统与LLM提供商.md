@@ -274,7 +274,7 @@ decrypted_config = decrypt_dict_fields(
 qwenpaw models list
 
 # 切换模型
-qwenpaw models set --agent default --provider openai --model gpt-4o
+qwenpaw models set-llm --agent default --provider openai --model gpt-4o
 
 # 在对话中切换
 /model gpt-4o
@@ -956,7 +956,7 @@ class DownloadSource(str, Enum):
 
 | 问题 | 原因 | 解决方案 |
 |------|------|----------|
-| llama.cpp 启动失败 | 未下载或路径错误 | 运行 `qwenpaw local-models setup` |
+| llama.cpp 启动失败 | 未下载或路径错误 | 使用 Web 界面下载 Llama.cpp 或参考 [43-本地模型管理系统](./43-本地模型管理系统.md) |
 | 模型加载慢 | GPU 内存不足 | 减少 gpu-layers 或使用量化模型 |
 | 端口被占用 | 已有进程占用端口 | 修改端口或关闭占用进程 |
 
