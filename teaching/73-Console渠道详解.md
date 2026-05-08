@@ -311,7 +311,7 @@ print(os.isatty(sys.stdout.fileno()))  # False = 非终端
 ```cmd
 chcp 65001
 set PYTHONIOENCODING=utf-8
-qwenpaw run
+qwenpaw app
 ```
 
 ### Q3: 管道断开时进程崩溃？
@@ -319,7 +319,7 @@ qwenpaw run
 `_safe_print` 已处理 `OSError errno=22`（无效参数），但管道持续断开时仍建议重定向到文件：
 
 ```bash
-qwenpaw run > output.log 2>&1
+qwenpaw app > output.log 2>&1
 ```
 
 ---
