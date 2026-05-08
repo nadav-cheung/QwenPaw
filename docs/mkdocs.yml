@@ -1,5 +1,8 @@
 # MKDocs 配置文件 - 《QwenPaw智能体开发实战》
 
+docs_dir: book
+site_dir: book-site
+
 site_name: "QwenPaw智能体开发实战"
 site_description: "Java开发者的AI Agent转型指南"
 site_author: "QwenPaw Community"
@@ -20,7 +23,6 @@ theme:
     - navigation.expand
     - search.suggest
     - search.highlight
-    - content.tabs.link
     - content.code.copy
 
 plugins:
@@ -28,24 +30,14 @@ plugins:
       lang:
         - en
         - zh
-  - minify:
-      minify_html: true
 
 markdown_extensions:
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.highlight
   - admonition
-  - pymdownx.details
-  - pymdownx.tab:
-      enabled: true
   - tables
   - toc:
       permalink: true
   - attr_list
-  - md_in_html
 
 nav:
   - 入门篇:

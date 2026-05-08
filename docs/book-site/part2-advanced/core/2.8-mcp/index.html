@@ -1,0 +1,3300 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Java开发者的AI Agent转型指南">
+      
+      
+        <meta name="author" content="QwenPaw Community">
+      
+      
+        <link rel="canonical" href="https://qwenpaw.github.io/book/part2-advanced/core/2.8-mcp/">
+      
+      
+        <link rel="prev" href="../2.7-skill-system/">
+      
+      
+        <link rel="next" href="../2.9-plugin/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>2.8 MCP扩展机制 - QwenPaw智能体开发实战</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#28-mcp" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-header__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QwenPaw智能体开发实战
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2.8 MCP扩展机制
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-tabs__link">
+          
+  
+  
+  入门篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2.1-agent-core/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-核心机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../collaboration/2.10-multi-agent/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-协作机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-tabs__link">
+          
+  
+  
+  实战篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../appendix/A-python-quick-reference/" class="md-tabs__link">
+          
+  
+  
+  附录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-nav__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QwenPaw智能体开发实战
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入门篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    入门篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 QwenPaw概述
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.2-environment-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 环境搭建
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.3-python-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Java开发者的Python指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.4-agent-core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4 智能体核心概念
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.5-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 技能系统入门
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.6-channel-basics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 消息渠道基础
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-核心机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-核心机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.1-agent-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.1 Agent核心架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.2-runner-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.2 Runner与请求处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.3-memory-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.3 Memory记忆系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.4-provider-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.4 Provider与模型层
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.5-channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.5 Channel消息渠道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.6-guard-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.7-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.7 Skill技能系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. MCP 概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. MCP 概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 什么是 MCP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-mcp-vs-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 MCP vs Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. MCP 架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. MCP 架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 核心组件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 类图
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-mcpclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. MCPClient
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. MCPClient">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 核心类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-stdiostatefulclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 StdIOStatefulClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-httpstatefulclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 HttpStatefulClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 生命周期
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-mcpclientmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. MCPClientManager
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. MCPClientManager">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 管理器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 热重载机制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 构建客户端
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. MCP 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. MCP 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 配置模型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 服务配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 环境变量注入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 传输方式对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-mcpconfigwatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. MCPConfigWatcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. MCPConfigWatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 配置监听
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 轮询检查机制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 优化手段
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 实战：配置 MCP 服务器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 实战：配置 MCP 服务器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 文件系统服务器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 GitHub 服务器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 验证
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 设计意图
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 设计意图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 为什么用 MCP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 权衡取舍
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-java-spi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 与 Java SPI 对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.9-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.9 Plugin插件系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-协作机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-协作机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.10-multi-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.10 多智能体协作
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.11-message-routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.11 消息路由与分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.12-scheduler-heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.12 定时任务与心跳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.13-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.13 生命周期管理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.14-hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.15-key-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.15 密钥与安全
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实战篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实战篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.1 个人资讯助手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.2-smart-customer-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.2 智能客服系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.3-automation-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.3 自动化工作流
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.4-knowledge-base-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.4 企业知识库问答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    附录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    附录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/A-python-quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/B-config-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B 配置项索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/C-cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C 命令行参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/D-source-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/E-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E 常见问题解答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. MCP 概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. MCP 概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 什么是 MCP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-mcp-vs-skill" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 MCP vs Skill
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. MCP 架构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. MCP 架构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 核心组件
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 类图
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-mcpclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. MCPClient
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. MCPClient">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 核心类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-stdiostatefulclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 StdIOStatefulClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-httpstatefulclient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 HttpStatefulClient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 生命周期
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-mcpclientmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. MCPClientManager
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. MCPClientManager">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 管理器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 热重载机制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 构建客户端
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. MCP 配置
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. MCP 配置">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 配置模型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 服务配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 环境变量注入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 传输方式对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-mcpconfigwatcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. MCPConfigWatcher
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. MCPConfigWatcher">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 配置监听
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 轮询检查机制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 优化手段
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. 实战：配置 MCP 服务器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. 实战：配置 MCP 服务器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 文件系统服务器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 GitHub 服务器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 验证
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 设计意图
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 设计意图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-mcp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 为什么用 MCP
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 权衡取舍
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-java-spi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 与 Java SPI 对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="28-mcp">第 2.8 章 MCP 扩展机制<a class="headerlink" href="#28-mcp" title="Permanent link">&para;</a></h1>
+<h2 id="_1">本章导览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>学习目标</strong></td>
+<td>1) 解释 MCP 协议的通信模型 2) 配置和管理 MCP 客户端 3) 理解热重载和生命周期管理机制 4) 分析 StdIO 客户端的跨任务生命周期解决方案</td>
+</tr>
+<tr>
+<td><strong>前置知识</strong></td>
+<td>第 1.4 章</td>
+</tr>
+<tr>
+<td><strong>预计时长</strong></td>
+<td>50 分钟</td>
+</tr>
+<tr>
+<td><strong>难度等级</strong></td>
+<td>⭐⭐⭐</td>
+</tr>
+<tr>
+<td><strong>核心关键词</strong></td>
+<td><code>MCP</code> <code>MCPClient</code> <code>MCPClientManager</code> <code>Model Context Protocol</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>本章概述</strong>：深入分析 MCP 扩展机制，讲解如何通过 MCP 协议让 AI 模型与外部工具和数据源交互，包括客户端管理、热重载和跨任务生命周期等核心机制。</p>
+</blockquote>
+<hr />
+<h2 id="1-mcp">1. MCP 概述<a class="headerlink" href="#1-mcp" title="Permanent link">&para;</a></h2>
+<h3 id="11-mcp">1.1 什么是 MCP<a class="headerlink" href="#11-mcp" title="Permanent link">&para;</a></h3>
+<p>MCP (Model Context Protocol) 是一种开放协议，允许 AI 模型与外部服务交互。通过 MCP，LLM 可以调用文件系统、数据库、API 等外部工具扩展自身能力。</p>
+<pre><code>┌─────────────┐         MCP          ┌─────────────┐
+│   LLM Model │ ◄───────────────► │ MCP Server  │
+│  (QwenPaw)  │                    │ (Tool Host) │
+└─────────────┘                    └─────────────┘
+                                         │
+                    ┌────────────────────┼────────────────────┐
+                    ▼                    ▼                    ▼
+              ┌──────────┐        ┌──────────┐        ┌──────────┐
+              │ Database │        │  Files   │        │   APIs  │
+              └──────────┘        └──────────┘        └──────────┘
+</code></pre>
+<h3 id="12-mcp-vs-skill">1.2 MCP vs Skill<a class="headerlink" href="#12-mcp-vs-skill" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>Skill</th>
+<th>MCP</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>协议</td>
+<td>QwenPaw 私有</td>
+<td>开放标准</td>
+</tr>
+<tr>
+<td>复杂度</td>
+<td>简单</td>
+<td>复杂</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>内置功能</td>
+<td>外部工具</td>
+</tr>
+<tr>
+<td>生态</td>
+<td>有限</td>
+<td>npm/PyPI 数千服务器</td>
+</tr>
+<tr>
+<td>热更新</td>
+<td>不支持</td>
+<td>支持配置变更自动重连</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-mcp">2. MCP 架构<a class="headerlink" href="#2-mcp" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 核心组件<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<pre><code>MCPClientManager → MCPClient → MCPServer
+                                   ↓
+                            工具/资源/提示
+</code></pre>
+<p><strong>模块结构</strong>:</p>
+<pre><code>app/mcp/
+├── __init__.py
+├── manager.py           # MCPClientManager - 生命周期管理
+├── stateful_client.py   # HttpStatefulClient, StdIOStatefulClient
+└── watcher.py           # MCPConfigWatcher - 配置变更监听
+</code></pre>
+<h3 id="22">2.2 类图<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/mcp/</code></p>
+<pre><code>BaseMCPClient (ABC)
+├── OfficialMCPClient
+└── CustomMCPClient
+</code></pre>
+<p>QwenPaw 实现了两种传输模式的客户端：</p>
+<table>
+<thead>
+<tr>
+<th>客户端类型</th>
+<th>传输模式</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StdIOStatefulClient</code></td>
+<td>标准输入输出</td>
+<td>本地 MCP 进程</td>
+</tr>
+<tr>
+<td><code>HttpStatefulClient</code></td>
+<td>HTTP/SSE</td>
+<td>远程 MCP 服务器</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-mcpclient">3. MCPClient<a class="headerlink" href="#3-mcpclient" title="Permanent link">&para;</a></h2>
+<h3 id="31">3.1 核心类<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/mcp/stateful_client.py</code></p>
+<pre><code class="language-python">class BaseMCPClient(ABC):
+    &quot;&quot;&quot;MCP 客户端抽象基类&quot;&quot;&quot;
+
+    @abstractmethod
+    async def connect(self, server_config: dict) -&gt; None:
+        &quot;&quot;&quot;连接到 MCP 服务器&quot;&quot;&quot;
+
+    @abstractmethod
+    async def call_tool(self, tool: str, args: dict) -&gt; Any:
+        &quot;&quot;&quot;调用工具&quot;&quot;&quot;
+
+    @abstractmethod
+    async def list_resources(self) -&gt; list[Resource]:
+        &quot;&quot;&quot;列出可用资源&quot;&quot;&quot;
+
+    @abstractmethod
+    async def list_tools(self) -&gt; list[Tool]:
+        &quot;&quot;&quot;列出可用工具&quot;&quot;&quot;
+
+    @abstractmethod
+    async def close(self) -&gt; None:
+        &quot;&quot;&quot;关闭客户端&quot;&quot;&quot;
+</code></pre>
+<h3 id="32-stdiostatefulclient">3.2 StdIOStatefulClient<a class="headerlink" href="#32-stdiostatefulclient" title="Permanent link">&para;</a></h3>
+<p>标准输入输出模式的 MCP 客户端，用于本地进程通信：</p>
+<pre><code class="language-python">class StdIOStatefulClient(StatefulClientBase):
+    &quot;&quot;&quot;stdio 传输的 MCP 客户端&quot;&quot;&quot;
+
+    async def connect(self) -&gt; None:
+        &quot;&quot;&quot;启动本地进程并建立连接&quot;&quot;&quot;
+
+        # 1. 启动子进程
+        self.process = await asyncio.create_subprocess_exec(
+            self.command,
+            *self.args,
+            env={**os.environ, **self.env},
+            cwd=self.cwd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        # 2. 创建 stdio 传输
+        context = await stack.enter_async_context(
+            stdio_client(stdin=self.process.stdin, stdout=self.process.stdout),
+        )
+
+        # 3. 创建 session
+        self.session = await stack.enter_async_context(
+            ClientSession(read_stream, write_stream)
+        )
+        await self.session.initialize()
+        self.is_connected = True
+</code></pre>
+<h3 id="33-httpstatefulclient">3.3 HttpStatefulClient<a class="headerlink" href="#33-httpstatefulclient" title="Permanent link">&para;</a></h3>
+<p>HTTP 轮询模式的 MCP 客户端，适合远程服务器：</p>
+<pre><code class="language-python">class HttpStatefulClient(StatefulClientBase):
+    &quot;&quot;&quot;HTTP/SSE MCP client with proper cross-task lifecycle management.&quot;&quot;&quot;
+
+    async def _run_lifecycle(self) -&gt; None:
+        while not self._stop_event.is_set():
+            async with AsyncExitStack() as stack:
+                if self.transport == &quot;streamable_http&quot;:
+                    # 配置 httpx 客户端
+                    http_client = httpx.AsyncClient(
+                        headers=self.headers or {},
+                        timeout=httpx.Timeout(...),
+                    )
+                    await stack.enter_async_context(http_client)
+
+                    context = await stack.enter_async_context(
+                        streamable_http_client(url=self.url, http_client=http_client),
+                    )
+                else:  # SSE
+                    context = await stack.enter_async_context(
+                        sse_client(url=self.url, headers=self.headers, ...),
+                    )
+</code></pre>
+<h3 id="34">3.4 生命周期<a class="headerlink" href="#34" title="Permanent link">&para;</a></h3>
+<pre><code>创建 → 连接 → 使用 → 断开 → 清理
+</code></pre>
+<p><strong>跨任务生命周期管理</strong> (<code>_run_lifecycle</code> 方法，第112-175行):</p>
+<p>解决 FastAPI/uvicorn 环境中的 CancelScope 问题——原始实现中 <code>connect()</code> 在任务 A 进入 AsyncExitStack，<code>close()</code> 在任务 B 退出，导致 anyio.CancelScope 错误。</p>
+<pre><code class="language-python">async def _run_lifecycle(self) -&gt; None:
+    &quot;&quot;&quot;在专用后台任务中运行 MCP 客户端生命周期&quot;&quot;&quot;
+    while not self._stop_event.is_set():
+        try:
+            async with AsyncExitStack() as stack:
+                # 在同一任务中进入上下文管理器
+                context = await stack.enter_async_context(
+                    stdio_client(self.server_params),
+                )
+                self.session = ClientSession(read_stream, write_stream)
+                await stack.enter_async_context(self.session)
+                await self.session.initialize()
+
+                self.is_connected = True
+                self._ready_event.set()
+
+                # 等待 reload 或 stop 信号
+                while not self._reload_event.is_set() and not self._stop_event.is_set():
+                    await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error(f&quot;Error in MCP client lifecycle: {e}&quot;)
+            self.is_connected = False
+            await asyncio.sleep(1)
+</code></pre>
+<p><strong>关键设计</strong>:
+- <strong>单一后台任务</strong>: 整个生命周期在一个 <code>asyncio.Task</code> 中运行
+- <strong>AsyncExitStack</strong>: 确保 <code>connect()</code> 和 <code>close()</code> 在同一任务中
+- <strong>_stop_event</strong>: 优雅停止信号
+- <strong>_reload_event</strong>: 配置重载信号</p>
+<hr />
+<h2 id="4-mcpclientmanager">4. MCPClientManager<a class="headerlink" href="#4-mcpclientmanager" title="Permanent link">&para;</a></h2>
+<h3 id="41">4.1 管理器<a class="headerlink" href="#41" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/mcp/manager.py</code></p>
+<pre><code class="language-python">class MCPClientManager:
+    &quot;&quot;&quot;MCP 客户端生命周期管理器&quot;&quot;&quot;
+
+    def __init__(self):
+        self._clients: Dict[str, Any] = {}
+        self._lock = asyncio.Lock()
+
+    async def init_from_config(self, config: &quot;MCPConfig&quot;) -&gt; None:
+        &quot;&quot;&quot;从配置初始化所有客户端&quot;&quot;&quot;
+        for key, client_config in config.clients.items():
+            if not client_config.enabled:
+                continue
+            await self._add_client(key, client_config)
+
+    async def get_client(self, name: str) -&gt; BaseMCPClient:
+        &quot;&quot;&quot;获取客户端&quot;&quot;&quot;
+        async with self._lock:
+            return self._clients.get(name)
+
+    async def get_clients(self) -&gt; List[Any]:
+        &quot;&quot;&quot;获取所有活跃客户端&quot;&quot;&quot;
+        async with self._lock:
+            return [c for c in self._clients.values() if c is not None]
+
+    async def replace_client(
+        self,
+        key: str,
+        client_config: &quot;MCPClientConfig&quot;,
+        timeout: float = 60.0,
+    ) -&gt; None:
+        &quot;&quot;&quot;热重载：替换客户端&quot;&quot;&quot;
+        # 1. 连接新客户端（锁外，可能慢）
+        new_client = self._build_client(client_config)
+        await asyncio.wait_for(new_client.connect(), timeout=timeout)
+
+        # 2. 锁内替换
+        async with self._lock:
+            old_client = self._clients.get(key)
+            self._clients[key] = new_client
+
+        # 3. 关闭旧客户端
+        if old_client:
+            await old_client.close()
+
+    async def close_all(self) -&gt; None:
+        &quot;&quot;&quot;关闭所有客户端&quot;&quot;&quot;
+        async with self._lock:
+            clients = list(self._clients.values())
+            self._clients.clear()
+
+        for client in clients:
+            if client:
+                await client.close()
+</code></pre>
+<h3 id="42">4.2 热重载机制<a class="headerlink" href="#42" title="Permanent link">&para;</a></h3>
+<p>MCP 支持运行时更新配置而不中断服务，采用"锁外连接，锁内替换"策略：</p>
+<pre><code>配置文件变更 (config.json)
+         │
+         ▼
+MCPConfigWatcher 检测到变更
+         │
+         ▼
+调用 replace_client(key, new_config)
+         │
+         ├── 锁外: 创建新客户端
+         │       └── new_client = _build_client(config)
+         │       └── await new_client.connect()
+         │
+         └── 锁内: 原子替换
+                 ├── old = _clients[key]
+                 ├── _clients[key] = new_client
+                 └── unlock
+                         │
+                         ▼
+                 锁外: 关闭旧客户端
+                         └── await old_client.close()
+</code></pre>
+<p><strong>热重载策略对比</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>MCP 热重载</th>
+<th>Channel 热重载</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>锁机制</td>
+<td><code>_lock</code> 内部锁</td>
+<td><code>_restart_locks[channel_name]</code> per-channel 锁</td>
+</tr>
+<tr>
+<td>替换策略</td>
+<td>锁外连接，锁内替换</td>
+<td>锁外启动，锁内交换</td>
+</tr>
+<tr>
+<td>资源清理</td>
+<td><code>await old_client.close()</code></td>
+<td><code>await old_channel.stop()</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="43">4.3 构建客户端<a class="headerlink" href="#43" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/mcp/manager.py:230-266</code></p>
+<pre><code class="language-python">@staticmethod
+def _build_client(client_config: &quot;MCPClientConfig&quot;) -&gt; Any:
+    &quot;&quot;&quot;根据传输类型构建 MCP 客户端实例&quot;&quot;&quot;
+    rebuild_info = {
+        &quot;name&quot;: client_config.name,
+        &quot;transport&quot;: client_config.transport,
+        &quot;url&quot;: client_config.url,
+        &quot;headers&quot;: client_config.headers or None,
+        &quot;command&quot;: client_config.command,
+        &quot;args&quot;: list(client_config.args),
+        &quot;env&quot;: dict(client_config.env),
+        &quot;cwd&quot;: client_config.cwd or None,
+    }
+
+    if client_config.transport == &quot;stdio&quot;:
+        client = StdIOStatefulClient(
+            name=client_config.name,
+            command=client_config.command,
+            args=client_config.args,
+            env=client_config.env,
+            cwd=client_config.cwd or None,
+        )
+        setattr(client, &quot;_qwenpaw_rebuild_info&quot;, rebuild_info)
+        return client
+
+    # HTTP 客户端：展开环境变量
+    headers = client_config.headers
+    if headers:
+        headers = {k: os.path.expandvars(v) for k, v in headers.items()}
+
+    client = HttpStatefulClient(
+        name=client_config.name,
+        transport=client_config.transport,
+        url=client_config.url,
+        headers=headers or None,
+    )
+    setattr(client, &quot;_qwenpaw_rebuild_info&quot;, rebuild_info)
+    return client
+</code></pre>
+<hr />
+<h2 id="5-mcp">5. MCP 配置<a class="headerlink" href="#5-mcp" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 配置模型<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/config/config.py:1012-1106</code></p>
+<pre><code class="language-python">class MCPClientConfig(BaseModel):
+    &quot;&quot;&quot;单个 MCP 客户端配置&quot;&quot;&quot;
+    name: str
+    description: str = &quot;&quot;
+    enabled: bool = True
+    transport: Literal[&quot;stdio&quot;, &quot;streamable_http&quot;, &quot;sse&quot;] = &quot;stdio&quot;
+    url: str = &quot;&quot;
+    headers: Dict[str, str] = Field(default_factory=dict)
+    command: str = &quot;&quot;
+    args: List[str] = Field(default_factory=list)
+    env: Dict[str, str] = Field(default_factory=dict)
+    cwd: str = &quot;&quot;
+
+class MCPConfig(BaseModel):
+    &quot;&quot;&quot;MCP 全局配置&quot;&quot;&quot;
+    clients: Dict[str, MCPClientConfig] = {}
+</code></pre>
+<h3 id="52">5.2 服务配置<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<p><code>~/.qwenpaw/config.json</code> 中的 MCP 配置：</p>
+<pre><code class="language-yaml">mcp:
+  clients:
+    filesystem:
+      name: filesystem
+      enabled: true
+      transport: stdio
+      command: npx
+      args:
+        - -y
+        - @modelcontextprotocol/server-filesystem
+        - /workspace
+      cwd: /tmp
+    github:
+      name: github
+      enabled: true
+      transport: streamable_http
+      url: http://localhost:3000
+      headers:
+        Authorization: Bearer ${GITHUB_TOKEN}
+</code></pre>
+<h3 id="53">5.3 环境变量注入<a class="headerlink" href="#53" title="Permanent link">&para;</a></h3>
+<p>配置中的 <code>${VAR}</code> 会被自动替换为环境变量：</p>
+<pre><code class="language-python">headers = client_config.headers
+if headers:
+    headers = {k: os.path.expandvars(v) for k, v in headers.items()}
+</code></pre>
+<p>这使得配置可以安全引用环境变量而不暴露实际值：</p>
+<pre><code class="language-json">{
+  &quot;headers&quot;: {
+    &quot;Authorization&quot;: &quot;Bearer ${GITHUB_TOKEN}&quot;
+  }
+}
+</code></pre>
+<h3 id="54">5.4 传输方式对比<a class="headerlink" href="#54" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>适用场景</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stdio</td>
+<td>本地 MCP 进程</td>
+<td>低延迟，无需网络</td>
+<td>进程管理复杂</td>
+</tr>
+<tr>
+<td>streamable_http</td>
+<td>远程 MCP 服务器</td>
+<td>支持会话恢复，统一端点</td>
+<td>需要 HTTP 服务器</td>
+</tr>
+<tr>
+<td>sse</td>
+<td>远程 MCP 服务器（旧）</td>
+<td>简单</td>
+<td>无 session 机制</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-mcpconfigwatcher">6. MCPConfigWatcher<a class="headerlink" href="#6-mcpconfigwatcher" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 配置监听<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/mcp/watcher.py</code></p>
+<p><code>MCPConfigWatcher</code> 使用轮询方式检测配置文件变化，实现客户端热重载：</p>
+<pre><code class="language-python">class MCPConfigWatcher:
+    &quot;&quot;&quot;Watch MCP configuration and hot-reload clients on changes.&quot;&quot;&quot;
+
+    def __init__(
+        self,
+        mcp_manager: MCPClientManager,
+        config_loader: Callable,
+        poll_interval: float = 2.0,
+        config_path: Optional[Path] = None,
+    ):
+        self._mcp_manager = mcp_manager
+        self._config_loader = config_loader
+        self._poll_interval = poll_interval
+        self._config_path = config_path
+
+        # 快照：用于快速比较
+        self._last_mcp: Optional[&quot;MCPConfig&quot;] = None
+        self._last_mcp_hash: Optional[int] = None
+        self._last_mtime: float = 0.0
+
+        # 重试跟踪：防止无限重试
+        self._client_failures: Dict[str, tuple[int, int]] = {}
+        self._max_retries: int = 3
+</code></pre>
+<h3 id="62">6.2 轮询检查机制<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python">async def _poll_loop(self) -&gt; None:
+    &quot;&quot;&quot;主轮询循环&quot;&quot;&quot;
+    while True:
+        try:
+            await asyncio.sleep(self._poll_interval)
+            await self._check()
+        except Exception:
+            logger.exception(&quot;MCPConfigWatcher: poll iteration failed&quot;)
+
+async def _check(self) -&gt; None:
+    &quot;&quot;&quot;检查配置变化&quot;&quot;&quot;
+    # 1. 检查 mtime 快速跳过
+    if self._config_path:
+        mtime = self._config_path.stat().st_mtime
+        if mtime == self._last_mtime:
+            return
+        self._last_mtime = mtime
+
+    # 2. 加载新配置并快速比较 hash
+    new_mcp = self._load_mcp_config()
+    new_hash = self._mcp_hash(new_mcp)
+    if new_hash == self._last_mcp_hash:
+        return  # 无变化
+
+    # 3. 检查是否已有进行中的重载
+    if self._reload_task and not self._reload_task.done():
+        return
+
+    # 4. 在后台任务中触发重载
+    self._reload_task = asyncio.create_task(
+        self._reload_changed_clients_wrapper(new_mcp),
+    )
+</code></pre>
+<h3 id="63">6.3 优化手段<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优化手段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>mtime 快速跳过</td>
+<td>文件修改时间未变则直接跳过</td>
+</tr>
+<tr>
+<td>hash 快速比较</td>
+<td>内容未变则跳过解析</td>
+</tr>
+<tr>
+<td>重载去重</td>
+<td>已有重载进行中则跳过</td>
+</tr>
+<tr>
+<td>失败重试限制</td>
+<td>连续失败 3 次后不再重试</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-mcp">7. 实战：配置 MCP 服务器<a class="headerlink" href="#7-mcp" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 文件系统服务器<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<p><strong>安装</strong>:</p>
+<pre><code class="language-bash">npx -y @modelcontextprotocol/server-filesystem /workspace
+</code></pre>
+<p><strong>配置</strong>:</p>
+<pre><code class="language-yaml">mcp:
+  clients:
+    filesystem:
+      name: filesystem
+      enabled: true
+      transport: stdio
+      command: npx
+      args:
+        - -y
+        - @modelcontextprotocol/server-filesystem
+        - /workspace
+</code></pre>
+<h3 id="72-github">7.2 GitHub 服务器<a class="headerlink" href="#72-github" title="Permanent link">&para;</a></h3>
+<p><strong>配置</strong>:</p>
+<pre><code class="language-yaml">mcp:
+  clients:
+    github:
+      name: github
+      enabled: true
+      transport: streamable_http
+      url: https://api.github.com/mcp
+      headers:
+        Authorization: Bearer ${GITHUB_TOKEN}
+</code></pre>
+<h3 id="73">7.3 验证<a class="headerlink" href="#73" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># 获取 MCP 客户端
+client = await mcp_manager.get_client(&quot;filesystem&quot;)
+
+# 列出可用工具
+tools = await client.list_tools()
+
+# 调用工具
+result = await client.call_tool(&quot;read_file&quot;, {&quot;path&quot;: &quot;/workspace/test.txt&quot;})
+</code></pre>
+<hr />
+<h2 id="8">8. 设计意图<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="81-mcp">8.1 为什么用 MCP<a class="headerlink" href="#81-mcp" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>优势</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>开放标准</td>
+<td>任何厂商可实现，不依赖特定云服务商</td>
+</tr>
+<tr>
+<td>工具生态</td>
+<td>npm/PyPI 上已有数千个 MCP 服务器</td>
+</tr>
+<tr>
+<td>LLM 原生</td>
+<td>专为 AI 模型设计，支持 prompts、资源、工具统一抽象</td>
+</tr>
+<tr>
+<td>热重载</td>
+<td>配置变更自动重连，无需重启服务</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82">8.2 权衡取舍<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>设计决策</th>
+<th>取</th>
+<th>舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>跨任务生命周期</td>
+<td>避免 CancelScope 错误</td>
+<td>增加代码复杂度</td>
+</tr>
+<tr>
+<td>热重载</td>
+<td>无停机更新</td>
+<td>实现难度增加</td>
+</tr>
+<tr>
+<td>多种传输模式</td>
+<td>灵活适应不同场景</td>
+<td>配置更复杂</td>
+</tr>
+<tr>
+<td>锁外连接</td>
+<td>高并发性能</td>
+<td>短暂不一致窗口</td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-java-spi">8.3 与 Java SPI 对比<a class="headerlink" href="#83-java-spi" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Java SPI</th>
+<th>Python MCP</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ServiceLoader.load()</code></td>
+<td><code>MCPClientManager</code></td>
+<td>动态加载服务</td>
+</tr>
+<tr>
+<td><code>META-INF/services/</code></td>
+<td><code>config.yaml</code> mcp 配置</td>
+<td>服务发现机制</td>
+</tr>
+<tr>
+<td><code>XXService</code> 接口</td>
+<td><code>StatefulClientBase</code></td>
+<td>服务抽象基类</td>
+</tr>
+<tr>
+<td>同步加载</td>
+<td>异步 <code>asyncio</code></td>
+<td>并发模型</td>
+</tr>
+<tr>
+<td>静态配置</td>
+<td>热更新 <code>MCPConfigWatcher</code></td>
+<td>配置变更处理</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9">9. 知识检查<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>概念题</strong>：解释 MCP 的作用，以及它与 Skill 的区别。</p>
+</li>
+<li>
+<p><strong>分析题</strong>：分析 <code>StdIOStatefulClient</code> 为什么需要将整个生命周期放在单一后台任务中运行？如果在 <code>connect()</code> 和 <code>close()</code> 中分别使用不同的 asyncio Task 会产生什么问题？</p>
+</li>
+<li>
+<p><strong>配置题</strong>：如何配置一个 MCP 服务器，包括 stdio 和 HTTP 两种传输模式？</p>
+</li>
+<li>
+<p><strong>分析题</strong>：分析 <code>MCPClientManager</code> 的热重载机制，说明"锁外连接，锁内替换"策略的优势。</p>
+</li>
+</ol>
+<hr />
+<h2 id="_2">本章小结<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MCP 协议</strong></td>
+<td>开放标准，LLM 与外部工具交互</td>
+</tr>
+<tr>
+<td><strong>MCPClient</strong></td>
+<td><code>StdIOStatefulClient</code> + <code>HttpStatefulClient</code></td>
+</tr>
+<tr>
+<td><strong>管理器</strong></td>
+<td><code>MCPClientManager</code> 统一生命周期管理</td>
+</tr>
+<tr>
+<td><strong>热重载</strong></td>
+<td><code>MCPConfigWatcher</code> 轮询 + hash 快速跳过</td>
+</tr>
+<tr>
+<td><strong>传输模式</strong></td>
+<td>stdio（本地）、streamable_http（远程）</td>
+</tr>
+<tr>
+<td><strong>跨任务问题</strong></td>
+<td><code>_run_lifecycle()</code> 独立任务避免 CancelScope 错误</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">延伸阅读<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>源码：<code>src/qwenpaw/app/mcp/</code></li>
+<li>MCP 官方文档：https://modelcontextprotocol.io/</li>
+<li>官方服务器仓库：https://github.com/modelcontextprotocol/servers</li>
+<li>智能体架构：第 2.1 章《Agent 核心架构》</li>
+<li>工具系统：第 2.6 章《Guard 安全系统》</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3524 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Java开发者的AI Agent转型指南">
+      
+      
+        <meta name="author" content="QwenPaw Community">
+      
+      
+        <link rel="canonical" href="https://qwenpaw.github.io/book/part2-advanced/core/2.6-guard-security/">
+      
+      
+        <link rel="prev" href="../2.5-channel/">
+      
+      
+        <link rel="next" href="../2.7-skill-system/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>2.6 Guard安全系统 - QwenPaw智能体开发实战</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#26-guard" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-header__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QwenPaw智能体开发实战
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              2.6 Guard安全系统
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-tabs__link">
+          
+  
+  
+  入门篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../2.1-agent-core/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-核心机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../collaboration/2.10-multi-agent/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-协作机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-tabs__link">
+          
+  
+  
+  实战篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../appendix/A-python-quick-reference/" class="md-tabs__link">
+          
+  
+  
+  附录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="QwenPaw智能体开发实战" class="md-nav__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QwenPaw智能体开发实战
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入门篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    入门篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.1-qwenpaw-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 QwenPaw概述
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.2-environment-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 环境搭建
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.3-python-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Java开发者的Python指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.4-agent-core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4 智能体核心概念
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.5-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 技能系统入门
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part1-intro/1.6-channel-basics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 消息渠道基础
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-核心机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-核心机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.1-agent-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.1 Agent核心架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.2-runner-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.2 Runner与请求处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.3-memory-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.3 Memory记忆系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.4-provider-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.4 Provider与模型层
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.5-channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.5 Channel消息渠道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 安全系统概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 安全系统概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么需要安全
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 多层防护
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-toolguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. ToolGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. ToolGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 三层守护架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 守卫基类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 决策流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 三层守卫详解
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 三层守卫详解">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-filepathtoolguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 第一层：FilePathToolGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-rulebasedtoolguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 第二层：RuleBasedToolGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-shellevasionguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 第三层：ShellEvasionGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 数据模型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 数据模型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-guardseverity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 GuardSeverity 枚举
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-guardthreatcategory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 GuardThreatCategory 枚举
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-guardfinding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 GuardFinding 数据类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-toolguardresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 ToolGuardResult 数据类
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-fileguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. FileGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. FileGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 文件访问控制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 工作区隔离
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Shell 命令路径提取
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 审批流程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 审批流程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 审批类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 审批决策
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 审批实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 审批流程状态机
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-secretguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. SecretGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. SecretGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 密钥保护
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 主密钥获取逻辑
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 加密/解密 API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 配置示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 配置示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 完整安全配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 环境变量配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 YAML 规则文件格式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 设计意图
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. 设计意图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 纵深防御
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 插件化架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 权衡取舍
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 与 Agent 的集成
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. 与 Agent 的集成">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-mixin-mro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Mixin + MRO 拦截
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-always_run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 always_run 设计
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.7-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.7 Skill技能系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.8-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../2.9-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.9 Plugin插件系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-协作机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-协作机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.10-multi-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.10 多智能体协作
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.11-message-routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.11 消息路由与分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.12-scheduler-heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.12 定时任务与心跳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.13-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.13 生命周期管理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.14-hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../collaboration/2.15-key-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.15 密钥与安全
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实战篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实战篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.1-personal-news-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.1 个人资讯助手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.2-smart-customer-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.2 智能客服系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.3-automation-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.3 自动化工作流
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../part3-project/3.4-knowledge-base-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.4 企业知识库问答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    附录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    附录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/A-python-quick-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/B-config-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B 配置项索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/C-cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C 命令行参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/D-source-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../appendix/E-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E 常见问题解答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章导览
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. 安全系统概述
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. 安全系统概述">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 为什么需要安全
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 多层防护
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-toolguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. ToolGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. ToolGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 三层守护架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 守卫基类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 决策流程
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. 三层守卫详解
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. 三层守卫详解">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-filepathtoolguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 第一层：FilePathToolGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-rulebasedtoolguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 第二层：RuleBasedToolGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-shellevasionguardian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 第三层：ShellEvasionGuardian
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. 数据模型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. 数据模型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-guardseverity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 GuardSeverity 枚举
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-guardthreatcategory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 GuardThreatCategory 枚举
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-guardfinding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 GuardFinding 数据类
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-toolguardresult" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 ToolGuardResult 数据类
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-fileguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. FileGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. FileGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 文件访问控制
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 工作区隔离
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-shell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Shell 命令路径提取
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. 审批流程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. 审批流程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 审批类型
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 审批决策
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 审批实现
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#64" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.4 审批流程状态机
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-secretguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. SecretGuard
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. SecretGuard">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 密钥保护
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 主密钥获取逻辑
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#73-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.3 加密/解密 API
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. 配置示例
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. 配置示例">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 完整安全配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 环境变量配置
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#83-yaml" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.3 YAML 规则文件格式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. 设计意图
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. 设计意图">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 纵深防御
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 插件化架构
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#93" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.3 权衡取舍
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. 与 Agent 的集成
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. 与 Agent 的集成">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#101-mixin-mro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.1 Mixin + MRO 拦截
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#102-always_run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10.2 always_run 设计
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. 知识检查
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        本章小结
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        延伸阅读
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="26-guard">第 2.6 章 Guard 安全系统<a class="headerlink" href="#26-guard" title="Permanent link">&para;</a></h1>
+<h2 id="_1">本章导览<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>学习目标</strong></td>
+<td>1) 理解 ToolGuard 的三层守护架构 2) 掌握 FileGuard、RuleGuard、ShellEvasionGuardian 的检测机制 3) 分析审批决策流程与 Mixin 拦截原理</td>
+</tr>
+<tr>
+<td><strong>前置知识</strong></td>
+<td>第 1.4 章</td>
+</tr>
+<tr>
+<td><strong>预计时长</strong></td>
+<td>60 分钟</td>
+</tr>
+<tr>
+<td><strong>难度等级</strong></td>
+<td>⭐⭐⭐</td>
+</tr>
+<tr>
+<td><strong>核心关键词</strong></td>
+<td><code>ToolGuard</code> <code>FileGuard</code> <code>审批流程</code> <code>ToolGuardMixin</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>本章概述</strong>：深入分析 QwenPaw 的多层安全防护机制，理解如何通过纵深防御策略保护 AI Agent 的工具调用安全。</p>
+</blockquote>
+<hr />
+<h2 id="1">1. 安全系统概述<a class="headerlink" href="#1" title="Permanent link">&para;</a></h2>
+<h3 id="11">1.1 为什么需要安全<a class="headerlink" href="#11" title="Permanent link">&para;</a></h3>
+<p>QwenPaw 作为本地 AI 助手，可能执行危险操作——Shell 命令、文件读写、网络请求等。当 AI 智能体调用工具时，恶意输入可能包含：</p>
+<ul>
+<li><strong>命令注入</strong>：通过 <code>$()</code> 或反引号注入恶意命令</li>
+<li><strong>路径遍历</strong>：访问 <code>/etc/passwd</code> 或 SSH 密钥等敏感文件</li>
+<li><strong>数据泄露</strong>：窃取 API Key 或环境变量</li>
+<li><strong>权限提升</strong>：尝试 <code>sudo</code> 或 <code>su</code> 获取更高权限</li>
+</ul>
+<p>QwenPaw 的安全系统由三大模块构成：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>路径</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tool_guard</code></td>
+<td><code>security/tool_guard/</code></td>
+<td>工具调用前的安全审查</td>
+</tr>
+<tr>
+<td><code>secret_store</code></td>
+<td><code>security/secret_store.py</code></td>
+<td>敏感数据的加密存储</td>
+</tr>
+<tr>
+<td><code>skill_scanner</code></td>
+<td><code>security/skill_scanner/</code></td>
+<td>技能文件的安全扫描</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 多层防护<a class="headerlink" href="#12" title="Permanent link">&para;</a></h3>
+<p>QwenPaw 采用<strong>纵深防御</strong>（Defense in Depth）策略，设置多层安全屏障：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>防护类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>第一层</td>
+<td>ToolGuard</td>
+<td>工具调用守卫，拦截危险工具调用</td>
+</tr>
+<tr>
+<td>第二层</td>
+<td>FileGuard</td>
+<td>文件访问守卫，保护敏感路径</td>
+</tr>
+<tr>
+<td>第三层</td>
+<td>ApprovalGuard</td>
+<td>审批流程，人工确认高风险操作</td>
+</tr>
+<tr>
+<td>第四层</td>
+<td>SecretGuard</td>
+<td>密钥保护，敏感信息加密存储</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-toolguard">2. ToolGuard<a class="headerlink" href="#2-toolguard" title="Permanent link">&para;</a></h2>
+<h3 id="21">2.1 三层守护架构<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
+<p>ToolGuard 是 QwenPaw 的核心安全组件，通过 <strong>ToolGuardMixin</strong> 拦截智能体的工具调用。</p>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/</code></p>
+<pre><code>ToolGuardMixin._acting()           # 拦截点
+        │
+        ▼
+ToolGuardEngine.guard()           # 编排器
+        │
+        ├─► FilePathToolGuardian    (always_run=True)
+        ├─► RuleBasedToolGuardian   (always_run=False)
+        └─► ShellEvasionGuardian    (always_run=False)
+        │
+        ▼
+ToolGuardResult  ──► is_safe? ──► [放行 | 拦截+审批]
+</code></pre>
+<p><strong>三个默认守卫</strong>：</p>
+<ol>
+<li><strong>FilePathToolGuardian</strong> — 始终运行（always_run=True），保护敏感文件路径</li>
+<li><strong>RuleBasedToolGuardian</strong> — 基于 YAML 正则规则的守卫</li>
+<li><strong>ShellEvasionGuardian</strong> — 检测 Shell 命令混淆技术</li>
+</ol>
+<h3 id="22">2.2 守卫基类<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/guardians/__init__.py:15-46</code></p>
+<pre><code class="language-python">class BaseToolGuardian(ABC):
+    &quot;&quot;&quot;工具守卫抽象基类&quot;&quot;&quot;
+
+    def __init__(self, name: str, *, always_run: bool = False) -&gt; None:
+        &quot;&quot;&quot;
+        Args:
+            name: 守卫名称（用于日志和报告）
+            always_run: True 则即使工具不在 guarded_tools 列表也执行
+                        用于 FilePathToolGuardian（始终保护敏感路径）
+        &quot;&quot;&quot;
+        self.name = name
+        self.always_run = always_run
+
+    @abstractmethod
+    def guard(
+        self,
+        tool_name: str,
+        params: dict[str, Any],
+    ) -&gt; list[GuardFinding]:
+        &quot;&quot;&quot;审查工具调用，返回发现的问题列表（空列表=安全）&quot;&quot;&quot;
+</code></pre>
+<h3 id="23">2.3 决策流程<a class="headerlink" href="#23" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/agents/tool_guard_mixin.py:346-400</code></p>
+<pre><code class="language-python">async def _decide_guard_action(self, tool_call: dict[str, Any]) -&gt; &quot;_GuardAction | None&quot;:
+    engine = self._tool_guard_engine
+    tool_name = str(tool_call.get(&quot;name&quot;, &quot;&quot;))
+    tool_input = tool_call.get(&quot;input&quot;, {})
+
+    # 1. 引擎禁用或工具名为空 → 不拦截
+    if not tool_name or not engine.enabled:
+        return None
+
+    # 2. 检查是否在拒绝列表 → 自动拒绝
+    if engine.is_denied(tool_name):
+        denied_result = engine.guard(tool_name, tool_input)
+        return _GuardAction(&quot;auto_denied&quot;, tool_name, tool_input, guard_result=denied_result)
+
+    # 3. 检查是否需要预批准 → 预批准则直接执行
+    guarded = engine.is_guarded(tool_name)
+    if guarded and await self._consume_preapproval(tool_name, tool_input):
+        return _GuardAction(&quot;preapproved&quot;, tool_name, tool_input)
+
+    # 4. 运行守卫检查
+    guard_result = engine.guard(tool_name, tool_input, only_always_run=not guarded)
+
+    # 5. 有发现且需要审批 → 进入审批流程
+    if guard_result is not None and guard_result.findings:
+        if self._should_require_approval():
+            return _GuardAction(&quot;needs_approval&quot;, tool_name, tool_input, guard_result=guard_result)
+
+    # 6. 无问题 → 正常执行
+    return None
+</code></pre>
+<p><strong>决策流程图</strong>：</p>
+<pre><code>工具调用 → 风险评估 → 白名单检查 → 黑名单检查 → 审批 → 执行
+</code></pre>
+<hr />
+<h2 id="3">3. 三层守卫详解<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
+<h3 id="31-filepathtoolguardian">3.1 第一层：FilePathToolGuardian<a class="headerlink" href="#31-filepathtoolguardian" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/guardians/file_guardian.py:184-364</code></p>
+<p><strong>职责</strong>：阻止访问敏感路径（密钥目录、配置文件、SSH 密钥等）</p>
+<p><strong>关键常量</strong>：</p>
+<pre><code class="language-python">_TOOL_FILE_PARAMS: dict[str, tuple[str, ...]] = {
+    &quot;read_file&quot;: (&quot;file_path&quot;,),
+    &quot;write_file&quot;: (&quot;file_path&quot;,),
+    &quot;edit_file&quot;: (&quot;file_path&quot;,),
+    &quot;append_file&quot;: (&quot;file_path&quot;,),
+    &quot;send_file_to_user&quot;: (&quot;file_path&quot;,),
+    &quot;view_text_file&quot;: (&quot;file_path&quot;, &quot;path&quot;),
+    &quot;write_text_file&quot;: (&quot;file_path&quot;, &quot;path&quot;),
+}
+</code></pre>
+<p><strong>核心 guard 方法</strong>：</p>
+<pre><code class="language-python">def guard(self, tool_name: str, params: dict[str, Any]) -&gt; list[GuardFinding]:
+    findings: list[GuardFinding] = []
+
+    # Shell命令：从命令字符串提取路径
+    if tool_name == &quot;execute_shell_command&quot;:
+        command = params.get(&quot;command&quot;, &quot;&quot;)
+        for raw_path in _extract_paths_from_shell_command(command):
+            self._check_value(tool_name, &quot;command&quot;, raw_path, findings, snippet=command)
+        return findings
+
+    # 已知文件工具：只检查文件路径参数
+    known_params = _TOOL_FILE_PARAMS.get(tool_name)
+    if known_params:
+        for param_name in known_params:
+            raw_value = params.get(param_name)
+            self._check_value(tool_name, param_name, raw_value, findings)
+        return findings
+
+    # 其他工具：扫描所有看起来像路径的字符串参数
+    for param_name, param_value in params.items():
+        if not _looks_like_path_token(param_value):
+            continue
+        self._check_value(tool_name, param_name, param_value, findings)
+
+    return findings
+</code></pre>
+<p><strong>保护路径</strong>：
+- <code>.qwenpaw.secret</code> — 本项目密钥目录
+- <code>.copaw.secret</code> — 旧项目名（兼容性）
+- 用户配置的敏感路径</p>
+<h3 id="32-rulebasedtoolguardian">3.2 第二层：RuleBasedToolGuardian<a class="headerlink" href="#32-rulebasedtoolguardian" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/guardians/rule_guardian.py:559-757</code></p>
+<p><strong>职责</strong>：用 YAML 中定义的 20+ 条正则规则匹配工具参数</p>
+<p><strong>GuardRule 类</strong>：</p>
+<pre><code class="language-python">class GuardRule:
+    __slots__ = (
+        &quot;id&quot;, &quot;tools&quot;, &quot;params&quot;, &quot;category&quot;, &quot;severity&quot;,
+        &quot;patterns&quot;, &quot;exclude_patterns&quot;, &quot;description&quot;, &quot;remediation&quot;,
+        &quot;compiled_patterns&quot;, &quot;compiled_exclude_patterns&quot;,
+    )
+
+    def __init__(self, rule_data: dict[str, Any]) -&gt; None:
+        self.id: str = rule_data[&quot;id&quot;]
+        self.tools: list[str] = rule_data.get(&quot;tools&quot;, [])
+        self.params: list[str] = rule_data.get(&quot;params&quot;, [])
+        self.category = GuardThreatCategory(rule_data[&quot;category&quot;])
+        self.severity = GuardSeverity(rule_data[&quot;severity&quot;])
+        self.patterns: list[str] = rule_data.get(&quot;patterns&quot;, [])
+        # 预编译正则表达式
+        self.compiled_patterns: list[re.Pattern[str]] = [
+            re.compile(pat, re.IGNORECASE) for pat in self.patterns
+        ]
+</code></pre>
+<p><strong>内置危险命令规则</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>规则 ID</th>
+<th>威胁类别</th>
+<th>严重性</th>
+<th>模式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TOOL_CMD_FS_DESTRUCTION</td>
+<td>command_injection</td>
+<td>CRITICAL</td>
+<td><code>mkfs</code>, <code>dd of=/dev/...</code></td>
+</tr>
+<tr>
+<td>TOOL_CMD_DOS_FORK_BOMB</td>
+<td>resource_abuse</td>
+<td>CRITICAL</td>
+<td><code>:(){...}&amp;};:</code> (fork bomb)</td>
+</tr>
+<tr>
+<td>TOOL_CMD_PIPE_TO_SHELL</td>
+<td>code_execution</td>
+<td>CRITICAL</td>
+<td><code>curl\|bash</code>, <code>wget\|sh</code></td>
+</tr>
+<tr>
+<td>TOOL_CMD_REVERSE_SHELL</td>
+<td>network_abuse</td>
+<td>CRITICAL</td>
+<td><code>/dev/tcp/</code>, <code>nc -e</code></td>
+</tr>
+<tr>
+<td>TOOL_CMD_PRIVILEGE_ESCALATION</td>
+<td>privilege_escalation</td>
+<td>CRITICAL</td>
+<td><code>sudo</code>, <code>su</code>, <code>doas</code></td>
+</tr>
+<tr>
+<td>TOOL_CMD_DANGEROUS_RM</td>
+<td>command_injection</td>
+<td>HIGH</td>
+<td><code>rm -rf</code>, <code>del</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-shellevasionguardian">3.3 第三层：ShellEvasionGuardian<a class="headerlink" href="#33-shellevasionguardian" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/guardians/shell_evasion_guardian.py:499-545</code></p>
+<p><strong>职责</strong>：检测 Shell 命令混淆/逃避技术</p>
+<p><strong>检测的攻击模式</strong>：</p>
+<ol>
+<li><strong>命令替换</strong>: <code>$()</code>, 反引号, <code>&lt;()</code>, <code>&gt;()</code>, <code>=()</code></li>
+<li><strong>混淆标志</strong>: ANSI-C 引用 <code>$'...'</code>, locale 引用 <code>$\"..."</code></li>
+<li><strong>反斜杠转义空白</strong>: <code>echo\\ test</code></li>
+<li><strong>反斜杠转义操作符</strong>: <code>\;</code>, <code>\|</code>, <code>\&amp;</code></li>
+<li><strong>隐藏换行符</strong>: 多行命令隐藏</li>
+<li><strong>注释引号去同步</strong>: 注释中的引号导致状态追踪错误</li>
+<li><strong>引用换行攻击</strong>: 引号内换行后跟 # 开头的行</li>
+</ol>
+<p><strong>QuoteState 类 — 引用状态追踪</strong>：</p>
+<pre><code class="language-python">class _QuoteState:
+    &quot;&quot;&quot;Tracks shell quoting context character-by-character.&quot;&quot;&quot;
+    __slots__ = (&quot;in_single&quot;, &quot;in_double&quot;, &quot;escaped&quot;)
+
+    def feed(self, char: str) -&gt; None:
+        if self.escaped:
+            self.escaped = False
+            return
+        if char == &quot;\\&quot; and not self.in_single:
+            self.escaped = True
+            return
+        if char == &quot;'&quot; and not self.in_double:
+            self.in_single = not self.in_single
+            return
+        if char == '&quot;' and not self.in_single:
+            self.in_double = not self.in_double
+</code></pre>
+<p>这个有限状态机逐字符追踪 Shell 引号状态。只有在引号<strong>之外</strong>检测到的 <code>$()</code> 才算命令替换，这是它能区分 <code>echo '$foo'</code>（无害）和 <code>echo $(whoami)</code>（危险）的原因。</p>
+<hr />
+<h2 id="4">4. 数据模型<a class="headerlink" href="#4" title="Permanent link">&para;</a></h2>
+<h3 id="41-guardseverity">4.1 GuardSeverity 枚举<a class="headerlink" href="#41-guardseverity" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/models.py:18-26</code></p>
+<pre><code class="language-python">class GuardSeverity(str, Enum):
+    CRITICAL = &quot;CRITICAL&quot;
+    HIGH = &quot;HIGH&quot;
+    MEDIUM = &quot;MEDIUM&quot;
+    LOW = &quot;LOW&quot;
+    INFO = &quot;INFO&quot;
+    SAFE = &quot;SAFE&quot;
+</code></pre>
+<h3 id="42-guardthreatcategory">4.2 GuardThreatCategory 枚举<a class="headerlink" href="#42-guardthreatcategory" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/models.py:31-44</code></p>
+<pre><code class="language-python">class GuardThreatCategory(str, Enum):
+    COMMAND_INJECTION = &quot;command_injection&quot;
+    DATA_EXFILTRATION = &quot;data_exfiltration&quot;
+    PATH_TRAVERSAL = &quot;path_traversal&quot;
+    SENSITIVE_FILE_ACCESS = &quot;sensitive_file_access&quot;
+    NETWORK_ABUSE = &quot;network_abuse&quot;
+    CREDENTIAL_EXPOSURE = &quot;credential_exposure&quot;
+    RESOURCE_ABUSE = &quot;resource_abuse&quot;
+    PROMPT_INJECTION = &quot;prompt_injection&quot;
+    CODE_EXECUTION = &quot;code_execution&quot;
+    PRIVILEGE_ESCALATION = &quot;privilege_escalation&quot;
+</code></pre>
+<h3 id="43-guardfinding">4.3 GuardFinding 数据类<a class="headerlink" href="#43-guardfinding" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/models.py:49-86</code></p>
+<pre><code class="language-python">@dataclass
+class GuardFinding:
+    id: str
+    rule_id: str
+    category: GuardThreatCategory
+    severity: GuardSeverity
+    title: str
+    description: str
+    tool_name: str
+    param_name: str
+    matched_value: str
+    matched_pattern: str
+    snippet: str
+    remediation: str
+    guardian: str
+    metadata: dict[str, Any] = field(default_factory=dict)
+</code></pre>
+<h3 id="44-toolguardresult">4.4 ToolGuardResult 数据类<a class="headerlink" href="#44-toolguardresult" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/models.py:92-145</code></p>
+<pre><code class="language-python">@dataclass
+class ToolGuardResult:
+    tool_name: str
+    params: dict[str, Any]
+    findings: list[GuardFinding] = field(default_factory=list)
+    guard_duration_seconds: float = 0.0
+    guardians_used: list[str] = field(default_factory=list)
+    guardians_failed: list[dict[str, str]] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def is_safe(self) -&gt; bool:
+        &quot;&quot;&quot;``True`` when there are no CRITICAL or HIGH findings.&quot;&quot;&quot;
+        return not any(
+            f.severity in (GuardSeverity.CRITICAL, GuardSeverity.HIGH)
+            for f in self.findings
+        )
+
+    @property
+    def max_severity(self) -&gt; GuardSeverity:
+        &quot;&quot;&quot;Returns the highest severity level, or SAFE.&quot;&quot;&quot;
+</code></pre>
+<hr />
+<h2 id="5-fileguard">5. FileGuard<a class="headerlink" href="#5-fileguard" title="Permanent link">&para;</a></h2>
+<h3 id="51">5.1 文件访问控制<a class="headerlink" href="#51" title="Permanent link">&para;</a></h3>
+<p>FileGuard 是 ToolGuard 的第一层守护，专注于文件路径检查。</p>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/guardians/file_guardian.py</code></p>
+<pre><code class="language-python">class FilePathToolGuardian(BaseToolGuardian):
+    &quot;&quot;&quot;文件路径守卫 — always_run=True，始终保护敏感路径&quot;&quot;&quot;
+
+    def __init__(self):
+        super().__init__(&quot;FilePathGuardian&quot;, always_run=True)
+        self._sensitive_files: set[str] = set()
+        self._sensitive_dirs: set[str] = set()
+
+        # 自动添加密钥目录
+        for secret_dir in _COMPAT_SECRET_DIRS:
+            home_secret = Path.home() / secret_dir
+            if home_secret.exists():
+                self.add_sensitive_file(home_secret)
+</code></pre>
+<h3 id="52">5.2 工作区隔离<a class="headerlink" href="#52" title="Permanent link">&para;</a></h3>
+<p>FileGuard 支持工作区隔离配置，确保 AI 只能访问授权的工作目录：</p>
+<pre><code class="language-python">def _is_outside_workspace(abs_path: str) -&gt; bool:
+    &quot;&quot;&quot;检查路径是否在工作区外&quot;&quot;&quot;
+    # 实现依赖于配置的 allowed_paths
+</code></pre>
+<h3 id="53-shell">5.3 Shell 命令路径提取<a class="headerlink" href="#53-shell" title="Permanent link">&para;</a></h3>
+<p>FileGuard 从 Shell 命令中提取路径进行处理：</p>
+<pre><code class="language-python">def _extract_paths_from_shell_command(command: str) -&gt; list[str]:
+    &quot;&quot;&quot;使用 shlex.split() 解析命令，提取文件路径&quot;&quot;&quot;
+    tokens = shlex.split(command, posix=True)
+    candidates: list[str] = []
+    for token in tokens:
+        # 处理重定向操作符: &gt;out.txt, 2&gt;err.log
+        if token.startswith(_SHELL_REDIRECT_OPERATORS):
+            candidates.append(token[1:])
+        # 检查是否像路径
+        if _looks_like_path_token(token):
+            candidates.append(token)
+    return deduped  # 去重
+</code></pre>
+<hr />
+<h2 id="6">6. 审批流程<a class="headerlink" href="#6" title="Permanent link">&para;</a></h2>
+<h3 id="61">6.1 审批类型<a class="headerlink" href="#61" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>触发条件</th>
+<th>审批人</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>高风险工具</td>
+<td>shell, exec</td>
+<td>必须审批</td>
+</tr>
+<tr>
+<td>文件操作</td>
+<td>write, delete</td>
+<td>可选审批</td>
+</tr>
+<tr>
+<td>敏感数据</td>
+<td>api_key, password</td>
+<td>必须审批</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62">6.2 审批决策<a class="headerlink" href="#62" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/tool_guard/approval.py:16</code></p>
+<pre><code class="language-python">class ApprovalDecision(str, Enum):
+    APPROVED = &quot;approved&quot;
+    DENIED = &quot;denied&quot;
+    TIMEOUT = &quot;timeout&quot;
+</code></pre>
+<h3 id="63">6.3 审批实现<a class="headerlink" href="#63" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/agents/tool_guard_mixin.py:402-426</code></p>
+<pre><code class="language-python">async def _execute_guard_action(self, action: &quot;_GuardAction&quot;, tool_call: dict) -&gt; dict | None:
+    if action.kind == &quot;auto_denied&quot;:
+        return await self._acting_auto_denied(tool_call, action.tool_name, action.guard_result)
+    if action.kind == &quot;preapproved&quot;:
+        return await self._run_approved_tool_call(tool_call, action.tool_name, action.tool_input)
+    if action.kind == &quot;needs_approval&quot;:
+        return await self._acting_with_approval(tool_call, action.tool_name, action.guard_result)
+    return None
+</code></pre>
+<p><strong>预批准机制</strong>：用户审批通过后，生成一个 preapproval token，该 token 只对<strong>完全相同</strong>的参数有效，防止 <code>"rm foo.txt"</code> 的审批被用于 <code>"rm -rf /"</code>。</p>
+<h3 id="64">6.4 审批流程状态机<a class="headerlink" href="#64" title="Permanent link">&para;</a></h3>
+<pre><code>工具调用被拦截
+      │
+      ▼
+  等待用户审批
+      │
+      ├─► APPROVED ──► 执行工具
+      │
+      ├─► DENIED ────► 返回拒绝消息
+      │
+      └─► TIMEOUT ───► 返回超时错误
+</code></pre>
+<hr />
+<h2 id="7-secretguard">7. SecretGuard<a class="headerlink" href="#7-secretguard" title="Permanent link">&para;</a></h2>
+<h3 id="71">7.1 密钥保护<a class="headerlink" href="#71" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/security/secret_store.py</code></p>
+<p>SecretGuard 负责敏感数据（API Key、JWT Secret、环境变量）的加密存储。</p>
+<p><strong>核心算法：Fernet 对称加密</strong></p>
+<pre><code class="language-python">def _get_fernet() -&gt; Fernet:
+    &quot;&quot;&quot;返回缓存的 Fernet 实例（延迟初始化）&quot;&quot;&quot;
+    global _cached_fernet
+    if _cached_fernet is None:
+        master_key = _get_master_key()
+        fernet_key = base64.urlsafe_b64encode(master_key[:32])
+        _cached_fernet = Fernet(fernet_key)
+    return _cached_fernet
+</code></pre>
+<p><strong>加密算法</strong>：Fernet = AES-128-CBC（加密）+ HMAC-SHA256（完整性校验）。这是"认证加密"（Authenticated Encryption），同时提供机密性和完整性保护。</p>
+<h3 id="72">7.2 主密钥获取逻辑<a class="headerlink" href="#72" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python">def _get_master_key() -&gt; bytes:
+    &quot;&quot;&quot;主密钥解析：进程缓存 → OS Keychain → 文件 → 生成新密钥&quot;&quot;&quot;
+    global _cached_master_key
+
+    # 第一层：进程内缓存（最快路径，无需加锁）
+    if _cached_master_key is not None:
+        return _cached_master_key
+
+    # 第二层：双重检查锁定
+    with _master_key_lock:
+        if _cached_master_key is not None:
+            return _cached_master_key
+
+        # 第三层：尝试从 OS Keychain 读取
+        key_hex = _try_keyring_get()
+        if key_hex is None:
+            # 第四层：从文件读取
+            key_hex = _read_key_file()
+
+        if key_hex is None:
+            # 兜底：生成新密钥
+            key_hex = _generate_master_key()
+            _try_keyring_set(key_hex)
+            _write_key_file(key_hex)
+
+        _cached_master_key = bytes.fromhex(key_hex)
+        return _cached_master_key
+</code></pre>
+<h3 id="73-api">7.3 加密/解密 API<a class="headerlink" href="#73-api" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python">def encrypt(plaintext: str) -&gt; str:
+    &quot;&quot;&quot;加密字符串，返回 'ENC:&lt;base64密文&gt;' 格式&quot;&quot;&quot;
+    if not plaintext:
+        return plaintext
+    fernet = _get_fernet()
+    ciphertext = fernet.encrypt(plaintext.encode(&quot;utf-8&quot;))
+    return f&quot;{_ENC_PREFIX}{base64.b64encode(ciphertext).decode('ascii')}&quot;
+
+def decrypt(value: str) -&gt; str:
+    &quot;&quot;&quot;解密：如果是 'ENC:' 前缀则解密，否则直接返回&quot;&quot;&quot;
+    if not is_encrypted(value):
+        return value
+    try:
+        fernet = _get_fernet()
+        raw = base64.b64decode(value[len(_ENC_PREFIX):])
+        plaintext = fernet.decrypt(raw).decode(&quot;utf-8&quot;)
+        return plaintext
+    except Exception:
+        return value  # 解密失败返回原值（优雅降级）
+</code></pre>
+<hr />
+<h2 id="8">8. 配置示例<a class="headerlink" href="#8" title="Permanent link">&para;</a></h2>
+<h3 id="81">8.1 完整安全配置<a class="headerlink" href="#81" title="Permanent link">&para;</a></h3>
+<pre><code class="language-yaml">security:
+  tool_guard:
+    enabled: true
+    guarded_tools:
+      - execute_shell_command
+      - read_file
+      - write_file
+      - edit_file
+      - append_file
+    denied_tools: []
+    custom_rules: []
+    disabled_rules: []
+
+  file_guard:
+    enabled: true
+    sensitive_files:
+      - /home/user/.ssh
+      - /home/user/.qwenpaw.secret
+    sensitive_dirs:
+      - /etc/ssl/private
+
+  approval:
+    required_for:
+      - execute_shell_command
+      - write_file
+      - delete_file
+    timeout_seconds: 300
+</code></pre>
+<h3 id="82">8.2 环境变量配置<a class="headerlink" href="#82" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>作用</th>
+<th>默认值</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QWENPAW_TOOL_GUARD_ENABLED</code></td>
+<td>启用/禁用工具守卫</td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>QWENPAW_TOOL_GUARD_TOOLS</code></td>
+<td>守卫的工具列表</td>
+<td><code>*</code>（所有）</td>
+</tr>
+<tr>
+<td><code>QWENPAW_TOOL_GUARD_DENIED_TOOLS</code></td>
+<td>无条件拒绝的工具</td>
+<td>空</td>
+</tr>
+<tr>
+<td><code>QWENPAW_RUNNING_IN_CONTAINER</code></td>
+<td>标记为容器环境</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>QWENPAW_SECRET_DIR</code></td>
+<td>密钥文件目录</td>
+<td><code>~/.qwenpaw.secret</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="83-yaml">8.3 YAML 规则文件格式<a class="headerlink" href="#83-yaml" title="Permanent link">&para;</a></h3>
+<pre><code class="language-yaml">- id: TOOL_CMD_DANGEROUS_RM
+  tools: [execute_shell_command]
+  params: [command]
+  category: command_injection
+  severity: HIGH
+  patterns:
+    - &quot;\\brm\\b&quot;
+    - &quot;\\bdel\\b&quot;
+  exclude_patterns:
+    - &quot;^\\s*#&quot;
+  description: &quot;Shell command contains 'rm' which may cause data loss&quot;
+  remediation: &quot;Confirm with the user before removing files or directories&quot;
+</code></pre>
+<hr />
+<h2 id="9">9. 设计意图<a class="headerlink" href="#9" title="Permanent link">&para;</a></h2>
+<h3 id="91">9.1 纵深防御<a class="headerlink" href="#91" title="Permanent link">&para;</a></h3>
+<p>三层守卫体现了纵深防御思想：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>保护范围</th>
+<th>绕过难度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FilePathToolGuardian</td>
+<td>文件系统级别</td>
+<td>低（攻击者只需避免访问已知敏感路径）</td>
+</tr>
+<tr>
+<td>RuleBasedToolGuardian</td>
+<td>命令行参数级别</td>
+<td>中（需要构造不触发任何正则的模式）</td>
+</tr>
+<tr>
+<td>ShellEvasionGuardian</td>
+<td>语义级别</td>
+<td>高（即便躲过正则，也难以躲过结构分析）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>架构启示</strong>：不要依赖单一安全层。每一层都应该能够独立拦截常见攻击，同时层间互补。</p>
+<h3 id="92">9.2 插件化架构<a class="headerlink" href="#92" title="Permanent link">&para;</a></h3>
+<p>BaseToolGuardian 是简单的 ABC，定义了最小接口：</p>
+<pre><code class="language-python">class BaseToolGuardian(ABC):
+    @abstractmethod
+    def guard(self, tool_name, params) -&gt; list[GuardFinding]: ...
+</code></pre>
+<p>这意味着未来可以<strong>热插拔</strong>新型守卫：
+- <code>LLMAsJudgeToolGuardian</code>：用另一个 LLM 判断工具调用是否安全
+- <code>ASTAnalyzerToolGuardian</code>：用抽象语法树分析而非正则
+- <code>NetworkMonitorToolGuardian</code>：监控工具是否发起异常网络请求</p>
+<h3 id="93">9.3 权衡取舍<a class="headerlink" href="#93" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>考量</th>
+<th>设计选择</th>
+<th>权衡</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>安全性 vs 易用性</td>
+<td>默认放行，但高风险操作需审批</td>
+<td>平衡安全与效率</td>
+</tr>
+<tr>
+<td>性能 vs 安全</td>
+<td>异步执行守卫，不阻塞工具调用</td>
+<td>接受轻微延迟换取安全</td>
+</tr>
+<tr>
+<td>误报 vs 漏报</td>
+<td>偏向误报（宁可错杀不可放过）</td>
+<td>用户可配置白名单</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-agent">10. 与 Agent 的集成<a class="headerlink" href="#10-agent" title="Permanent link">&para;</a></h2>
+<h3 id="101-mixin-mro">10.1 Mixin + MRO 拦截<a class="headerlink" href="#101-mixin-mro" title="Permanent link">&para;</a></h3>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/agents/react_agent.py:76</code></p>
+<pre><code class="language-python">class QwenPawAgent(ToolGuardMixin, ReActAgent):
+    &quot;&quot;&quot;QwenPaw 智能体，集成工具、技能和记忆管理。
+
+    MRO 说明
+    ~~~~~~~~
+    ``ToolGuardMixin`` 通过 Python MRO 覆盖 ``_acting`` 和 ``_reasoning``：
+    QwenPawAgent → ToolGuardMixin → ReActAgent
+    &quot;&quot;&quot;
+</code></pre>
+<p><strong>为什么用 Mixin 而非继承？</strong>
+- Mixin 可以在运行时组合，不影响被混入类的继承结构
+- 多个 Mixin 可以组合（MRO 保证顺序）
+- 便于测试和单独验证每个 Mixin</p>
+<h3 id="102-always_run">10.2 always_run 设计<a class="headerlink" href="#102-always_run" title="Permanent link">&para;</a></h3>
+<p>FilePathToolGuardian 设置 <code>always_run=True</code>，确保敏感文件保护永远不会漏过——即使管理员只配置了 <code>denied_tools</code> 黑名单，文件守卫仍会运行。</p>
+<hr />
+<h2 id="11_1">11. 知识检查<a class="headerlink" href="#11_1" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>概念题</strong>：解释 ToolGuard 的三层守护架构及其各层核心检测目标。</p>
+</li>
+<li>
+<p><strong>分析题</strong>：分析审批流程的实现——preapproval token 为什么只能用于相同参数的工具调用？</p>
+</li>
+<li>
+<p><strong>设计题</strong>：为什么要用 Mixin 模式而不是继承？讨论其优缺点。</p>
+</li>
+<li>
+<p><strong>实战题</strong>：设计一个自定义 GuardRule 来检测 AI 模型提示词注入攻击（ignore previous instructions 等模式）。</p>
+</li>
+</ol>
+<hr />
+<h2 id="_2">本章小结<a class="headerlink" href="#_2" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>要点</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ToolGuard</td>
+<td>三层守护架构：FilePathToolGuardian + RuleBasedToolGuardian + ShellEvasionGuardian</td>
+</tr>
+<tr>
+<td>FileGuard</td>
+<td>始终运行的文件路径守卫，保护敏感文件</td>
+</tr>
+<tr>
+<td>审批流程</td>
+<td>auto_denied / preapproved / needs_approval 三种决策</td>
+</tr>
+<tr>
+<td>SecretGuard</td>
+<td>Fernet 对称加密，OS Keychain 优先，优雅降级</td>
+</tr>
+<tr>
+<td>设计原则</td>
+<td>纵深防御、零信任、插件化架构</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_3">延伸阅读<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
+<ul>
+<li>源码：<code>src/qwenpaw/security/</code></li>
+<li>进阶：第 2.15 章《密钥与安全》</li>
+<li>实践：第 3.2 章《智能客服系统》</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,3380 @@
+
+<!doctype html>
+<html lang="zh" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Java开发者的AI Agent转型指南">
+      
+      
+        <meta name="author" content="QwenPaw Community">
+      
+      
+        <link rel="canonical" href="https://qwenpaw.github.io/book/appendix/A-python-quick-reference/">
+      
+      
+        <link rel="prev" href="../../part3-project/3.4-knowledge-base-qa/">
+      
+      
+        <link rel="next" href="../B-config-index/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>A Python快速参考 - QwenPaw智能体开发实战</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#a-java-python" class="md-skip">
+          跳转至
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../.." title="QwenPaw智能体开发实战" class="md-header__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            QwenPaw智能体开发实战
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              A Python快速参考
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="查找">
+        
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            正在初始化搜索引擎
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part1-intro/1.1-qwenpaw-overview/" class="md-tabs__link">
+          
+  
+  
+  入门篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part2-advanced/core/2.1-agent-core/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-核心机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part2-advanced/collaboration/2.10-multi-agent/" class="md-tabs__link">
+          
+  
+  
+  进阶篇-协作机制
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../part3-project/3.1-personal-news-assistant/" class="md-tabs__link">
+          
+  
+  
+  实战篇
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  附录
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="QwenPaw智能体开发实战" class="md-nav__button md-logo" aria-label="QwenPaw智能体开发实战" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    QwenPaw智能体开发实战
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/QwenPaw/QwenPaw" title="前往仓库" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    QwenPaw/QwenPaw
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    入门篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    入门篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.1-qwenpaw-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.1 QwenPaw概述
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.2-environment-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.2 环境搭建
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.3-python-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.3 Java开发者的Python指南
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.4-agent-core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.4 智能体核心概念
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.5-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.5 技能系统入门
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part1-intro/1.6-channel-basics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1.6 消息渠道基础
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-核心机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-核心机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.1-agent-core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.1 Agent核心架构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.2-runner-request/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.2 Runner与请求处理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.3-memory-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.3 Memory记忆系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.4-provider-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.4 Provider与模型层
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.5-channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.5 Channel消息渠道
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.6-guard-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.6 Guard安全系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.7-skill-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.7 Skill技能系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.8-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.8 MCP扩展机制
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/core/2.9-plugin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.9 Plugin插件系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    进阶篇-协作机制
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    进阶篇-协作机制
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.10-multi-agent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.10 多智能体协作
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.11-message-routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.11 消息路由与分发
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.12-scheduler-heartbeat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.12 定时任务与心跳
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.13-lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.13 生命周期管理
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.14-hot-reload/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.14 配置热重载
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part2-advanced/collaboration/2.15-key-security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2.15 密钥与安全
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    实战篇
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    实战篇
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.1-personal-news-assistant/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.1 个人资讯助手
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.2-smart-customer-service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.2 智能客服系统
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.3-automation-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.3 自动化工作流
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../part3-project/3.4-knowledge-base-qa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3.4 企业知识库问答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    附录
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    附录
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    A Python快速参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.0 速查表
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1 变量与类型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.1 变量与类型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.1 基本变量声明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a12-type-hints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.2 类型注解（Type Hints）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.3 常用类型对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2 数据结构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.2 数据结构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a21-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.1 列表（List）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a22-dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.2 字典（Dict）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a23-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.3 集合（Set）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3 函数定义
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.3 函数定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.1 基本函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.2 默认参数与可变参数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a33-lambda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.3 Lambda 表达式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4 类与对象
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.4 类与对象">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.1 类定义与构造函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.2 继承与多态
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a43-dataclassqwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.3 dataclass（QwenPaw 常用）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5 异步编程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.5 异步编程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a51-asyncawait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5.1 async/await 基本用法
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5.2 对比总结
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a6-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.6 Protocol 接口定义
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.6 Protocol 接口定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a61-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.6.1 结构化子类型（Protocol）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7 装饰器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.7 装饰器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7.1 方法装饰器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a72-property" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7.2 @property 装饰器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8 异常处理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.8 异常处理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8.1 基本语法
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8.2 自定义异常
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a9-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9 QwenPaw 常用模式
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.9 QwenPaw 常用模式">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a91-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9.1 异步工具执行（QwenPaw 技能系统核心）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a92" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9.2 消息传递模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10 快速开发参考
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.10 快速开发参考">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a101" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.1 环境准备
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a102" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.2 常用标准库导入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a103" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.3 调试技巧
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        附录对照索引
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../B-config-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    B 配置项索引
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../C-cli-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C 命令行参考
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../D-source-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    D 源码目录结构
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../E-faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    E 常见问题解答
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#a0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.0 速查表
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1 变量与类型
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.1 变量与类型">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.1 基本变量声明
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a12-type-hints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.2 类型注解（Type Hints）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a13" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.1.3 常用类型对比
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2 数据结构
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.2 数据结构">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a21-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.1 列表（List）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a22-dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.2 字典（Dict）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a23-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.2.3 集合（Set）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3 函数定义
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.3 函数定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a31" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.1 基本函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.2 默认参数与可变参数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a33-lambda" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.3.3 Lambda 表达式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4 类与对象
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.4 类与对象">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.1 类定义与构造函数
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a42" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.2 继承与多态
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a43-dataclassqwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.4.3 dataclass（QwenPaw 常用）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5 异步编程
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.5 异步编程">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a51-asyncawait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5.1 async/await 基本用法
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a52" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.5.2 对比总结
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a6-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.6 Protocol 接口定义
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.6 Protocol 接口定义">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a61-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.6.1 结构化子类型（Protocol）
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7 装饰器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.7 装饰器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a71" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7.1 方法装饰器
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a72-property" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.7.2 @property 装饰器
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a8" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8 异常处理
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.8 异常处理">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a81" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8.1 基本语法
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a82" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.8.2 自定义异常
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a9-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9 QwenPaw 常用模式
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.9 QwenPaw 常用模式">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a91-qwenpaw" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9.1 异步工具执行（QwenPaw 技能系统核心）
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a92" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.9.2 消息传递模式
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10 快速开发参考
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A.10 快速开发参考">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a101" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.1 环境准备
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a102" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.2 常用标准库导入
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a103" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A.10.3 调试技巧
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        附录对照索引
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="a-java-python">附录 A Java 开发者的 Python 快速参考<a class="headerlink" href="#a-java-python" title="Permanent link">&para;</a></h1>
+<h2 id="a0">A.0 速查表<a class="headerlink" href="#a0" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>概念</th>
+<th>Java</th>
+<th>Python</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>变量声明</td>
+<td><code>String name = "Alice"</code></td>
+<td><code>name = "Alice"</code> 或 <code>name: str = "Alice"</code></td>
+</tr>
+<tr>
+<td>空值</td>
+<td><code>null</code></td>
+<td><code>None</code></td>
+</tr>
+<tr>
+<td>方法定义</td>
+<td><code>public ReturnType method()</code></td>
+<td><code>def method() -&gt; ReturnType:</code></td>
+</tr>
+<tr>
+<td>类定义</td>
+<td><code>public class Foo {}</code></td>
+<td><code>class Foo:</code></td>
+</tr>
+<tr>
+<td>构造函数</td>
+<td><code>public Foo() {}</code></td>
+<td><code>def __init__(self):</code></td>
+</tr>
+<tr>
+<td>异步方法</td>
+<td><code>CompletableFuture&lt;T&gt;</code></td>
+<td><code>async def</code> + <code>await</code></td>
+</tr>
+<tr>
+<td>接口</td>
+<td><code>interface Foo</code></td>
+<td><code>class Foo(Protocol):</code> 或 <code>ABC</code></td>
+</tr>
+<tr>
+<td>异常捕获</td>
+<td><code>try {} catch {}</code></td>
+<td><code>try: except:</code></td>
+</tr>
+<tr>
+<td>类型注解</td>
+<td><code>String</code> / <code>List&lt;T&gt;</code></td>
+<td><code>str</code> / <code>list[T]</code></td>
+</tr>
+<tr>
+<td>布尔值</td>
+<td><code>true</code> / <code>false</code></td>
+<td><code>True</code> / <code>False</code></td>
+</tr>
+<tr>
+<td>集合字面量</td>
+<td><code>List.of(1,2)</code> / <code>Map.of("a",1)</code></td>
+<td><code>[1, 2]</code> / <code>{"a": 1}</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>提示</strong>：Python 用缩进代替花括号 <code>{}</code> 定义代码块，每次使用 <code>:</code> 结尾的行后需要缩进。</p>
+</blockquote>
+<hr />
+<h2 id="a1">A.1 变量与类型<a class="headerlink" href="#a1" title="Permanent link">&para;</a></h2>
+<h3 id="a11">A.1.1 基本变量声明<a class="headerlink" href="#a11" title="Permanent link">&para;</a></h3>
+<p>Python 变量无需声明类型，类型由赋值决定：</p>
+<pre><code class="language-python"># Python - 动态类型
+name = &quot;Alice&quot;           # str
+age = 25                 # int
+height = 1.75            # float
+is_student = True        # bool
+data = None              # None (相当于 Java 的 null)
+</code></pre>
+<pre><code class="language-java">// Java - 静态类型
+String name = &quot;Alice&quot;;
+int age = 25;
+double height = 1.75;
+boolean isStudent = true;
+Object data = null;
+</code></pre>
+<h3 id="a12-type-hints">A.1.2 类型注解（Type Hints）<a class="headerlink" href="#a12-type-hints" title="Permanent link">&para;</a></h3>
+<p>Python 3.5+ 支持类型注解，虽不强制但便于 IDE 和类型检查：</p>
+<pre><code class="language-python"># Python - 类型注解（可选）
+name: str = &quot;Alice&quot;
+age: int = 25
+scores: list[int] = [90, 85, 88]
+person: dict[str, str] = {&quot;name&quot;: &quot;Alice&quot;, &quot;city&quot;: &quot;Beijing&quot;}
+</code></pre>
+<pre><code class="language-java">// Java - 类型必须声明
+String name = &quot;Alice&quot;;
+int age = 25;
+List&lt;Integer&gt; scores = List.of(90, 85, 88);
+Map&lt;String, String&gt; person = Map.of(&quot;name&quot;, &quot;Alice&quot;, &quot;city&quot;, &quot;Beijing&quot;);
+</code></pre>
+<blockquote>
+<p><strong>重要</strong>：类型注解仅用于静态检查，运行时不生效。<code>name: str = 123</code> 完全合法（只是违反类型约定）。</p>
+</blockquote>
+<h3 id="a13">A.1.3 常用类型对比<a class="headerlink" href="#a13" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Python 类型</th>
+<th>Java 类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>int</code></td>
+<td><code>int</code> / <code>Integer</code></td>
+<td>整数</td>
+</tr>
+<tr>
+<td><code>float</code></td>
+<td><code>double</code></td>
+<td>浮点数</td>
+</tr>
+<tr>
+<td><code>str</code></td>
+<td><code>String</code></td>
+<td>字符串</td>
+</tr>
+<tr>
+<td><code>bool</code></td>
+<td><code>boolean</code></td>
+<td>布尔值</td>
+</tr>
+<tr>
+<td><code>list[T]</code></td>
+<td><code>List&lt;T&gt;</code></td>
+<td>列表</td>
+</tr>
+<tr>
+<td><code>dict[K, V]</code></td>
+<td><code>Map&lt;K, V&gt;</code></td>
+<td>字典</td>
+</tr>
+<tr>
+<td><code>set[T]</code></td>
+<td><code>Set&lt;T&gt;</code></td>
+<td>集合</td>
+</tr>
+<tr>
+<td><code>tuple[T, ...]</code></td>
+<td><code>Record</code> 或 <code>Pair</code></td>
+<td>元组</td>
+</tr>
+<tr>
+<td><code>None</code></td>
+<td><code>null</code></td>
+<td>空值</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="a2">A.2 数据结构<a class="headerlink" href="#a2" title="Permanent link">&para;</a></h2>
+<h3 id="a21-list">A.2.1 列表（List）<a class="headerlink" href="#a21-list" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 列表
+fruits = [&quot;apple&quot;, &quot;banana&quot;, &quot;orange&quot;]
+fruits.append(&quot;grape&quot;)           # 添加元素
+first = fruits[0]               # 访问元素: &quot;apple&quot;
+slice = fruits[1:3]             # 切片: [&quot;banana&quot;, &quot;orange&quot;]
+length = len(fruits)            # 长度: 4
+</code></pre>
+<pre><code class="language-java">// Java 列表
+List&lt;String&gt; fruits = new ArrayList&lt;&gt;(List.of(&quot;apple&quot;, &quot;banana&quot;, &quot;orange&quot;));
+fruits.add(&quot;grape&quot;);            // 添加元素
+String first = fruits.get(0);    // 访问元素: &quot;apple&quot;
+List&lt;String&gt; slice = fruits.subList(1, 3);  // 切片
+int length = fruits.size();     // 长度: 4
+</code></pre>
+<h3 id="a22-dict">A.2.2 字典（Dict）<a class="headerlink" href="#a22-dict" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 字典
+person = {&quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 25}
+person[&quot;city&quot;] = &quot;Beijing&quot;       # 添加/修改
+name = person[&quot;name&quot;]            # 访问: &quot;Alice&quot;
+keys = person.keys()            # 所有键
+values = person.values()        # 所有值
+</code></pre>
+<pre><code class="language-java">// Java 字典
+Map&lt;String, Object&gt; person = new HashMap&lt;&gt;();
+person.put(&quot;name&quot;, &quot;Alice&quot;);
+person.put(&quot;age&quot;, 25);
+person.put(&quot;city&quot;, &quot;Beijing&quot;);   // 添加/修改
+String name = (String) person.get(&quot;name&quot;);  // 访问: &quot;Alice&quot;
+Set&lt;String&gt; keys = person.keySet();   // 所有键
+Collection&lt;Object&gt; values = person.values();  // 所有值
+</code></pre>
+<h3 id="a23-set">A.2.3 集合（Set）<a class="headerlink" href="#a23-set" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 集合
+colors = {&quot;red&quot;, &quot;green&quot;, &quot;blue&quot;}
+colors.add(&quot;yellow&quot;)            # 添加
+is_present = &quot;red&quot; in colors    # 检查成员: True
+</code></pre>
+<pre><code class="language-java">// Java 集合
+Set&lt;String&gt; colors = new HashSet&lt;&gt;(Set.of(&quot;red&quot;, &quot;green&quot;, &quot;blue&quot;));
+colors.add(&quot;yellow&quot;);           // 添加
+boolean isPresent = colors.contains(&quot;red&quot;);  // 检查成员: true
+</code></pre>
+<hr />
+<h2 id="a3">A.3 函数定义<a class="headerlink" href="#a3" title="Permanent link">&para;</a></h2>
+<h3 id="a31">A.3.1 基本函数<a class="headerlink" href="#a31" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 函数 - def 关键字，: 结尾，缩进定义代码块
+def greet(name: str) -&gt; str:
+    return f&quot;Hello, {name}!&quot;
+
+result = greet(&quot;Alice&quot;)  # &quot;Hello, Alice!&quot;
+</code></pre>
+<pre><code class="language-java">// Java 方法 - public 返回类型 方法名(参数)
+public String greet(String name) {
+    return &quot;Hello, &quot; + name + &quot;!&quot;;
+}
+
+// 调用
+String result = greet(&quot;Alice&quot;);  // &quot;Hello, Alice!&quot;
+</code></pre>
+<h3 id="a32">A.3.2 默认参数与可变参数<a class="headerlink" href="#a32" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python - 默认参数和 *args, **kwargs
+def func(a, b=10, *args, **kwargs):
+    print(f&quot;a={a}, b={b}&quot;)           # a=1, b=2
+    print(f&quot;args={args}&quot;)             # args=(3, 4)
+    print(f&quot;kwargs={kwargs}&quot;)         # kwargs={'key': 'value'}
+
+func(1, 2, 3, 4, key=&quot;value&quot;)
+</code></pre>
+<pre><code class="language-java">// Java - 可变参数 (varargs)
+public void func(int a, int b, int... args) {
+    System.out.println(&quot;a=&quot; + a + &quot;, b=&quot; + b);  // a=1, b=2
+    System.out.println(&quot;args=&quot; + Arrays.toString(args));  // args=[3, 4]
+}
+
+// 只能通过 Map 模拟 kwargs
+Map&lt;String, Object&gt; kwargs = new HashMap&lt;&gt;();
+kwargs.put(&quot;key&quot;, &quot;value&quot;);
+</code></pre>
+<h3 id="a33-lambda">A.3.3 Lambda 表达式<a class="headerlink" href="#a33-lambda" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python Lambda - 表达式匿名函数
+square = lambda x: x ** 2
+numbers = [1, 2, 3, 4]
+squared = list(map(lambda x: x ** 2, numbers))  # [1, 4, 9, 16]
+</code></pre>
+<pre><code class="language-java">// Java Lambda - -&gt; 语法
+Function&lt;Integer, Integer&gt; square = x -&gt; x * x;
+List&lt;Integer&gt; numbers = List.of(1, 2, 3, 4);
+List&lt;Integer&gt; squared = numbers.stream()
+    .map(x -&gt; x * x)
+    .collect(Collectors.toList());  // [1, 4, 9, 16]
+</code></pre>
+<hr />
+<h2 id="a4">A.4 类与对象<a class="headerlink" href="#a4" title="Permanent link">&para;</a></h2>
+<h3 id="a41">A.4.1 类定义与构造函数<a class="headerlink" href="#a41" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 类 - __init__ 是构造函数
+class Person:
+    def __init__(self, name: str, age: int):
+        self.name = name          # self 相当于 Java 的 this
+        self.age = age
+        self._score = 0           # _ 前缀表示受保护（约定）
+
+    def greet(self) -&gt; str:
+        return f&quot;Hi, I'm {self.name}&quot;
+
+    def __str__(self) -&gt; str:     # toString()
+        return f&quot;Person({self.name}, {self.age})&quot;
+
+# 使用
+person = Person(&quot;Alice&quot;, 25)
+print(person.greet())  # &quot;Hi, I'm Alice&quot;
+</code></pre>
+<pre><code class="language-java">// Java 类 - 构造函数与类名相同
+public class Person {
+    private String name;
+    private int age;
+    private int score;
+
+    public Person(String name, int age) {
+        this.name = name;
+        this.age = age;
+        this.score = 0;
+    }
+
+    public String greet() {
+        return &quot;Hi, I'm &quot; + name;
+    }
+
+    @Override
+    public String toString() {
+        return &quot;Person(&quot; + name + &quot;, &quot; + age + &quot;)&quot;;
+    }
+}
+
+// 使用
+Person person = new Person(&quot;Alice&quot;, 25);
+System.out.println(person.greet());  // &quot;Hi, I'm Alice&quot;
+</code></pre>
+<h3 id="a42">A.4.2 继承与多态<a class="headerlink" href="#a42" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 继承 - 直接在类名后加 (父类,)
+class Student(Person):
+    def __init__(self, name: str, age: int, grade: str):
+        super().__init__(name, age)  # 调用父类构造函数
+        self.grade = grade
+
+    def greet(self) -&gt; str:          # 重写方法
+        return f&quot;{super().greet()}, I'm in grade {self.grade}&quot;
+
+# 多态
+def introduce(p: Person):
+    print(p.greet())
+
+student = Student(&quot;Bob&quot;, 15, &quot;10th&quot;)
+introduce(student)  # &quot;Hi, I'm Bob, I'm in grade 10th&quot;
+</code></pre>
+<pre><code class="language-java">// Java 继承 - extends 关键字
+public class Student extends Person {
+    private String grade;
+
+    public Student(String name, int age, String grade) {
+        super(name, age);  // 调用父类构造函数
+        this.grade = grade;
+    }
+
+    @Override
+    public String greet() {  // 重写方法
+        return super.greet() + &quot;, I'm in grade &quot; + grade;
+    }
+}
+
+// 多态
+public void introduce(Person p) {
+    System.out.println(p.greet());
+}
+
+Student student = new Student(&quot;Bob&quot;, 15, &quot;10th&quot;);
+introduce(student);  // &quot;Hi, I'm Bob, I'm in grade 10th&quot;
+</code></pre>
+<h3 id="a43-dataclassqwenpaw">A.4.3 dataclass（QwenPaw 常用）<a class="headerlink" href="#a43-dataclassqwenpaw" title="Permanent link">&para;</a></h3>
+<p>dataclass 自动生成 <code>__init__</code>、<code>__repr__</code>、<code>__eq__</code> 等方法，大幅简化数据类：</p>
+<pre><code class="language-python"># Python dataclass - 自动生成常用方法
+from dataclasses import dataclass
+
+@dataclass
+class Message:
+    role: str
+    content: str
+    metadata: dict = None  # 默认值
+
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
+
+# 自动生成：__init__, __repr__, __eq__, __hash__
+msg = Message(role=&quot;user&quot;, content=&quot;Hello&quot;)
+print(msg)  # Message(role='user', content='Hello', metadata={})
+</code></pre>
+<pre><code class="language-java">// Java 传统方式 - 需要手动编写
+public class Message {
+    private String role;
+    private String content;
+    private Map&lt;String, Object&gt; metadata;
+
+    public Message(String role, String content) {
+        this(role, content, new HashMap&lt;&gt;());
+    }
+
+    public Message(String role, String content, Map&lt;String, Object&gt; metadata) {
+        this.role = role;
+        this.content = content;
+        this.metadata = metadata;
+    }
+
+    // getters, setters, toString, equals, hashCode...
+}
+</code></pre>
+<blockquote>
+<p><strong>QwenPaw 提示</strong>：QwenPaw 智能体开发中大量使用 dataclass 作为消息、状态、工具参数的数据载体。</p>
+</blockquote>
+<hr />
+<h2 id="a5">A.5 异步编程<a class="headerlink" href="#a5" title="Permanent link">&para;</a></h2>
+<h3 id="a51-asyncawait">A.5.1 async/await 基本用法<a class="headerlink" href="#a51-asyncawait" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 异步 - async def 定义协程，await 等待结果
+import asyncio
+
+async def fetch_data(url: str) -&gt; dict:
+    # 模拟异步 IO 操作
+    await asyncio.sleep(1)  # 相当于 Java 的 CompletableFuture.delayed
+    return {&quot;url&quot;: url, &quot;data&quot;: &quot;result&quot;}
+
+async def main():
+    # 并发执行多个协程
+    results = await asyncio.gather(
+        fetch_data(&quot;https://api.example.com/1&quot;),
+        fetch_data(&quot;https://api.example.com/2&quot;),
+    )
+    print(results)
+
+# 运行
+asyncio.run(main())
+</code></pre>
+<pre><code class="language-java">// Java 异步 - CompletableFuture
+import java.net.http.HttpClient;
+import java.time.Duration;
+
+public CompletableFuture&lt;JsonNode&gt; fetchData(String url) {
+    return HttpClient.newHttpClient()
+        .sendAsync(HttpRequest.newBuilder(URI.create(url)).build(),
+            HttpResponse.BodyHandlers.ofString())
+        .thenApply(response -&gt; parseJson(response.body()))
+        .exceptionally(ex -&gt; {
+            System.err.println(&quot;Error: &quot; + ex.getMessage());
+            return JsonNode.nullNode();
+        });
+}
+
+public void main() {
+    CompletableFuture.allOf(
+        fetchData(&quot;https://api.example.com/1&quot;),
+        fetchData(&quot;https://api.example.com/2&quot;)
+    ).thenAccept(v -&gt; System.out.println(&quot;All done&quot;));
+}
+</code></pre>
+<h3 id="a52">A.5.2 对比总结<a class="headerlink" href="#a52" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>特性</th>
+<th>Python</th>
+<th>Java</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>异步定义</td>
+<td><code>async def</code></td>
+<td><code>CompletableFuture&lt;T&gt;</code></td>
+</tr>
+<tr>
+<td>等待异步结果</td>
+<td><code>await</code></td>
+<td><code>.thenApply()</code> / <code>.join()</code></td>
+</tr>
+<tr>
+<td>并发执行</td>
+<td><code>asyncio.gather()</code></td>
+<td><code>CompletableFuture.allOf()</code></td>
+</tr>
+<tr>
+<td>延迟</td>
+<td><code>asyncio.sleep()</code></td>
+<td><code>CompletableFuture.delayed()</code></td>
+</tr>
+<tr>
+<td>异常处理</td>
+<td><code>try/except</code></td>
+<td><code>.exceptionally()</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>提示</strong>：Python 的 async/await 是协程模型，代码以同步风格编写但异步执行；Java 的 CompletableFuture 是回调模型。</p>
+</blockquote>
+<hr />
+<h2 id="a6-protocol">A.6 Protocol 接口定义<a class="headerlink" href="#a6-protocol" title="Permanent link">&para;</a></h2>
+<h3 id="a61-protocol">A.6.1 结构化子类型（Protocol）<a class="headerlink" href="#a61-protocol" title="Permanent link">&para;</a></h3>
+<p>Python 的 <code>Protocol</code> 类似 Java 的接口，用于定义结构化子类型：</p>
+<pre><code class="language-python"># Python Protocol - 定义接口
+from typing import Protocol
+
+class Drawable(Protocol):
+    def draw(self) -&gt; None: ...
+
+    def get_area(self) -&gt; float: ...
+
+class Circle:
+    def __init__(self, radius: float):
+        self.radius = radius
+
+    def draw(self) -&gt; None:
+        print(f&quot;Drawing circle with radius {self.radius}&quot;)
+
+    def get_area(self) -&gt; float:
+        return 3.14 * self.radius ** 2
+
+def render(d: Drawable) -&gt; None:  # 只要求实现了 draw 和 get_area
+    d.draw()
+    print(f&quot;Area: {d.get_area()}&quot;)
+
+circle = Circle(5)
+render(circle)  # 正常工作，Circle 隐式实现了 Drawable
+</code></pre>
+<pre><code class="language-java">// Java 接口
+public interface Drawable {
+    void draw();
+    double getArea();
+}
+
+public class Circle implements Drawable {
+    private double radius;
+
+    public Circle(double radius) {
+        this.radius = radius;
+    }
+
+    @Override
+    public void draw() {
+        System.out.println(&quot;Drawing circle with radius &quot; + radius);
+    }
+
+    @Override
+    public double getArea() {
+        return 3.14 * radius * radius;
+    }
+}
+
+public void render(Drawable d) {  // Circle 实现了 Drawable
+    d.draw();
+    System.out.println(&quot;Area: &quot; + d.getArea());
+}
+</code></pre>
+<blockquote>
+<p><strong>QwenPaw 提示</strong>：QwenPaw 的技能系统（Skill System）使用 Protocol 定义工具接口，<code>Tool</code> Protocol 规定了 <code>execute()</code> 等方法的签名。</p>
+</blockquote>
+<hr />
+<h2 id="a7">A.7 装饰器<a class="headerlink" href="#a7" title="Permanent link">&para;</a></h2>
+<h3 id="a71">A.7.1 方法装饰器<a class="headerlink" href="#a71" title="Permanent link">&para;</a></h3>
+<p>Python 装饰器是修改函数/方法行为的函数，类似 Java 的注解但更强大：</p>
+<pre><code class="language-python"># Python 装饰器
+def log_calls(func):
+    def wrapper(*args, **kwargs):
+        print(f&quot;Calling {func.__name__}&quot;)
+        result = func(*args, **kwargs)
+        print(f&quot;{func.__name__} returned {result}&quot;)
+        return result
+    return wrapper
+
+@log_calls
+def add(a: int, b: int) -&gt; int:
+    return a + b
+
+add(1, 2)
+# 输出:
+# Calling add
+# add returned 3
+</code></pre>
+<pre><code class="language-java">// Java 注解 + AOP（Spring 等框架）
+@Aspect
+@Component
+public class LoggingAspect {
+    @Around(&quot;execution(* com.example.add(..))&quot;)
+    public Object logCalls(ProceedingJoinPoint pjp) throws Throwable {
+        System.out.println(&quot;Calling &quot; + pjp.getSignature().getName());
+        Object result = pjp.proceed();
+        System.out.println(pjp.getSignature().getName() + &quot; returned &quot; + result);
+        return result;
+    }
+}
+</code></pre>
+<h3 id="a72-property">A.7.2 @property 装饰器<a class="headerlink" href="#a72-property" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python @property - 将方法转为属性
+class Person:
+    def __init__(self, name: str):
+        self._name = name
+
+    @property
+    def name(self) -&gt; str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        if not value:
+            raise ValueError(&quot;Name cannot be empty&quot;)
+        self._name = value
+
+person = Person(&quot;Alice&quot;)
+print(person.name)   # &quot;Alice&quot; - 像访问属性一样
+person.name = &quot;Bob&quot;  # 调用 setter
+</code></pre>
+<pre><code class="language-java">// Java getter/setter
+public class Person {
+    private String name;
+
+    public Person(String name) {
+        this.name = name;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String value) {
+        if (value == null || value.isEmpty()) {
+            throw new IllegalArgumentException(&quot;Name cannot be empty&quot;);
+        }
+        this.name = value;
+    }
+}
+
+Person person = new Person(&quot;Alice&quot;);
+System.out.println(person.getName());  // 需要调用方法
+person.setName(&quot;Bob&quot;);
+</code></pre>
+<hr />
+<h2 id="a8">A.8 异常处理<a class="headerlink" href="#a8" title="Permanent link">&para;</a></h2>
+<h3 id="a81">A.8.1 基本语法<a class="headerlink" href="#a81" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python - try/except 结构
+try:
+    result = 10 / 0
+except ZeroDivisionError as e:
+    print(f&quot;Cannot divide by zero: {e}&quot;)
+except Exception as e:
+    print(f&quot;Unexpected error: {e}&quot;)
+else:
+    print(&quot;Success!&quot;)       # 无异常时执行
+finally:
+    print(&quot;Cleanup&quot;)       # 始终执行
+</code></pre>
+<pre><code class="language-java">// Java - try/catch 结构
+try {
+    int result = 10 / 0;
+} catch (ArithmeticException e) {
+    System.out.println(&quot;Cannot divide by zero: &quot; + e.getMessage());
+} catch (Exception e) {
+    System.out.println(&quot;Unexpected error: &quot; + e.getMessage());
+} finally {
+    System.out.println(&quot;Cleanup&quot;);  // 始终执行
+}
+</code></pre>
+<h3 id="a82">A.8.2 自定义异常<a class="headerlink" href="#a82" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># Python 自定义异常
+class ValidationError(Exception):
+    def __init__(self, field: str, message: str):
+        self.field = field
+        self.message = message
+        super().__init__(f&quot;{field}: {message}&quot;)
+
+raise ValidationError(&quot;email&quot;, &quot;Invalid format&quot;)
+</code></pre>
+<pre><code class="language-java">// Java 自定义异常
+public class ValidationError extends Exception {
+    private String field;
+    private String message;
+
+    public ValidationError(String field, String message) {
+        super(field + &quot;: &quot; + message);
+        this.field = field;
+        this.message = message;
+    }
+}
+
+throw new ValidationError(&quot;email&quot;, &quot;Invalid format&quot;);
+</code></pre>
+<hr />
+<h2 id="a9-qwenpaw">A.9 QwenPaw 常用模式<a class="headerlink" href="#a9-qwenpaw" title="Permanent link">&para;</a></h2>
+<h3 id="a91-qwenpaw">A.9.1 异步工具执行（QwenPaw 技能系统核心）<a class="headerlink" href="#a91-qwenpaw" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># QwenPaw 异步工具模式
+import asyncio
+from dataclasses import dataclass
+from typing import Protocol
+
+class Tool(Protocol):
+    async def execute(self, **kwargs) -&gt; dict: ...
+
+@dataclass
+class Calculator:
+    async def execute(self, expression: str) -&gt; dict:
+        try:
+            result = eval(expression)  # 简化示例，实际应使用安全求值
+            return {&quot;success&quot;: True, &quot;result&quot;: result}
+        except Exception as e:
+            return {&quot;success&quot;: False, &quot;error&quot;: str(e)}
+
+async def run_tool(tool: Tool, params: dict) -&gt; dict:
+    return await tool.execute(**params)
+
+async def main():
+    calc = Calculator()
+    result = await run_tool(calc, {&quot;expression&quot;: &quot;2 + 3&quot;})
+    print(result)  # {'success': True, 'result': 5}
+
+asyncio.run(main())
+</code></pre>
+<h3 id="a92">A.9.2 消息传递模式<a class="headerlink" href="#a92" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># QwenPaw 消息模式
+from dataclasses import dataclass, field
+from typing import Optional
+
+@dataclass
+class Message:
+    role: str                          # &quot;user&quot;, &quot;assistant&quot;, &quot;system&quot;
+    content: str
+    metadata: dict = field(default_factory=dict)
+
+class Conversation:
+    def __init__(self):
+        self.messages: list[Message] = []
+
+    def add(self, role: str, content: str, **kwargs):
+        msg = Message(role=role, content=content, metadata=kwargs)
+        self.messages.append(msg)
+        return msg
+
+    def get_history(self) -&gt; list[Message]:
+        return self.messages.copy()
+
+conv = Conversation()
+conv.add(&quot;user&quot;, &quot;Hello!&quot;)
+conv.add(&quot;assistant&quot;, &quot;Hi, how can I help?&quot;)
+for msg in conv.get_history():
+    print(f&quot;{msg.role}: {msg.content}&quot;)
+</code></pre>
+<hr />
+<h2 id="a10">A.10 快速开发参考<a class="headerlink" href="#a10" title="Permanent link">&para;</a></h2>
+<h3 id="a101">A.10.1 环境准备<a class="headerlink" href="#a101" title="Permanent link">&para;</a></h3>
+<pre><code class="language-bash"># 创建虚拟环境（类似 Java 的 Maven/Gradle wrapper）
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 安装依赖（类似 pom.xml 或 build.gradle）
+pip install qwenpaw openai python-dotenv
+
+# 运行（类似 java -jar）
+python main.py
+</code></pre>
+<h3 id="a102">A.10.2 常用标准库导入<a class="headerlink" href="#a102" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># 文件操作
+from pathlib import Path
+Path(&quot;output.txt&quot;).write_text(&quot;content&quot;)
+
+# JSON 处理
+import json
+data = json.loads('{&quot;key&quot;: &quot;value&quot;}')
+
+# 日期时间
+from datetime import datetime
+now = datetime.now()
+
+# 类型提示
+from typing import Optional, Union, Callable, TypeVar
+T = TypeVar('T')
+</code></pre>
+<h3 id="a103">A.10.3 调试技巧<a class="headerlink" href="#a103" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python"># 打印调试（类似 Java 的 System.out.println）
+print(f&quot;Debug: {variable}&quot;)
+
+# 断言（类似 Java 的 assert）
+assert result == expected, f&quot;Expected {expected}, got {result}&quot;
+
+# 详细错误信息
+import traceback
+try:
+    risky_operation()
+except Exception:
+    traceback.print_exc()
+</code></pre>
+<hr />
+<h2 id="_1">附录对照索引<a class="headerlink" href="#_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Python 特性</th>
+<th>Java 对应</th>
+<th>参考章节</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>def func():</code></td>
+<td><code>ReturnType method()</code></td>
+<td>A.3</td>
+</tr>
+<tr>
+<td><code>self</code></td>
+<td><code>this</code></td>
+<td>A.4</td>
+</tr>
+<tr>
+<td><code>__init__</code></td>
+<td>构造函数</td>
+<td>A.4.1</td>
+</tr>
+<tr>
+<td><code>async/await</code></td>
+<td><code>CompletableFuture</code></td>
+<td>A.5</td>
+</tr>
+<tr>
+<td><code>Protocol</code></td>
+<td><code>interface</code></td>
+<td>A.6</td>
+</tr>
+<tr>
+<td><code>@property</code></td>
+<td><code>getter/setter</code></td>
+<td>A.7.2</td>
+</tr>
+<tr>
+<td><code>dataclass</code></td>
+<td>POJO / Record</td>
+<td>A.4.3</td>
+</tr>
+<tr>
+<td><code>try/except</code></td>
+<td><code>try/catch</code></td>
+<td>A.8</td>
+</tr>
+<tr>
+<td><code>*args, **kwargs</code></td>
+<td><code>varargs</code>, <code>Map</code></td>
+<td>A.3.2</td>
+</tr>
+<tr>
+<td><code>None</code></td>
+<td><code>null</code></td>
+<td>A.1.1</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<blockquote>
+<p><strong>持续学习</strong>：本快速参考覆盖 Java 开发者入门 Python 所需的核心概念。QwenPaw 智能体开发中的高级特性（如异步流处理、上下文管理、元编程）请参考正文各章节。</p>
+</blockquote>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "search.suggest", "search.highlight", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
