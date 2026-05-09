@@ -2538,7 +2538,7 @@
 <hr />
 <h2 id="2-messagerouter">2. MessageRouter<a class="headerlink" href="#2-messagerouter" title="Permanent link">&para;</a></h2>
 <h3 id="21">2.1 核心类<a class="headerlink" href="#21" title="Permanent link">&para;</a></h3>
-<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routing/router.py</code></p>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routers/router.py</code></p>
 <pre><code class="language-python">class MessageRouter:
     &quot;&quot;&quot;消息路由器&quot;&quot;&quot;
 
@@ -2553,7 +2553,7 @@
         &quot;&quot;&quot;路由消息&quot;&quot;&quot;
 </code></pre>
 <h3 id="22">2.2 路由规则<a class="headerlink" href="#22" title="Permanent link">&para;</a></h3>
-<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routing/rule.py</code></p>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routers/rule.py</code></p>
 <pre><code class="language-python">@dataclass
 class RoutingRule:
     &quot;&quot;&quot;路由规则&quot;&quot;&quot;
@@ -2575,7 +2575,7 @@ BaseChannel.send() 实现
 <hr />
 <h2 id="3">3. 优先级队列<a class="headerlink" href="#3" title="Permanent link">&para;</a></h2>
 <h3 id="31">3.1 优先级机制<a class="headerlink" href="#31" title="Permanent link">&para;</a></h3>
-<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routing/priority_queue.py</code></p>
+<p><strong>源码路径</strong>: <code>src/qwenpaw/app/routers/priority_queue.py</code></p>
 <pre><code class="language-python">class PriorityQueue:
     &quot;&quot;&quot;优先级队列&quot;&quot;&quot;
 
@@ -2920,7 +2920,7 @@ except Exception as e:
 <hr />
 <h2 id="_3">延伸阅读<a class="headerlink" href="#_3" title="Permanent link">&para;</a></h2>
 <ul>
-<li>源码：<code>src/qwenpaw/app/routing/</code></li>
+<li>源码：<code>src/qwenpaw/app/routers/</code></li>
 <li>消息渠道系统：了解 BaseChannel 抽象接口和渠道管理器的整体架构</li>
 <li>消息系统详解：深入理解消息格式化、工具消息清理和提供商规范化</li>
 </ul>
