@@ -372,7 +372,7 @@ async def get_stats_parallel(workspace_dir: Path) -> AgentStatsSummary:
 | 统计服务 | `src/qwenpaw/agent_stats/service.py` |
 | Token 使用 | `src/qwenpaw/token_usage/manager.py` |
 | Token 记录 | `src/qwenpaw/token_usage/model_wrapper.py` |
-| 会话仓储 | `src/qwenpaw/app/runner/repo.py` |
+| 会话仓储 | `src/qwenpaw/app/runner/repo/json_repo.py` |
 | 会话管理 | `src/qwenpaw/app/runner/session.py` |
 
 ---
