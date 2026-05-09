@@ -294,7 +294,7 @@ set_current_session_id(session_id)
 
 **目的**: 收集 Agent 运行所需的所有上下文信息
 
-#### 4.1 环境上下文构建
+### 4.1 环境上下文构建
 
 ```python
 # runner.py:461-467
@@ -312,7 +312,7 @@ env_context = build_env_context(
 
 环境上下文字符串包含：session/user/channel/OS/date/timezone 等信息，用于 system prompt。
 
-#### 4.2 MCP 客户端获取
+### 4.2 MCP 客户端获取
 
 ```python
 # runner.py:469-472
@@ -323,7 +323,7 @@ if self._mcp_manager is not None:
 
 从 MCPManager 获取当前可用的 MCP 客户端列表，支持热重载。
 
-#### 4.3 Agent 配置加载
+### 4.3 Agent 配置加载
 
 ```python
 # runner.py:475
@@ -332,7 +332,7 @@ agent_config = load_agent_config(self.agent_id)
 
 加载 Agent 特定配置，与 MCP 客户端一样支持热重载。
 
-#### 4.4 请求上下文构建
+### 4.4 请求上下文构建
 
 ```python
 # runner.py:477-492
@@ -1437,3 +1437,4 @@ AgentRunner 是 QwenPaw 请求处理的核心引擎，通过 12 个阶段的清�
 5. **可追踪性**: TaskTracker 支持断线重连
 
 理解 Runner 的架构对于调试问题、扩展功能和优化性能至关重要。
+

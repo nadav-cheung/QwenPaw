@@ -123,7 +123,7 @@ _tool_guard_engine
 
 源码路径：`src/qwenpaw/security/tool_guard/guardians/file_guardian.py:184-364`
 
-#### 关键常量
+### 关键常量
 
 ```python
 # file_guardian.py:19-28
@@ -138,7 +138,7 @@ _TOOL_FILE_PARAMS: dict[str, tuple[str, ...]] = {
 }
 ```
 
-#### 核心 guard 方法
+### 核心 guard 方法
 
 ```python
 # file_guardian.py:313-364
@@ -174,7 +174,7 @@ def guard(self, tool_name: str, params: dict[str, Any]) -> list[GuardFinding]:
     return findings
 ```
 
-#### 从Shell命令提取路径
+### 从Shell命令提取路径
 
 ```python
 # file_guardian.py:134-181
@@ -210,7 +210,7 @@ if tool_name in ("read_file", "write_file", "edit_file", ...):
 
 源码路径：`src/qwenpaw/security/tool_guard/guardians/rule_guardian.py:559-757`
 
-#### GuardRule 类
+### GuardRule 类
 
 ```python
 # rule_guardian.py:331-424
@@ -238,7 +238,7 @@ class GuardRule:
     def match(self, value: str) -> tuple[re.Match[str] | None, str | None]: ...
 ```
 
-#### 危险规则（来自 `dangerous_shell_commands.yaml`）：
+### 危险规则（来自 `dangerous_shell_commands.yaml`）：
 
 | 规则 ID | 危险命令 | 严重性 |
 |---------|----------|--------|
@@ -254,7 +254,7 @@ class GuardRule:
 
 源码路径：`src/qwenpaw/security/tool_guard/guardians/shell_evasion_guardian.py:499-545`
 
-#### Quote 状态追踪
+### Quote 状态追踪
 
 ```python
 # shell_evasion_guardian.py:61-91
@@ -902,7 +902,7 @@ def generate_compliance_report(
 ) -> dict:
     """生成安全合规报告"""
     denied = [l for l in logs if l.action == "denied"]
-    
+
     return {
         "period": {"start": start_date, "end": end_date},
         "summary": {
@@ -956,7 +956,7 @@ public class ToolService {
     public void executeDangerousTool(String toolName) {
         // 只有 ADMIN 角色可执行
     }
-    
+
     @PreAuthorize("hasRole('USER') and #toolName not in @deniedTools.getList()")
     public ToolResult executeTool(String toolName, Map<String, Object> params) {
         // SpEL 表达式自定义权限检查
@@ -1052,3 +1052,4 @@ if guard_result.findings:
 | [19-安全系统详解](./19-安全系统详解.md) | QwenPaw 整体安全架构概览 |
 | [41-审批系统详解](./41-审批系统详解.md) | 审批服务的完整生命周期管理 |
 | [53-文件操作与安全机制](./53-文件操作与安全机制.md) | 文件操作的权限控制与沙箱隔离 |
+

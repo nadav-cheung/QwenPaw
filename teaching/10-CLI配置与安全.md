@@ -59,7 +59,7 @@ src/qwenpaw/cli/
 
 ### 核心组件
 
-#### LazyGroup 命令加载 (`cli/main.py:58-85`)
+### LazyGroup 命令加载 (`cli/main.py:58-85`)
 
 ```python
 class LazyGroup(click.Group):
@@ -115,7 +115,7 @@ class LazyGroup(click.Group):
 
 ### 常用命令
 
-#### 应用管理
+### 应用管理
 
 | 命令 | 源码 | 说明 |
 |------|------|------|
@@ -139,7 +139,7 @@ qwenpaw daemon status
 qwenpaw daemon restart
 ```
 
-#### 智能体管理 (`cli/agents_cmd.py:1`)
+### 智能体管理 (`cli/agents_cmd.py:1`)
 
 | 命令 | 说明 |
 |------|------|
@@ -159,7 +159,7 @@ qwenpaw agents create --name my_agent
 qwenpaw agents chat --from-agent agent1 --to-agent agent2 --text "Hello"
 ```
 
-#### 渠道管理 (`cli/channels_cmd.py:1`)
+### 渠道管理 (`cli/channels_cmd.py:1`)
 
 | 命令 | 说明 |
 |------|------|
@@ -183,7 +183,7 @@ qwenpaw channels config
 qwenpaw channels install mychannel --from-path ./my-channel
 ```
 
-#### 技能管理
+### 技能管理
 
 ```bash
 # 列出所有技能
@@ -201,7 +201,7 @@ qwenpaw skills config
 qwenpaw agents create --name my_agent --skill pdf --skill browser_visible
 ```
 
-#### 提供商配置
+### 提供商配置
 
 ```bash
 # 列出配置的 LLM 提供商
@@ -211,7 +211,7 @@ qwenpaw models list
 qwenpaw models config
 ```
 
-#### 诊断工具
+### 诊断工具
 
 ```bash
 # 运行诊断检查
@@ -221,7 +221,7 @@ qwenpaw doctor
 qwenpaw doctor --fix
 ```
 
-#### 初始化
+### 初始化
 
 ```bash
 # 交互式初始化向导
@@ -474,7 +474,7 @@ self.add_command(cmd, "cron")  // 缓存
 
 配置系统基于 **Pydantic** 模型实现，提供类型安全和自动验证。
 
-#### 根配置模型
+### 根配置模型
 
 ```python
 # src/qwenpaw/config/config.py
@@ -510,7 +510,7 @@ class Config(BaseModel):
     context_compact: ContextCompactConfig
 ```
 
-#### 渠道配置
+### 渠道配置
 
 ```python
 class ChannelConfig(BaseModel):
@@ -533,10 +533,10 @@ class ChannelConfig(BaseModel):
     onebot: Optional[OneBotChannelConfig]
 ```
 
-#### 智能体配置
+### 智能体配置
 
 ```python
-#### AgentsConfig 智能体配置
+### AgentsConfig 智能体配置
 
 ```python
 class AgentsConfig(BaseModel):
@@ -549,7 +549,7 @@ class AgentsConfig(BaseModel):
     language: str = "zh"                       # 默认语言
 ```
 
-#### AgentProfileConfig 智能体配置 (config.py 第859-926行)
+### AgentProfileConfig 智能体配置 (config.py 第859-926行)
 
 ```python
 class AgentProfileConfig(BaseModel):
@@ -573,7 +573,7 @@ class AgentProfileConfig(BaseModel):
     acp: Optional[ACPConfig] = None            # ACP 配置
 ```
 
-#### AgentsRunningConfig 运行时配置 (config.py 第647-811行)
+### AgentsRunningConfig 运行时配置 (config.py 第647-811行)
 
 ```python
 class AgentsRunningConfig(BaseModel):
@@ -639,7 +639,7 @@ class ContextCompactConfig(BaseModel):
     compact_with_thinking_block: bool = True    # 压缩时包含思考块
 ```
 
-#### 安全配置
+### 安全配置
 
 ```python
 class SecurityConfig(BaseModel):
@@ -668,16 +668,16 @@ def load_config(config_path: Optional[Path] = None) -> Config:
     """加载配置文件。如果文件不存在，返回默认 Config。"""
     if config_path is None:
         config_path = get_config_path()  # WORKING_DIR / "config.json"
-    
+
     if not config_path.is_file():
         return Config()
-    
+
     data = _read_config_data(config_path)
     if data is None:
         return Config()
-    
+
     data = _normalize_working_dir_bound_paths(data)
-    
+
     # 验证配置
     try:
         return Config.model_validate(data)
@@ -697,7 +697,7 @@ def load_config(config_path: Optional[Path] = None) -> Config:
 ```python
 def _read_config_data(config_path: Path) -> Optional[dict]:
     """读取并解析配置文件。
-    
+
     使用 json_repair 处理常见语法问题（尾随逗号、引号缺失、注释、BOM 等）。"""
     try:
         with open(config_path, "r", encoding="utf-8") as file:
@@ -1220,7 +1220,7 @@ class ToolGuardResult:
 
 ### 3.4 三大守卫实现
 
-#### FilePathToolGuardian - 敏感文件守卫
+### FilePathToolGuardian - 敏感文件守卫
 
 **源码路径**: `src/qwenpaw/security/tool_guard/guardians/file_guardian.py`
 
@@ -1239,7 +1239,7 @@ class FilePathToolGuardian(BaseToolGuardian):
     # - ~/.copaw.secret/（兼容旧版）
 ```
 
-#### RuleBasedToolGuardian - 规则守卫
+### RuleBasedToolGuardian - 规则守卫
 
 **源码路径**: `src/qwenpaw/security/tool_guard/guardians/rule_guardian.py`
 
@@ -1267,7 +1267,7 @@ class GuardRule:
 - 检查删除目标是否在工作区外
 - 生成中英文详细警告
 
-#### ShellEvasionGuardian - 混淆检测守卫
+### ShellEvasionGuardian - 混淆检测守卫
 
 **源码路径**: `src/qwenpaw/security/tool_guard/guardians/shell_evasion_guardian.py`
 
@@ -1764,7 +1764,7 @@ security:
 
 ### 3.5 审批系统 (Approval)
 
-#### 3.5.1 概述
+### 3.5.1 概述
 
 **源码路径**: `src/qwenpaw/app/approvals/`
 
@@ -1779,7 +1779,7 @@ src/qwenpaw/app/approvals/
 └── service.py            # ApprovalService 核心服务
 ```
 
-#### 3.5.2 ApprovalDecision 枚举
+### 3.5.2 ApprovalDecision 枚举
 
 **源码**: `src/qwenpaw/security/tool_guard/approval.py` 第9-14行
 
@@ -1790,7 +1790,7 @@ class ApprovalDecision(str, Enum):
     TIMEOUT = "timeout"    # 超时未响应
 ```
 
-#### 3.5.3 PendingApproval 数据模型
+### 3.5.3 PendingApproval 数据模型
 
 **源码**: `src/qwenpaw/app/approvals/service.py` 第45-56行
 
@@ -1822,7 +1822,7 @@ class PendingApproval:
 | `pending` | `superseded` | 工具调用被重放 |
 | `approved` | (删除) | `consume_approval()` 被调用 |
 
-#### 3.5.4 ApprovalService 核心服务
+### 3.5.4 ApprovalService 核心服务
 
 **源码**: `src/qwenpaw/app/approvals/service.py` 第63-293行
 
@@ -1840,7 +1840,7 @@ class PendingApproval:
 | `consume_approval()` | 196-229 | 检查并消费一次性审批 |
 | `get_approval_service()` | 287-293 | 单例访问器 |
 
-#### 3.5.5 审批创建流程
+### 3.5.5 审批创建流程
 
 **`create_pending()`** (第79-105行):
 
@@ -1862,7 +1862,7 @@ create_pending(session_id, user_id, channel, tool_name, result)
          └─► 返回 PendingApproval
 ```
 
-#### 3.5.6 参数验证机制
+### 3.5.6 参数验证机制
 
 **`consume_approval()`** (第196-229行) 防止审批结果滥用：
 
@@ -1890,7 +1890,7 @@ consume_approval(session_id, tool_name, tool_params)
 - `consume_approval()` 检测到参数不匹配
 - 审批被拒绝，工具被阻止
 
-#### 3.5.7 垃圾回收机制
+### 3.5.7 垃圾回收机制
 
 **GC 常量** (第28-35行):
 
@@ -1918,7 +1918,7 @@ PendingApproval 创建/解决
                    └─► 清理超时的已完成记录
 ```
 
-#### 3.5.8 ToolGuard 完整审批流程
+### 3.5.8 ToolGuard 完整审批流程
 
 ```
 ToolGuardEngine.guard(tool_name, params)
@@ -1948,7 +1948,7 @@ ToolGuardEngine.guard(tool_name, params)
                              └─► future.set_result(decision)
 ```
 
-#### 3.5.9 发现摘要格式化
+### 3.5.9 发现摘要格式化
 
 **源码**: `src/qwenpaw/security/tool_guard/approval.py` 第22-40行
 
@@ -1966,7 +1966,7 @@ def format_findings_summary(result: "ToolGuardResult", *, max_items: int = 3) ->
     return "\n".join(lines)
 ```
 
-#### 3.5.10 完整守卫决策流程
+### 3.5.10 完整守卫决策流程
 
 ```
 ToolGuardEngine.guard(tool_name, params)
@@ -1985,7 +1985,7 @@ ToolGuardEngine.guard(tool_name, params)
           └── FilePathToolGuardian (always_run=True) 始终运行
 ```
 
-#### 3.5.11 兄弟工具调用重放系统
+### 3.5.11 兄弟工具调用重放系统
 
 当一个工具调用需要审批时，同一助手消息中的其他工具调用会被存储并重放：
 
@@ -2014,7 +2014,7 @@ def _extract_sibling_tool_calls(self, msgs: list) -> list[dict]:
                    └─► status → "superseded"
 ```
 
-#### 3.5.12 ToolGuardMixin 集成 (tool_guard_mixin.py)
+### 3.5.12 ToolGuardMixin 集成 (tool_guard_mixin.py)
 
 **MRO 继承顺序**:
 ```
@@ -2102,7 +2102,7 @@ async def _acting_with_approval(self, tool_call, pending: PendingApproval):
         # 返回拒绝消息
 ```
 
-#### 3.5.13 安全考虑
+### 3.5.13 安全考虑
 
 **参数不匹配防护** (service.py 第241-259行):
 
@@ -2137,7 +2137,7 @@ TOOL_GUARD_DENIED_MARK = "tool_guard_denied"
 
 ### 3.6 技能安全扫描 (Skill Scanner)
 
-#### 扫描流程
+### 扫描流程
 
 ```
 扫描请求 → PatternAnalyzer → 规则匹配 → ScanResult
@@ -2147,7 +2147,7 @@ TOOL_GUARD_DENIED_MARK = "tool_guard_denied"
             阻塞/警告/放行
 ```
 
-#### 扫描策略
+### 扫描策略
 
 ```python
 class ScanPolicy(Enum):
@@ -2166,7 +2166,7 @@ class SkillScannerConfig(BaseModel):
     whitelist: List[str] = []
 ```
 
-#### 扫描结果模型
+### 扫描结果模型
 
 ```python
 @dataclass
@@ -2189,7 +2189,7 @@ class ScanResult:
     scan_time: datetime
 ```
 
-#### 扫描 API
+### 扫描 API
 
 ```python
 def scan_skill_directory(skill_dir: str) -> ScanResult:
@@ -2206,7 +2206,7 @@ def get_blocked_history() -> List[str]:
     return list(_blocked_history.keys())
 ```
 
-#### 安全规则示例
+### 安全规则示例
 
 ```python
 # rules/dangerous_patterns.py
@@ -2681,13 +2681,13 @@ def _swap_directories(dst, tmp_dst, old_dst):
 
 ### 4.1 API 服务器模式
 
-#### 启动命令
+### 启动命令
 
 ```bash
 qwenpaw app --host 127.0.0.1 --port 8088
 ```
 
-#### 架构
+### 架构
 
 ```
 ┌─────────────────────────────────────┐
@@ -2705,7 +2705,7 @@ qwenpaw app --host 127.0.0.1 --port 8088
 └─────────────────────────────────────┘
 ```
 
-#### 两阶段启动
+### 两阶段启动
 
 ```
 阶段1: 快速同步启动 (<100ms)
@@ -2720,7 +2720,7 @@ qwenpaw app --host 127.0.0.1 --port 8088
 └── 连接消息渠道
 ```
 
-#### 启动参数
+### 启动参数
 
 ```python
 # app_cmd.py
@@ -2743,20 +2743,20 @@ def app(host, port, workers):
 
 **源码路径**: `src/qwenpaw/cli/desktop_cmd.py`
 
-#### 启动命令
+### 启动命令
 
 ```bash
 qwenpaw desktop
 ```
 
-#### 特性
+### 特性
 
 - 自动选择可用端口
 - 打开原生 Webview 窗口
 - 阻塞等待窗口关闭
 - 窗口关闭后自动清理后端进程
 
-#### 核心组件
+### 核心组件
 
 **WebViewAPI** (`desktop_cmd.py:29-36`) - 暴露给 Webview 的 JavaScript API：
 
@@ -2810,7 +2810,7 @@ def _stream_reader(in_stream, out_stream) -> None:
     """
 ```
 
-#### 完整启动流程 (`desktop_cmd.py:99-269`)
+### 完整启动流程 (`desktop_cmd.py:99-269`)
 
 ```
 1. setup_logger(log_level)  配置日志
@@ -2841,7 +2841,7 @@ def _stream_reader(in_stream, out_stream) -> None:
 8. 检查 exit code，非正常退出则报错
 ```
 
-#### 窗口关闭清理 (`desktop_cmd.py:207-236`)
+### 窗口关闭清理 (`desktop_cmd.py:207-236`)
 
 ```python
 if proc and proc.poll() is None:  # 进程仍在运行
@@ -2853,14 +2853,14 @@ if proc and proc.poll() is None:  # 进程仍在运行
         proc.wait()
 ```
 
-#### 命令行参数
+### 命令行参数
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--host` | `127.0.0.1` | 服务绑定地址 |
 | `--log-level` | `info` | 日志级别 (critical/error/warning/info/debug/trace) |
 
-#### 双进程架构
+### 双进程架构
 
 Desktop 模式采用双进程架构：
 
@@ -2882,7 +2882,7 @@ Desktop 模式采用双进程架构：
 └─────────────────────────────────────────────────────┘
 ```
 
-#### 进程清理竞态处理 (`desktop_cmd.py:207-240`)
+### 进程清理竞态处理 (`desktop_cmd.py:207-240`)
 
 ```python
 # 处理 poll() 和 terminate() 之间的竞态条件
@@ -2961,7 +2961,7 @@ def _stream_reader(in_stream, out_stream) -> None:
 
 ### 4.3 守护进程模式
 
-#### 守护进程命令
+### 守护进程命令
 
 ```bash
 # 查看状态
@@ -2980,7 +2980,7 @@ qwenpaw daemon version
 qwenpaw daemon logs
 ```
 
-#### 守护进程架构
+### 守护进程架构
 
 ```
 ┌──────────────────────────────────────┐
@@ -3000,7 +3000,7 @@ qwenpaw daemon logs
 
 ### 4.4 生产部署建议
 
-#### 环境变量配置
+### 环境变量配置
 
 ```bash
 # 必需配置
@@ -3016,7 +3016,7 @@ export QWENPAW_MAX_ITERS=100
 export QWENPAW_CONCURRENCY=5
 ```
 
-#### 反向代理配置 (Nginx)
+### 反向代理配置 (Nginx)
 
 ```nginx
 server {
@@ -3034,7 +3034,7 @@ server {
 }
 ```
 
-#### Docker 部署
+### Docker 部署
 
 ```dockerfile
 FROM python:3.11-slim
@@ -3336,3 +3336,4 @@ my-plugin/
 | CLI 命令详解 | [69-CLI命令系统详解](./69-CLI命令系统详解.md) | 全面掌握所有 CLI 命令的用法与扩展方式 |
 | 配置系统详解 | [20-配置系统详解](./20-配置系统详解.md) | 配置加载、验证、迁移和热重载机制 |
 | 下一章 | [11-Model系统与LLM提供商](./11-Model系统与LLM提供商.md) | 继续学习 |
+

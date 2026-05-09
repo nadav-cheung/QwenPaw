@@ -1320,12 +1320,12 @@ pip install -r requirements.txt
    public class User {
        private String name;
        private int age;
-       
+
        public User(String name, int age) {
            this.name = name;
            this.age = age;
        }
-       
+
        public String getName() { return name; }
        public int getAge() { return age; }
    }
@@ -1334,20 +1334,20 @@ pip install -r requirements.txt
 2. **异步函数理解**：解释以下代码的输出顺序（参考 `07-智能体核心架构.md` 中的 `multi_agent_manager.py`）：
    ```python
    import asyncio
-   
+
    async def task_a():
        print("A start")
        await asyncio.sleep(0.5)
        print("A end")
-   
+
    async def task_b():
        print("B start")
        await asyncio.sleep(0.3)
        print("B end")
-   
+
    async def main():
        await asyncio.gather(task_a(), task_b())
-   
+
    asyncio.run(main())
    ```
 
@@ -1371,7 +1371,7 @@ pip install -r requirements.txt
        async def __aenter__(self):
            # TODO: 记录开始时间
            pass
-       
+
        async def __aexit__(self, *args):
            # TODO: 计算并打印耗时
            pass
@@ -1446,3 +1446,4 @@ QwenPaw 项目展示了 Python 在实际应用中的最佳实践：
 | 进阶学习 | [06.1-Python进阶教程](./06.1-Python进阶教程.md) | 基于源码的 Python 进阶 |
 | 核心架构 | [07-智能体核心架构](./07-智能体核心架构.md) | 理解智能体设计 |
 | 下一章 | [06.1-Python进阶教程](./06.1-Python进阶教程.md) | 继续深入学习 |
+

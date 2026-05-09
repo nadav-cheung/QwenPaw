@@ -760,7 +760,7 @@ result = await execute_shell_command(
    请分别说明在 Windows 和 Unix 系统下，`_collapse_embedded_newlines()` 函数如何处理以下输入命令：
    - `echo "hello\nworld"`（双引号内含换行转义序列）
    - `ls\n-la`（无引号包裹的换行）
-   
+
    两种平台的处理结果分别是什么？
 
 2. **Windows 转义修复逻辑**
@@ -799,3 +799,4 @@ result = await execute_shell_command(
 
 - [38-工具Guard安全系统](./38-工具Guard安全系统.md) -- Shell 命令的安全沙箱与 Guard 防护
 - [60-工具模块详解](./60-工具模块详解.md) -- 工具注册与 command_runner 的底层实现
+

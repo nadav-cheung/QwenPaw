@@ -64,9 +64,9 @@ HTTP 轮询模式的 MCP 客户端。
 ```python
 class StdIOStatefulClient(StatefulClientBase):
     """StdIO MCP client with proper cross-task lifecycle management.
-    
+
     在单一后台任务中运行整个生命周期，避免跨任务 cancel scope 错误。"""
-    
+
     def __init__(self, name, command, args=None, env=None, cwd=None, ...):
         # 生命周期管理
         self._lifecycle_task: asyncio.Task | None = None
@@ -76,7 +76,7 @@ class StdIOStatefulClient(StatefulClientBase):
         self.session: ClientSession | None = None
         self.is_connected = False
         self._cached_tools = None
-    
+
     async def _run_lifecycle(self) -> None:
         """在专用后台任务中运行 MCP 客户端生命周期"""
         while not self._stop_event.is_set():
@@ -89,35 +89,35 @@ class StdIOStatefulClient(StatefulClientBase):
                     self.session = ClientSession(read_stream, write_stream)
                     await stack.enter_async_context(self.session)
                     await self.session.initialize()
-                    
+
                     self.is_connected = True
                     self._ready_event.set()
-                    
+
                     # 等待 reload 或 stop 信号
                     while not self._reload_event.is_set() and not self._stop_event.is_set():
                         await asyncio.sleep(0.1)
-                    
+
             except Exception as e:
                 logger.error(f"Error in MCP client lifecycle: {e}")
                 self.is_connected = False
                 await asyncio.sleep(1)
-    
+
     async def connect(self, timeout: float = 30.0) -> None:
         """连接 MCP 服务器"""
         if self.is_connected:
             raise RuntimeError(f"MCP client '{self.name}' is already connected.")
-        
+
         self._stop_event.clear()
         self._lifecycle_task = asyncio.create_task(self._run_lifecycle())
-        
+
         # 等待初始连接
         await asyncio.wait_for(self._ready_event.wait(), timeout=timeout)
-    
+
     async def close(self, ignore_errors: bool = True) -> None:
         """关闭 MCP 客户端并清理资源"""
         if not self.is_connected:
             return
-        
+
         self._stop_event.set()
         if self._lifecycle_task:
             await self._lifecycle_task
@@ -128,7 +128,7 @@ class StdIOStatefulClient(StatefulClientBase):
 ```python
 class HttpStatefulClient(StatefulClientBase):
     """HTTP/SSE MCP client with proper cross-task lifecycle management."""
-    
+
     async def _run_lifecycle(self) -> None:
         while not self._stop_event.is_set():
             async with AsyncExitStack() as stack:
@@ -144,7 +144,7 @@ class HttpStatefulClient(StatefulClientBase):
                         ),
                     )
                     await stack.enter_async_context(http_client)
-                    
+
                     context = await stack.enter_async_context(
                         streamable_http_client(url=self.url, http_client=http_client),
                     )
@@ -163,10 +163,10 @@ class HttpStatefulClient(StatefulClientBase):
 ```python
 class StdIOStatefulClient(StatefulClientBase):
     """stdio 传输的 MCP 客户端"""
-    
+
     async def connect(self) -> None:
         """启动本地进程并建立连接"""
-        
+
         # 1. 启动子进程
         self.process = await asyncio.create_subprocess_exec(
             self.command,
@@ -177,12 +177,12 @@ class StdIOStatefulClient(StatefulClientBase):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        
+
         # 2. 创建 stdio 传输
         context = await stack.enter_async_context(
             stdio_client(stdin=self.process.stdin, stdout=self.process.stdout),
         )
-        
+
         # 3. 创建 session
         self.session = await stack.enter_async_context(
             ClientSession(read_stream, write_stream)
@@ -207,23 +207,23 @@ class StdIOStatefulClient(StatefulClientBase):
 ```python
 class MCPClientManager:
     """MCP 客户端生命周期管理器"""
-    
+
     def __init__(self):
         self._clients: Dict[str, Any] = {}
         self._lock = asyncio.Lock()
-    
+
     async def init_from_config(self, config: "MCPConfig") -> None:
         """从配置初始化所有客户端"""
         for key, client_config in config.clients.items():
             if not client_config.enabled:
                 continue
             await self._add_client(key, client_config)
-    
+
     async def get_clients(self) -> List[Any]:
         """获取所有活跃客户端"""
         async with self._lock:
             return [c for c in self._clients.values() if c is not None]
-    
+
     async def replace_client(
         self,
         key: str,
@@ -234,22 +234,22 @@ class MCPClientManager:
         # 1. 连接新客户端（锁外，可能慢）
         new_client = self._build_client(client_config)
         await asyncio.wait_for(new_client.connect(), timeout=timeout)
-        
+
         # 2. 锁内替换
         async with self._lock:
             old_client = self._clients.get(key)
             self._clients[key] = new_client
-        
+
         # 3. 关闭旧客户端
         if old_client:
             await old_client.close()
-    
+
     async def close_all(self) -> None:
         """关闭所有客户端"""
         async with self._lock:
             clients = list(self._clients.values())
             self._clients.clear()
-        
+
         for client in clients:
             if client:
                 await client.close()
@@ -760,17 +760,17 @@ MCP 客户端连接到工具包：
 ```python
 class Toolkit:
     """工具包"""
-    
+
     async def register_mcp_client(
         self,
         client: Any,
         namesake_strategy: str = "skip",
     ) -> None:
         """注册 MCP 客户端的工具"""
-        
+
         # 1. 获取客户端提供的工具列表
         tools = await client.list_tools()
-        
+
         # 2. 注册每个工具
         for tool in tools:
             self.register_tool_function(
@@ -790,14 +790,14 @@ async def setup_mcp():
         command="npx",
         args=["-y", "@modelcontextprotocol/server-filesystem", "/home/user"],
     )
-    
+
     # 2. 连接到服务器
     await client.connect()
-    
+
     # 3. 注册到工具包
     toolkit = Toolkit()
     await toolkit.register_mcp_client(client)
-    
+
     # 4. 现在可以通过智能体调用这些工具
     # agent 可以调用 read_file, write_file 等工具
 ```
@@ -1227,3 +1227,4 @@ MCPConfigWatcher 使用了哪些优化手段来减少不必要的配置重载？
 - [07-智能体核心架构](./07-智能体核心架构.md) -- 理解 MCP 在智能体工具调用链中的位置
 - [18-插件系统](./18-插件系统.md) -- 了解插件如何通过 MCP 规则文件注册自定义服务器
 - [09-技能扩展系统](./09-技能扩展系统.md) -- 技能系统中工具注册与 MCP 工具注册的对比
+
