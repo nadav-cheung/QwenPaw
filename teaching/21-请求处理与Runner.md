@@ -126,7 +126,7 @@ Runner 继承自 `agentscope_runtime.engine.runner.Runner`，这是 agentscope �
 - **MCP 客户端管理**: 通过 MCPManager 支持 MCP 服务器热重载
 - **任务追踪**: 集成 TaskTracker 进行 SSE 流式输出和后台任务管理
 
-### 1.2 核心属性
+### 1.3 核心属性
 
 ```python
 # runner.py:130-150
@@ -143,7 +143,7 @@ class AgentRunner(Runner):
         self._task_tracker = task_tracker # TaskTracker 实例
 ```
 
-### 1.3 技能解析函数
+### 1.4 技能解析函数
 
 **`_parse_skill_query`** (`runner.py:173-205`):
 
@@ -176,7 +176,7 @@ def _maybe_inject_skill(
     # 4. 有输入 → 将技能体合并到用户消息，返回 None 继续 LLM 处理
 ```
 
-### 1.4 依赖注入方法
+### 1.5 依赖注入方法
 
 AgentRunner 通过依赖注入接收各组件引用：
 
@@ -294,7 +294,7 @@ set_current_session_id(session_id)
 
 **目的**: 收集 Agent 运行所需的所有上下文信息
 
-### 4.1 环境上下文构建
+#### 4.1 环境上下文构建
 
 ```python
 # runner.py:461-467
@@ -312,7 +312,7 @@ env_context = build_env_context(
 
 环境上下文字符串包含：session/user/channel/OS/date/timezone 等信息，用于 system prompt。
 
-### 4.2 MCP 客户端获取
+#### 4.2 MCP 客户端获取
 
 ```python
 # runner.py:469-472
@@ -323,7 +323,7 @@ if self._mcp_manager is not None:
 
 从 MCPManager 获取当前可用的 MCP 客户端列表，支持热重载。
 
-### 4.3 Agent 配置加载
+#### 4.3 Agent 配置加载
 
 ```python
 # runner.py:475
@@ -332,7 +332,7 @@ agent_config = load_agent_config(self.agent_id)
 
 加载 Agent 特定配置，与 MCP 客户端一样支持热重载。
 
-### 4.4 请求上下文构建
+#### 4.4 请求上下文构建
 
 ```python
 # runner.py:477-492

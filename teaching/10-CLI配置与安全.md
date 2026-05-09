@@ -2679,7 +2679,7 @@ def _swap_directories(dst, tmp_dst, old_dst):
 | 桌面 Webview | `qwenpaw desktop` | 本地开发、单用户 |
 | 守护进程 | `qwenpaw daemon` | 后台运行、服务管理 |
 
-### 4.1 API 服务器模式
+### 6.1 API 服务器模式
 
 ### 启动命令
 
@@ -2739,7 +2739,7 @@ def app(host, port, workers):
     )
 ```
 
-### 4.2 桌面 Webview 模式
+### 6.2 桌面 Webview 模式
 
 **源码路径**: `src/qwenpaw/cli/desktop_cmd.py`
 
@@ -2959,7 +2959,7 @@ def _stream_reader(in_stream, out_stream) -> None:
 6. finally: proc.terminate() ──► 5秒等待 ──► proc.kill()
 ```
 
-### 4.3 守护进程模式
+### 6.3 守护进程模式
 
 ### 守护进程命令
 
@@ -2998,7 +2998,7 @@ qwenpaw daemon logs
 └──────────────────────────────────────┘
 ```
 
-### 4.4 生产部署建议
+### 6.4 生产部署建议
 
 ### 环境变量配置
 

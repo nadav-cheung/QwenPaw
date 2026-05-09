@@ -400,7 +400,7 @@ print_ready_banner()
 
 ## 5. 特殊路由
 
-### 4.1 根路由
+### 5.1 根路由
 
 ```python
 # src/qwenpaw/app/_app.py:578
@@ -411,7 +411,7 @@ def read_root():
     return {"message": "QwenPaw API"}
 ```
 
-### 4.2 API 版本
+### 5.2 API 版本
 
 ```python
 # src/qwenpaw/app/_app.py:593
@@ -420,7 +420,7 @@ def get_version():
     return {"version": __version__}
 ```
 
-### 4.3 Voice 路由（根级）
+### 5.3 Voice 路由（根级）
 
 ```python
 # src/qwenpaw/app/_app.py:625
