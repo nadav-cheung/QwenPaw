@@ -230,7 +230,7 @@ qwenpaw init
 
 ---
 
-## 1.3 核心命令实现详解
+### 1.3 核心命令实现详解
 
 ### 1.3.1 app 命令 — 启动 FastAPI 服务器
 
@@ -2284,7 +2284,7 @@ DANGEROUS_PATTERNS = [
 
 ---
 
-## 4.1 认证系统 (Auth)
+### 4.1 认证系统 (Auth)
 
 **源码路径**: `src/qwenpaw/app/auth.py`
 
@@ -3169,7 +3169,7 @@ for (Plugin plugin : loader) {
 
 ---
 
-## 5. 最佳实践
+## 7. 最佳实践
 
 ### CLI 使用
 
