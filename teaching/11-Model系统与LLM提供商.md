@@ -1375,6 +1375,23 @@ qwenpaw providers configure ollama
 
 ---
 
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 使用 CLI 命令列出当前可用的 Provider 和模型
+**提示**: 运行 `qwenpaw models list` 查看已配置的提供商和启用的模型
+**参考思路**: 该命令调用 `ProviderManager.get_instance().get_all_providers()` 返回所有已注册提供商，然后遍历每个提供商的 models 列表输出
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪从用户选择模型到 ChatModel 实例创建的完整流程
+**提示**: 从 `create_model_and_formatter()` 工厂方法出发，跟踪 Provider 获取 → 模型实例创建 → 双重包装的完整链路
+**参考思路**: 工厂方法解析 agent_id → 加载 AgentProfileConfig → 获取 active_model 配置 → `ProviderManager.get_provider()` → `provider.get_chat_model_instance()` → 包装为 `TokenRecordingModelWrapper` → 再包装为 `RetryChatModel`
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 分析 ProviderManager 的单例模式实现，讨论其在多线程/多进程环境下的安全性
+**提示**: 查看 `_instance` 类变量和 `get_instance()` 静态方法，思考 asyncio 并发下的线程安全问题
+**参考思路**: 当前实现使用简单的 `if _instance is None` 检查，在 asyncio 单线程模型下是安全的；但在多线程环境（如多 worker）下存在竞态条件，可通过 `threading.Lock` 或 `__new__` 方法保证线程安全；多进程场景下每个进程有独立的 `_instance`，需通过共享存储保持配置一致
+
 ## 知识检查
 
 1. **ProviderManager 查找顺序**：当调用 `get_provider("openai")` 时，ProviderManager 按什么顺序查找提供商实例？如果同一个 ID 同时出现在 plugin_providers 和 builtin_providers 中，会返回哪个？

@@ -738,7 +738,7 @@ result = await execute_shell_command(
 ### 相关章节
 
 - [53-文件操作与安全机制](./53-文件操作与安全机制.md) — Shell 中文件操作的访问控制
-- [55-CLI命令系统详解](./55-CLI命令系统详解.md) — Shell 命令的 CLI 调用
+- [69-CLI命令系统详解](./69-CLI命令系统详解.md) — Shell 命令的 CLI 调用
 
 ---
 

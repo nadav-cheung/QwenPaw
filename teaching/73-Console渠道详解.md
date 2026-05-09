@@ -351,7 +351,7 @@ qwenpaw app > output.log 2>&1
 | 消息过滤 | `show_tool_details`、`filter_tool_messages`、`filter_thinking` 三个维度 |
 | 平台处理 | Windows 重配置 UTF-8 编码 + `try/except OSError` 管道处理 |
 | 主动发送 | `send()` / `send_content_parts()` 支持 Agent 主动推送 |
-| 相关章节 | [跨渠道消息路由](./77-跨渠道消息路由.md)、[Agent 执行流程](./20-配置解析与Runner.md) |
+| 相关章节 | [跨渠道消息路由](./77-跨渠道消息路由.md)、[Agent 执行流程](./21-请求处理与Runner.md) |
 
 ---
 

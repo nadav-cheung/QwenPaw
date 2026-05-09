@@ -658,6 +658,23 @@ picocli 通过注解 + 反射在编译期确定命令结构；Click 通过装饰
 
 ---
 
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 找到 CLI 入口文件，列出所有已注册的顶层命令
+**提示**: 查看 `src/qwenpaw/cli/main.py` 中的 `lazy_subcommands` 字典
+**参考思路**: CLI 入口为 `src/qwenpaw/cli/main.py`，`lazy_subcommands` 字典中定义了 20+ 个顶层命令，包括 app、init、doctor、models、agents、channels、daemon、cron、skills、plugin、mission 等
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪 `qwenpaw doctor` 命令的执行流程：从命令解析到诊断输出
+**提示**: 从 `lazy_subcommands["doctor"]` 指向的 `qwenpaw.cli.doctor_cmd` 模块开始分析
+**参考思路**: LazyGroup 按需加载 `doctor_cmd` 模块 → Click 解析命令行参数（如 `--deep`）→ 执行诊断检查（配置文件验证、工作区结构检查、依赖检查）→ 格式化输出结果到终端；`--deep` 模式额外执行网络连通性和外部服务检查
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 使用 click 库实现一个新的 CLI 子命令，支持参数解析和彩色输出
+**提示**: 在 `src/qwenpaw/cli/` 下创建新命令模块，注册到 `lazy_subcommands` 字典
+**参考思路**: 创建 `qwenpaw/cli/health_cmd.py`，使用 `@click.command("health")` 定义命令，添加 `@click.option("--format")` 等参数；用 `click.secho("OK", fg="green")` 输出彩色结果；在 `main.py` 的 `lazy_subcommands` 中添加 `"health": ("qwenpaw.cli.health_cmd", "health_cmd", ".health_cmd")` 完成注册
+
 ## 知识检查
 
 1. LazyGroup 的 `get_command` 方法在命令未加载时执行了哪些操作？为什么这种按需加载能显著提升 `qwenpaw --help` 的响应速度？

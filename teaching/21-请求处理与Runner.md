@@ -1385,9 +1385,28 @@ Spring 通过 `SseEmitter` 或 `WebFlux` 实现 SSE。QwenPaw 通过 `TaskTracke
 ## 15. 相关章节
 
 - [智能体钩子系统](./23-智能体钩子系统.md) -- 钩子机制与 Agent 核心流程
-- [Provider与模型路由](./24-Provider与模型路由.md) -- 模型管理与路由
+- [Provider系统深度解析](./82-Provider系统深度解析.md) -- 模型管理与路由
 - [消息渠道系统](./08-消息渠道系统.md) -- 渠道与 Runner 的交互
 - [Workspace隔离机制](./28-Workspace隔离机制.md) -- Workspace 管理
+
+---
+
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 在源码中找到 Runner 的入口函数，说明它接收什么参数
+**提示**: 在 `src/qwenpaw/app/runner/runner.py` 中搜索 `query_handler` 方法定义
+**参考思路**: `query_handler` 是 `AgentRunner` 的核心异步生成器方法，它接收 `request`（包含 `session_id`、`user_id`、`channel`、消息列表等字段）。方法是 `AsyncGenerator[tuple[Msg, bool], None]` 类型——每次 `yield` 一个消息和一个 `last` 标志（`True` 表示最终响应）。理解这个签名是追踪整个请求流程的起点。
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪一次包含 MCP 工具调用的完整请求：Runner → Agent → Tool → MCP Client → Response
+**提示**: 从 `query_handler` 的 Stage 6（Agent 实例化）开始，Agent 构建时通过 `register_mcp_clients()` 注册 MCP 工具，然后在 ReAct 循环中通过 `_acting()` 调用
+**参考思路**: 请求流程为：(1) `query_handler` Stage 4 获取 `mcp_clients` 列表；(2) Stage 6 创建 `QwenPawAgent` 并调用 `agent.register_mcp_clients()` 将 MCP 工具注册到 `Toolkit`；(3) Agent 的 ReAct 循环中，`_reasoning()` 返回包含 `tool_use` 的消息，决定调用某个 MCP 工具；(4) `_acting()` 经过 ToolGuard 安全检查后，通过 `Toolkit` 路由到对应的 MCP Client；(5) MCP Client 通过 `session.call_tool()` 发送 JSON-RPC 请求到 MCP Server；(6) 结果沿原路返回，经过 `_stream_printing_messages_interruptible` 流式输出给用户。
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 分析审批系统在请求流程中的拦截点，画出完整的审批决策树
+**提示**: 从 `query_handler` Stage 1 的 `_resolve_pending_approval()` 开始，结合 `ToolGuardMixin._acting()` 中的 `_decide_guard_action()` 分析
+**参考思路**: 审批系统有两个拦截点：(1) **请求入口拦截**（Stage 1）：`_resolve_pending_approval()` 检查当前 session 是否有待审批的工具调用。如果用户发送 "approve" 则批准执行，如果超时则自动拒绝；(2) **工具执行拦截**（`ToolGuardMixin._acting()`）：每次工具调用前执行 `_decide_guard_action()`，决策路径为：是否在拒绝列表 → 自动拒绝；是否已预批准 → 直接执行；守卫规则检查发现问题 → 暂停执行等待用户审批；无问题 → 正常执行。将这两个拦截点以及 `_consume_preapproval()`、`_acting_with_approval()`、`_acting_auto_denied()` 等方法画出完整的决策树。
 
 ---
 

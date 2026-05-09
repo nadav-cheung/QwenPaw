@@ -75,7 +75,43 @@ class ModelInfo(BaseModel):
     generate_kwargs: Dict[str, Any] = {}  # 模型级生成参数覆盖
 ```
 
-### 1.3 ProviderInfo 数据类
+### 1.3 ExtendedModelInfo 扩展模型信息
+
+**源码路径**: `src/qwenpaw/providers/provider.py:54`
+
+`ExtendedModelInfo` 继承 `ModelInfo`，增加 Provider 关联、模态类型和定价等元数据，主要用于内部探测和注册表比对：
+
+```python
+class ExtendedModelInfo(ModelInfo):
+    """Extended model info with additional metadata for providers."""
+    provider: str = Field(
+        default="",
+        description="Provider/series (e.g., 'openai', 'google')",
+    )
+    input_modalities: List[str] = Field(
+        default_factory=list,
+        description="Supported input modalities",
+    )
+    output_modalities: List[str] = Field(
+        default_factory=list,
+        description="Supported output modalities",
+    )
+    pricing: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Pricing info (prompt/completion)",
+    )
+```
+
+| 字段 | 用途 | 示例 |
+|------|------|------|
+| `provider` | 所属系列 | `"openai"`, `"google"` |
+| `input_modalities` | 支持的输入类型 | `["text", "image", "video"]` |
+| `output_modalities` | 支持的输出类型 | `["text"]` |
+| `pricing` | 计费信息 | `{"prompt": "$2.50/1M", "completion": "$10.00/1M"}` |
+
+`ExtendedModelInfo` 与 `ModelInfo` 的区别：`ModelInfo` 是运行时的轻量模型描述，`ExtendedModelInfo` 用于探测基线注册表（`ExpectedCapabilityRegistry`），承载更丰富的元数据以支持能力比对。
+
+### 1.4 ProviderInfo 数据类
 
 **源码路径**: `src/qwenpaw/providers/provider.py:70`
 
@@ -134,23 +170,44 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
 
 ```python
 def _init_builtins(self):
-    self._add_builtin(PROVIDER_QWENPAW)        # QwenPaw 本地
-    self._add_builtin(PROVIDER_OLLAMA)          # Ollama 本地
-    self._add_builtin(PROVIDER_LMSTUDIO)        # LM Studio
-    self._add_builtin(PROVIDER_OPENROUTER)      # OpenRouter 聚合
-    self._add_builtin(PROVIDER_MODELSCOPE)      # ModelScope
-    self._add_builtin(PROVIDER_DASHSCOPE)       # DashScope
-    self._add_builtin(PROVIDER_OPENAI)          # OpenAI
-    self._add_builtin(PROVIDER_AZURE_OPENAI)   # Azure OpenAI
-    self._add_builtin(PROVIDER_ANTHROPIC)      # Anthropic
-    self._add_builtin(PROVIDER_GEMINI)          # Google Gemini
-    self._add_builtin(PROVIDER_DEEPSEEK)       # DeepSeek
-    self._add_builtin(PROVIDER_KIMI_CN)         # Kimi CN
-    self._add_builtin(PROVIDER_MINIMAX)        # MiniMax
-    self._add_builtin(PROVIDER_ZHIPU_CN)        # 智谱 CN
-    self._add_builtin(PROVIDER_SILICONFLOW)    # SiliconFlow
-    # ... 共 24+ 内置 Provider
+    # 本地 / 聚合
+    self._add_builtin(PROVIDER_QWENPAW)          # QwenPaw 本地模型
+    self._add_builtin(PROVIDER_OLLAMA)            # Ollama 本地
+    self._add_builtin(PROVIDER_LMSTUDIO)          # LM Studio
+    self._add_builtin(PROVIDER_OPENROUTER)        # OpenRouter 聚合
+    self._add_builtin(PROVIDER_MODELSCOPE)        # ModelScope
+    # 阿里云系列
+    self._add_builtin(PROVIDER_DASHSCOPE)         # DashScope
+    self._add_builtin(PROVIDER_ALIYUN_CODINGPLAN) # 阿里云编码计划 CN
+    self._add_builtin(PROVIDER_ALIYUN_CODINGPLAN_INTL) # 阿里云编码计划 INTL
+    self._add_builtin(PROVIDER_OPENCODE)          # OpenCode
+    # 国际大厂
+    self._add_builtin(PROVIDER_OPENAI)            # OpenAI
+    self._add_builtin(PROVIDER_AZURE_OPENAI)      # Azure OpenAI
+    self._add_builtin(PROVIDER_ANTHROPIC)         # Anthropic
+    self._add_builtin(PROVIDER_GEMINI)            # Google Gemini
+    # 国内大模型
+    self._add_builtin(PROVIDER_DEEPSEEK)          # DeepSeek
+    self._add_builtin(PROVIDER_KIMI_CN)           # Kimi CN
+    self._add_builtin(PROVIDER_KIMI_INTL)         # Kimi INTL
+    self._add_builtin(PROVIDER_MINIMAX_CN)        # MiniMax CN
+    self._add_builtin(PROVIDER_MINIMAX)           # MiniMax INTL
+    self._add_builtin(PROVIDER_ZHIPU_CN)          # 智谱 CN
+    self._add_builtin(PROVIDER_ZHIPU_CN_CODINGPLAN)   # 智谱 CN 编码计划
+    self._add_builtin(PROVIDER_ZHIPU_INTL)        # 智谱 INTL
+    self._add_builtin(PROVIDER_ZHIPU_INTL_CODINGPLAN) # 智谱 INTL 编码计划
+    self._add_builtin(PROVIDER_SILICONFLOW_CN)    # SiliconFlow CN
+    self._add_builtin(PROVIDER_SILICONFLOW_INTL)  # SiliconFlow INTL
 ```
+
+共 **24 个内置 Provider**，按功能分为四类：
+
+| 类别 | Provider | Provider 类 |
+|------|----------|-------------|
+| 本地/聚合 | QwenPaw, Ollama, LM Studio, OpenRouter, ModelScope | OpenAIProvider / OllamaProvider / LMStudioProvider / OpenRouterProvider |
+| 阿里云 | DashScope, Aliyun CodingPlan CN/INTL, OpenCode | OpenAIProvider |
+| 国际大厂 | OpenAI, Azure OpenAI, Anthropic, Gemini | OpenAIProvider / AnthropicProvider / GeminiProvider |
+| 国内大模型 | DeepSeek, Kimi CN/INTL, MiniMax CN/INTL, 智谱 CN/CodingPlan/INTL/INTL CodingPlan, SiliconFlow CN/INTL | OpenAIProvider / AnthropicProvider |
 
 ### 2.3 核心方法表
 
@@ -398,9 +455,91 @@ class DownloadSource(str, Enum):
 
 ---
 
-## 6. 内置模型列表
+## 6. ExpectedCapabilityRegistry 与探测基线
 
-### 6.1 OpenAI 模型
+### 6.1 ExpectedCapabilityRegistry
+
+**源码路径**: `src/qwenpaw/providers/capability_baseline.py`
+
+`ExpectedCapabilityRegistry` 提供预定义的模型能力基线数据，在探测不可用（如网络受限、API Key 缺失）时作为 fallback。探测完成后，实际结果与基线进行比对，发现偏差时记录警告：
+
+```python
+# provider_manager.py:1167-1189 — 探测结果与基线比对
+from .capability_baseline import (
+    ExpectedCapabilityRegistry,
+    compare_probe_result,
+)
+
+registry = ExpectedCapabilityRegistry()
+expected = registry.get_expected(provider_id, model_id)
+if expected:
+    discrepancies = compare_probe_result(
+        expected,
+        result.supports_image,
+        result.supports_video,
+    )
+    for d in discrepancies:
+        logger.warning(
+            "Probe discrepancy: %s/%s %s expected=%s actual=%s (%s)",
+            d.provider_id, d.model_id, d.field,
+            d.expected, d.actual, d.discrepancy_type,
+        )
+```
+
+**设计意图**：
+- 防止 Provider API 返回错误的多模态能力标记
+- 在首次探测前提供合理的默认值
+- 帮助调试 Provider 侧的能力声明变更
+
+### 6.2 向后兼容迁移
+
+**源码路径**: `src/qwenpaw/providers/provider_manager.py:814`, `1382`
+
+系统从旧版 CoPaw 重命名为 QwenPaw 时，提供了两层兼容迁移：
+
+**1) ID 规范化** (`_normalize_provider_id`, L814)：
+
+```python
+@staticmethod
+def _normalize_provider_id(provider_id: str) -> str:
+    """Normalize provider ID for backward compatibility.
+    Maps legacy 'copaw-local' to 'qwenpaw-local'.
+    """
+    if provider_id == "copaw-local":
+        return "qwenpaw-local"
+    return provider_id
+```
+
+每次 `get_provider()` 和 `activate_model()` 调用时自动执行，确保旧配置文件中的 `copaw-local` 引用透明映射到新的 `qwenpaw-local`。
+
+**2) 配置文件迁移** (`_migrate_copaw_config`, L1382)：
+
+```python
+def _migrate_copaw_config(self) -> None:
+    """Migrate copaw-local provider config to qwenpaw-local."""
+    # 1. 迁移活跃模型配置中的 provider_id
+    if self.active_model and self.active_model.provider_id == "copaw-local":
+        self.active_model.provider_id = "qwenpaw-local"
+        self.save_active_model(self.active_model)
+
+    # 2. 迁移磁盘上的配置文件
+    copaw_config_path = self.builtin_path / "copaw-local.json"
+    if not copaw_config_path.exists():
+        return
+    # 加载旧配置 → 应用到新 Provider → 删除旧文件
+    old_config = json.load(f)
+    provider.extra_models = [ModelInfo.model_validate(m) for m in old_config.get("extra_models", [])]
+    self._save_provider(provider, is_builtin=True)
+    copaw_config_path.unlink()  # 删除旧配置
+```
+
+迁移在 `ProviderManager.__init__()` 中执行一次，确保用户无感知升级。
+
+---
+
+## 7. 内置模型列表
+
+### 7.1 OpenAI 模型
 
 **源码路径**: `src/qwenpaw/providers/provider_manager.py:160`
 
@@ -413,15 +552,29 @@ class DownloadSource(str, Enum):
 | `gpt-4o` | GPT-4o | ✓ | ✓ |
 | `o3` | o3 | ✓ | - |
 
-### 6.2 Anthropic 模型
+### 7.2 Anthropic 模型（动态发现）
 
-| 模型 ID | 名称 | 多模态 |
-|---------|------|--------|
-| `claude-opus-4-7` | Claude Opus 4.7 | ✓ |
-| `claude-sonnet-4-6` | Claude Sonnet 4.6 | ✓ |
-| `claude-haiku-4-5` | Claude Haiku 4.5 | ✓ |
+**源码路径**: `src/qwenpaw/providers/provider_manager.py:436`
 
-### 6.3 本地模型推荐
+Anthropic Provider **不维护静态模型列表**。源码中 `ANTHROPIC_MODELS: List[ModelInfo] = []` 为空，所有模型通过 `fetch_models()` 调用 Anthropic API (`/v1/models` 端点) 在运行时动态获取。
+
+```python
+# provider_manager.py:436 — Anthropic 没有硬编码模型
+ANTHROPIC_MODELS: List[ModelInfo] = []
+
+# provider_manager.py:650 — 动态获取模型
+PROVIDER_ANTHROPIC = AnthropicProvider(
+    provider_id="anthropic",
+    name="Anthropic",
+    base_url="https://api.anthropic.com/v1",
+    api_key_env="ANTHROPIC_API_KEY",
+    models=ANTHROPIC_MODELS,  # 空列表，由 fetch_models() 填充
+)
+```
+
+这意味着用户配置 Anthropic API Key 后，需要调用 `fetch_provider_models("anthropic")` 从远程获取可用模型列表，模型范围随 Anthropic API 更新自动同步。
+
+### 7.3 本地模型推荐
 
 | 内存 | 推荐模型 | 量化 |
 |------|----------|------|
@@ -431,9 +584,9 @@ class DownloadSource(str, Enum):
 
 ---
 
-## 7. 插件扩展
+## 8. 插件扩展
 
-### 7.1 插件 Provider 注册
+### 8.1 插件 Provider 注册
 
 **源码路径**: `src/qwenpaw/providers/provider_manager.py:820`
 
@@ -445,7 +598,48 @@ self.plugin_providers: Dict[str, Dict] = {}  # 插件 Provider 配置
 self.plugin_path = self.root_path / "plugin"
 ```
 
-### 7.2 Provider 加载流程
+### 8.2 register_plugin_provider() 详解
+
+**源码路径**: `src/qwenpaw/providers/provider_manager.py:1632`
+
+`register_plugin_provider()` 允许插件系统在运行时注册新的 Provider，无需修改内置 Provider 列表：
+
+```python
+def register_plugin_provider(
+    self, provider_id: str, provider_class,
+    label: str, base_url: str, metadata: Dict,
+):
+    """Register a plugin provider at runtime."""
+    # 1. 获取 Provider 类的默认模型列表
+    default_models = []
+    if hasattr(provider_class, "get_default_models"):
+        default_models = provider_class.get_default_models()
+
+    # 2. 创建 ProviderInfo 实例
+    provider_info = ProviderInfo(
+        id=provider_id, name=label, base_url=base_url,
+        models=default_models,
+        is_custom=False,  # 插件 Provider 不可删除
+        require_api_key=metadata.get("require_api_key", True),
+    )
+
+    # 3. 恢复已保存的配置（含加密字段解密）
+    saved_config_path = self.plugin_path / f"{provider_id}.json"
+    if saved_config_path.exists():
+        saved_config = json.load(open(saved_config_path))
+        # 解密并应用到 provider_info...
+```
+
+**插件 Provider vs 自定义 Provider**：
+
+| 特性 | 插件 Provider | 自定义 Provider |
+|------|--------------|----------------|
+| 来源 | 插件系统动态注册 | 用户手动创建 |
+| 可删除 | 否（类似内置） | 是 |
+| 存储 | `plugin/` 目录 | `custom/` 目录 |
+| 模型发现 | 支持 | 支持 |
+
+### 8.3 Provider 加载流程
 
 ```
 1. 扫描 plugin_providers 目录
@@ -457,9 +651,9 @@ self.plugin_path = self.root_path / "plugin"
 
 ---
 
-## 8. 配置持久化
+## 9. 配置持久化
 
-### 8.1 存储路径
+### 9.1 存储路径
 
 **源码路径**: `src/qwenpaw/providers/provider_manager.py:732`
 
@@ -470,7 +664,7 @@ self.custom_path = self.root_path / "custom"    # 自定义 Provider
 self.plugin_path = self.root_path / "plugin"    # 插件 Provider
 ```
 
-### 8.2 磁盘结构
+### 9.2 磁盘结构
 
 ```
 ~/.qwenpaw/secrets/providers/
@@ -483,7 +677,7 @@ self.plugin_path = self.root_path / "plugin"    # 插件 Provider
 
 ---
 
-## 9. 应用场景
+## 10. 应用场景
 
 ### 场景 1: 多模型负载均衡
 
@@ -540,9 +734,9 @@ provider_config = {
 
 ---
 
-## 10. 最佳实践
+## 11. 最佳实践
 
-### 10.1 Provider 选择指南
+### 11.1 Provider 选择指南
 
 | 场景 | 推荐 Provider | 理由 |
 |------|---------------|------|
@@ -552,7 +746,7 @@ provider_config = {
 | 成本敏感 | DeepSeek / Ollama | 价格低/免费 |
 | 隐私敏感 | Ollama 本地 | 数据不出境 |
 
-### 10.2 密钥安全建议
+### 11.2 密钥安全建议
 
 ```python
 # 1. 使用环境变量而非硬编码
@@ -565,7 +759,7 @@ export QWENPAW_MASTER_KEY="your-master-key"
 export QWENPAW_RUNNING_IN_CONTAINER=true
 ```
 
-### 10.3 模型探测优化
+### 11.3 模型探测优化
 
 ```python
 # 批量探测时跳过已知模型
@@ -577,7 +771,7 @@ for model in models:
 
 ---
 
-## 11. 常见问题
+## 12. 常见问题
 
 ### Q1: Provider 连接失败
 
@@ -664,17 +858,17 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 12. 交叉引用
+## 13. 交叉引用
 
 | 相关章节 | 关联内容 |
 |----------|----------|
 | [85-模型探测与能力检测](85-模型探测与能力检测.md) | 多模态探测原理和 ExpectedCapabilityRegistry |
-| [89-加密与密钥管理](89-加密与密钥管理.md) | SecretStore 密钥加密机制 |
-| [86-热重载机制详解](86-热重载机制详解.md) | Provider 配置热重载 |
+| [39-密钥存储加密系统](39-密钥存储加密系统.md) | SecretStore 密钥加密机制 |
+| [37-配置热重载机制](37-配置热重载机制.md) | Provider 配置热重载 |
 
 ---
 
-## 13. 总结
+## 14. 总结
 
 **核心要点：**
 
@@ -683,7 +877,9 @@ grep -i "provider" logs/qwenpaw.log
 3. **模型探测：** 首次使用时自动探测多模态能力，结果缓存避免重复探测
 4. **密钥管理：** 通过 SecretStore 的 4 层密钥解析和 Fernet 加密保护 API 密钥
 5. **本地模型：** LocalModelManager 管理 llama.cpp 服务生命周期
-6. **插件扩展：** 支持通过插件目录扩展自定义 Provider
+6. **插件扩展：** 支持通过插件目录和 `register_plugin_provider()` 动态扩展 Provider
+7. **能力基线：** ExpectedCapabilityRegistry 提供探测 fallback 和偏差检测
+8. **向后兼容：** 自动迁移 CoPaw 旧配置到 QwenPaw 新命名
 
 **内置 Provider 覆盖：**
 - OpenAI / Anthropic / Google Gemini 等主流商业 API
@@ -699,18 +895,22 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 14. 关键文件索引
+## 15. 关键文件索引
 
 | 组件 | 文件路径 |
 |------|----------|
 | Provider 基类 | `src/qwenpaw/providers/provider.py:137` |
 | ModelInfo | `src/qwenpaw/providers/provider.py:22` |
+| ExtendedModelInfo | `src/qwenpaw/providers/provider.py:54` |
 | ProviderInfo | `src/qwenpaw/providers/provider.py:70` |
 | ProviderManager | `src/qwenpaw/providers/provider_manager.py:720` |
 | 本地模型管理 | `src/qwenpaw/local_models/manager.py:41` |
 | Llama.cpp 后端 | `src/qwenpaw/local_models/llamacpp.py:43` |
 | 下载控制器 | `src/qwenpaw/local_models/download_manager.py:253` |
 | SecretStore | `src/qwenpaw/security/secret_store.py` |
+| 能力基线注册表 | `src/qwenpaw/providers/capability_baseline.py` |
+| 插件 Provider 注册 | `src/qwenpaw/providers/provider_manager.py:1632` |
+| CoPaw 迁移 | `src/qwenpaw/providers/provider_manager.py:1382` |
 | OpenAI Provider | `src/qwenpaw/providers/openai_provider.py` |
 | Ollama Provider | `src/qwenpaw/providers/ollama_provider.py` |
 | Anthropic Provider | `src/qwenpaw/providers/anthropic_provider.py` |
@@ -718,13 +918,13 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 15. OllamaProvider 详解
+## 16. OllamaProvider 详解
 
 **源码路径**: `src/qwenpaw/providers/ollama_provider.py`
 
 OllamaProvider 继承自 OpenAIProvider，复用 OpenAI 兼容 API，通过 URL 规范化适配 Ollama 的端点。
 
-### 15.1 类定义
+### 16.1 类定义
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:12
@@ -732,7 +932,7 @@ class OllamaProvider(OpenAIProvider):
     """Provider implementation for Ollama local LLM hosting platform."""
 ```
 
-### 15.2 核心方法
+### 16.2 核心方法
 
 | 方法 | 行号 | 说明 |
 |------|------|------|
@@ -744,7 +944,7 @@ class OllamaProvider(OpenAIProvider):
 | `check_model_connection()` | 50 | 检查特定模型是否可用 |
 | `get_chat_model_instance()` | 60 | 获取聊天模型实例 |
 
-### 15.3 URL 规范化
+### 16.3 URL 规范化
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:16
@@ -786,7 +986,7 @@ def _openai_compatible_base_url(self) -> str:
 
 这样即使用户填错格式，也能正常工作。
 
-### 15.4 客户端创建
+### 16.4 客户端创建
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:45
@@ -798,7 +998,7 @@ def _client(self, timeout: float = 5) -> AsyncOpenAI:
     )
 ```
 
-### 15.5 模型检查
+### 16.5 模型检查
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:51
@@ -820,7 +1020,7 @@ async def check_model_connection(
     return False, f"Model '{model_id}' not found"
 ```
 
-### 15.6 model_post_init 初始化
+### 16.6 model_post_init 初始化
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:33
@@ -839,7 +1039,7 @@ def model_post_init(self, __context: Any) -> None:
     self.base_url = self._normalize_base_url(self.base_url)
 ```
 
-### 15.7 获取聊天模型实例
+### 16.7 获取聊天模型实例
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:62
@@ -860,7 +1060,7 @@ def get_chat_model_instance(self, model_id: str) -> ChatModelBase:
     )
 ```
 
-### 15.8 Ollama 特性
+### 16.8 Ollama 特性
 
 **Ollama 特点**：
 - 本地运行，无需网络
@@ -900,6 +1100,25 @@ llava:13b
 ### 关键差异
 
 JPA Provider 管理的是 ORM 映射（对象-关系映射），QwenPaw Provider 管理的是 LLM API 调用（模型-请求映射）。Java 开发者需要注意：ProviderManager 的 `activate_model()` 类似于 `DataSource.getConnection()`，但这里不是获取连接而是设置全局活跃模型；`check_connection()` 类似于 JDBC 的连接测试，但返回的是 `(bool, str)` 元组而非抛异常。密钥管理方面，Java 通常用 JCEKS 密钥库，QwenPaw 用 Fernet 对称加密存储在文件系统。
+
+---
+
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 使用 CLI 或 API 列出当前系统所有已注册的 Provider 和可用模型
+**提示**: 通过 `GET /api/providers` 端点或直接检查 `ProviderManager` 实例的 `builtin_providers` 和 `custom_providers` 字典
+**参考思路**: `ProviderManager` 是全局单例，维护了 `builtin_providers`（24 个内置 Provider）和 `custom_providers`（用户自定义）两个字典。每个 Provider 实例的 `models` 属性包含该 Provider 下可用的 `ModelInfo` 列表。遍历这些字典，打印 Provider ID、名称及其下的模型 ID 列表即可。也可以查看 `~/.qwenpaw/secrets/providers/` 目录结构了解磁盘存储。
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪 `activate_model()` 的完整流程，从用户选择到模型实例创建
+**提示**: 从 `ProviderManager.activate_model()` 开始，经过 `_normalize_provider_id()` → `get_provider()` → `has_model()` → `save_active_model()` → `maybe_probe_multimodal()`
+**参考思路**: `activate_model()` 首先规范化 Provider ID（大小写、空格处理），然后验证 Provider 存在且包含目标模型。通过后创建 `ModelSlotConfig` 并持久化到磁盘（`save_active_model`）。最后调度后台任务探测模型的多模态能力（如未知）。注意 `activate_model` 只设置活跃模型配置，实际的模型实例创建发生在 Agent 初始化时的 `create_model_and_formatter()` 调用中——通过 `Provider.get_chat_model_instance()` 获取。
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 实现一个自定义 Provider 类（继承 OpenAIProvider），支持一个新的 API 端点
+**提示**: 参照 `OllamaProvider` 的实现模式——继承 `OpenAIProvider`，重写 `_normalize_base_url()`、`_openai_compatible_base_url()` 和 `get_chat_model_instance()`
+**参考思路**: (1) 创建新类继承 `OpenAIProvider`，在 `model_post_init` 中设置默认 `base_url`；(2) 重写 `_normalize_base_url()` 处理目标 API 的 URL 格式；(3) 在 `get_chat_model_instance()` 中使用 `OpenAIChatModelCompat` 传入自定义的 `base_url` 和 `generate_kwargs`；(4) 在 `config.json` 的自定义 Provider 中注册，或通过 `ProviderManager.add_custom_provider()` 添加。关键是要确保新端点的请求/响应格式与 OpenAI Chat Completions API 兼容。
 
 ---
 

@@ -758,6 +758,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 ---
 
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 找到 FastAPI 应用的两阶段启动流程，说明每阶段的作用
+**提示**: 查看 `src/qwenpaw/app/_app.py` 中的 `lifespan` 上下文管理器
+**参考思路**: Phase 1（同步，<100ms）负责认证初始化、配置迁移、创建 MultiAgentManager 等核心管理器实例；Phase 2（后台异步）负责启动所有 Agent 的 Workspace、初始化插件系统、设置审批服务等重型 I/O 操作
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪一个 HTTP 请求通过中间件链的完整路径
+**提示**: 以 `GET /api/agents/agent1/chats` 为例，按实际执行顺序分析 CORSMiddleware → AuthMiddleware → AgentContextMiddleware 的处理
+**参考思路**: 请求先经过 CORSMiddleware（最后注册最先处理）处理跨域头 → AuthMiddleware 提取 JWT Token 并验证用户身份 → AgentContextMiddleware 从 URL 路径提取 agentId 并设置到 context → 最终到达路由处理器
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 实现一个新的 API 路由模块，包含 CRUD 操作和认证中间件
+**提示**: 在 `src/qwenpaw/app/routers/` 下创建新模块，使用 `APIRouter` 并在 `__init__.py` 中注册
+**参考思路**: 创建 `routers/bookmarks.py`，用 `APIRouter(prefix="/bookmarks")` 定义 GET/POST/PUT/DELETE 四个端点；在 `routers/__init__.py` 中 include 该路由；AuthMiddleware 自动保护非 `_PUBLIC_PATHS` 的路径；如需公开访问则将路径添加到 `_PUBLIC_PATHS` 集合
+
 ## 知识检查
 
 1. **FastAPI 中间件按注册顺序反向执行，如果希望请求处理顺序为 CORS -> Auth -> AgentContext，应该如何注册？如果注册错误会导致什么问题？**

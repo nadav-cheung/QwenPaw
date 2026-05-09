@@ -887,7 +887,7 @@ public class AgentClassLoader extends URLClassLoader {
 - [请求处理与Runner](./21-请求处理与Runner.md) — Runner 在 Workspace 中的角色
 - [消息渠道系统](./08-消息渠道系统.md) — ChannelManager 与 Workspace 交互
 - [定时任务与心跳](./25-定时任务与心跳.md) — CronManager 与 Workspace 交互
-- [MCP系统详解](./29-MCP系统详解.md) — MCPClientManager 与 Workspace 交互
+- [MCP系统详解](./13-MCP系统.md) — MCPClientManager 与 Workspace 交互
 
 ---
 

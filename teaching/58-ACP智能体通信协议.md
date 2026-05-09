@@ -815,8 +815,8 @@ QwenPaw → run_turn() → ACPService
 ### 相关章节
 
 - [Workspace 隔离机制](./28-Workspace隔离机制.md) — Workspace 提供 ACP Server 的运行环境
-- [54-MCP系统深入解析](./54-MCP系统深入解析.md) — MCP 是另一种工具调用协议
-- [55-CLI命令系统详解](./55-CLI命令系统详解.md) — ACP CLI 入口
+- [13-MCP系统](./13-MCP系统.md) — MCP 是另一种工具调用协议
+- [69-CLI命令系统详解](./69-CLI命令系统详解.md) — ACP CLI 入口
 
 ---
 

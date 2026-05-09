@@ -799,6 +799,23 @@ except Exception:
 
 ---
 
+## 实战演练
+
+### 基础练习（⭐）
+**目标**: 阅读 ToolGuardMixin 的源码，说明它如何通过 Python MRO 实现拦截
+**提示**: 查看 `src/qwenpaw/agents/react_agent.py:76` 中 `QwenPawAgent(ToolGuardMixin, ReActAgent)` 的继承顺序
+**参考思路**: Python MRO 按声明顺序解析方法，ToolGuardMixin 先于 ReActAgent，所以 `ToolGuardMixin._acting()` 覆盖了 `ReActAgent._acting()`，在工具执行前插入安全检查逻辑
+
+### 进阶练习（⭐⭐⭐）
+**目标**: 追踪一次 ShellEvasionGuardian 的检测过程：从输入到判定结果的完整链路
+**提示**: 以命令 `echo $(cat /etc/passwd)` 为输入，跟踪 `_QuoteState` 状态机和各检测函数的执行
+**参考思路**: `_QuoteState` 逐字符跟踪引号状态，在引号外遇到 `$(` 时 `_check_command_substitution` 触发，返回 CRITICAL 级别 GuardFinding；然后汇总到 ToolGuardResult，由 ToolGuardMixin 决定是否进入审批流程
+
+### 挑战练习（⭐⭐⭐⭐⭐）
+**目标**: 实现一个自定义 Guardian 类，检测并拦截包含特定正则模式的命令
+**提示**: 继承 `BaseToolGuardian`，实现 `guard()` 方法，参考 `RuleBasedToolGuardian` 的模式匹配逻辑
+**参考思路**: 创建 `RegexPatternGuardian` 类，在构造函数中接收正则列表并预编译，`guard()` 方法遍历指定参数值逐一匹配；将 Guardian 注册到 `ToolGuardEngine` 的 `_guardians` 列表中即可生效
+
 ## 知识检查
 
 1. **ToolGuardMixin 是如何通过 Python MRO 机制拦截工具调用的？如果 QwenPawAgent 的继承顺序改为 `ReActAgent, ToolGuardMixin`，会发生什么？**
