@@ -1208,36 +1208,3 @@ asyncio.run(test())
 |------|------|
 | [33-OpenAIProvider](./33-OpenAIProvider.md) | 模型系统与 LLM 提供商的整体架构 |
 | [39-配置系统](../level-6-config-plugins/39-配置系统.md) | 配置文件管理与持久化 |
-
----
-
-## 源码一致性审查 (Source Consistency Review)
-
-| 检查项 | 状态 | 证据 |
-|--------|------|------|
-| `LocalModelManager` | ✅ | `src/qwenpaw/local_models/manager.py` |
-| `LlamaCppBackend` | ✅ | `src/qwenpaw/local_models/llamacpp.py` — llama.cpp 服务器管理 |
-| `download_manager.py` | ✅ | 支持 HuggingFace + ModelScope 双源下载 |
-| `tag_parser.py` | ✅ | GGUF 标签/量化参数解析 |
-
-**审查结论**: 本地模型管理系统组件路径与真实源码一致。
-
-## 教学审查 (Pedagogy Review)
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| 从云到本地递进 | ✅ | 第 32 章云端 Provider → 第 34 章本地模型 |
-
-## 工程审查 (Engineering Review)
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| ONNX 运行时 | ✅ | `onnxruntime<1.24` 版本锁定（pyproject.toml） |
-| 双下载源 | ✅ | HuggingFace + ModelScope 自动回退 |
-
-## Contributor 审查 (Contributor Review)
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| 危险区域 | ✅ | llama.cpp 二进制管理和进程生命周期 |
-
----
-
-*Chapter 34 审查完成。基于 local_models/ 的真实源码。*

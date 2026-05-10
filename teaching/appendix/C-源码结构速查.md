@@ -329,8 +329,3 @@ agent_stats/                    # Agent 统计
 | CLI 命令系统 | 41 | `cli/` |
 | 定时任务 | 42 | `app/crons/` |
 | 部署与运维 | 43 | `app/_app.py`, `deploy/` |
-
----
-
-*基于源码 `src/qwenpaw/` 目录树 (v1.1.2)*
-*最后更新：2026-05-10*

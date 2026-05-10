@@ -100,8 +100,3 @@ EnvVarLoader.get_str("QWENPAW_LOG_LEVEL", "info")
 1. **`.env` 文件** — 项目根目录的 `.env` 文件最先加载（`constant.py:7-9`）
 2. **操作系统环境变量** — 覆盖 `.env` 中的值
 3. **`QWENPAW_*` 优先于 `COPAW_*`** — 两者同时存在时使用 `QWENPAW_*`
-
----
-
-*基于源码 `src/qwenpaw/constant.py` (v1.1.2)*
-*最后更新：2026-05-10*

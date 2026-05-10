@@ -83,8 +83,3 @@ except ChannelError as e:
 except AgentStateError as e:
     logger.error(f"Session {e.details['session_id']} error: {e.message}")
 ```
-
----
-
-*基于源码 `src/qwenpaw/exceptions.py` (v1.1.2)*
-*最后更新：2026-05-10*

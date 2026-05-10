@@ -140,8 +140,3 @@ class LazyGroup(click.Group):
 | `agents` | `agent` |
 | `channels` | `channel` |
 | `chats` | `chat` |
-
----
-
-*基于源码 `src/qwenpaw/cli/main.py` (v1.1.2)*
-*最后更新：2026-05-10*
