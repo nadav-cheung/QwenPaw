@@ -216,7 +216,26 @@ class Workspace:
 
 `AgentRunner`（`src/qwenpaw/app/runner/runner.py` 第 130 行）继承自 agentscope 框架的 `Runner` 基类。它的核心方法是 `query_handler`（第 408 行），这是所有请求最终到达的地方。
 
-让我用伪代码展示 `query_handler` 的主干逻辑：
+`query_handler` 把一次请求分成 12 个阶段按顺序执行：
+
+```
+Stage 1:  工具守卫审批检查    ← 有待审批的工具调用？处理它
+Stage 2:  命令路由            ← /command？走命令路径
+Stage 3:  Agent 上下文设置    ← 设置 contextvars（agent_id, session_id）
+Stage 4:  Agent 构建准备      ← 环境上下文、MCP 客户端、加载配置
+Stage 5:  Mission Mode 检测   ← /mission 命令或活跃任务？
+Stage 6:  Agent 实例化        ← 每次请求新建 QwenPawAgent（热重载关键）
+Stage 7:  聊天自动注册        ← ChatManager 创建/更新会话记录
+Stage 8:  技能注入            ← /skillname [input] 格式？
+Stage 9:  会话状态加载        ← 从 JSON 文件恢复记忆
+Stage 10: 执行               ← 流式调用 Agent
+Stage 11: 错误处理            ← 异常转换、写错误转储
+Stage 12: 清理               ← 保存会话状态、更新时间戳
+```
+
+Stage 6 最值得关注：**每次请求都新建一个 Agent 实例**。这意味着你改了配置文件，下一次对话立刻生效——不需要重启服务器。代价是每次请求都有初始化开销，但因为大部分时间花在等 LLM 响应上，这个代价可以接受。
+
+让我用伪代码展示主干逻辑：
 
 ```python
 async def query_handler(self, msgs, request=None, **kwargs):
@@ -356,7 +375,15 @@ Session 生命周期：
   ...（持续整个对话生命周期）
 ```
 
-这里有个细节值得注意：`_safe_json_loads` 函数做了容错处理。如果 JSON 文件因为意外（比如突然断电）写坏了，它不会直接崩溃，而是尝试"抢救"——用 `raw_decode` 提取第一个有效的 JSON 对象。实在救不回来，就返回空字典，从头开始。这个设计很实用——你不会因为一个损坏的文件而丢失整个对话。
+这里有个细节值得注意：`_safe_json_loads` 函数做了容错处理。它的三层恢复策略是这样的：
+
+```
+第 1 层: json.loads()           ← 正常解析，绝大多数情况走这条路
+第 2 层: raw_decode()           ← JSON 末尾有垃圾？提取第一个有效对象
+第 3 层: 返回空字典 {}           ← 完全救不回来，从头开始
+```
+
+第 2 层特别有用——并发写入（两个协程同时写同一个文件）或进程异常终止（写了一半被 kill）是 JSON 损坏的常见原因。`raw_decode` 能从 `"{"a":1}{"b":2}"` 或 `"{"messages": [{"content": "hello` 这样的残缺内容中抢救出第一个有效对象。这个设计很实用——你不会因为一个损坏的文件而丢失整个对话。
 
 另外，文件名用到了 `sanitize_filename` 函数，把 Windows 不允许的字符（`: * ? " < > |`）替换成 `--`。这样同一个代码在 Windows、macOS、Linux 上都能正常运行。
 
@@ -502,6 +529,25 @@ INFO:  Command path: /new
 ```
 
 注意，这条消息不会触发 LLM 调用——它被命令分发直接处理了。
+
+---
+
+## 补充：Workspace 的启动顺序
+
+前面我们看了 Workspace 是怎么被懒加载创建的，但没说它内部是怎么启动的。Workspace 启动时，它内部的各个组件（Runner、MemoryManager、ChannelManager 等）不是一股脑全开的——它们通过 `ServiceManager` 按优先级分组启动：
+
+```
+Priority 10: runner           ← 先创建 AgentRunner
+Priority 20: memory_manager   ← 然后并发启动记忆、MCP、聊天管理器
+            |  mcp_manager    ←  （同优先级用 asyncio.gather 并发）
+            |  chat_manager   ←
+Priority 25: runner_start     ← 再正式启动 Runner（依赖上面的管理器）
+Priority 30: channel_manager  ← 然后启动频道（依赖 Runner）
+Priority 40: cron_manager     ← 定时任务（依赖频道）
+Priority 50+: 配置监听器      ← 最后启动配置热更新监听
+```
+
+核心规则是"同优先级并发，不同优先级串行"。Priority 20 的三个管理器互不依赖，所以并发启动；但 Priority 25 的 runner_start 必须等 Priority 20 的管理器都就绪。这比全部串行启动快，同时保证了依赖关系的正确性。
 
 ---
 

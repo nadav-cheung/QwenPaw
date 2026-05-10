@@ -600,6 +600,22 @@ QwenPawAgent -> ToolGuardMixin -> ReActAgent
 
 每个 `super()` 调用也都有注释说明跳转到哪里。这降低了理解成本。
 
+## 工程现实：代码中的已知问题
+
+了解了 ReAct 循环的设计之后，值得看看它在工程层面有哪些已知的技术债和性能问题。这不是为了挑毛病，而是帮你理解"真正的代码长什么样"——没有完美的系统，只有不断权衡的系统。
+
+**最值得关注的问题：`_reasoning` 和 `_summarizing` 的代码重复。** 这两个方法有约 70 行几乎一样的多媒体处理逻辑（主动剥离 + 被动 fallback）。它们是先后独立写的，没有抽取公共逻辑。如果你要改多媒体处理的行为，必须同时改两个地方——容易漏改。重构方向是抽取一个 `_media_resilient_model_call()` 辅助方法。
+
+**auto-continue 的额外 LLM 调用成本。** `_auto_continue_if_text_only()` 每触发一次就多一次完整的 LLM API 请求（最多额外 2 次）。对于按 token 计费的模型，这会显著增加成本。
+
+**MemoryCompactionHook 的重入问题。** agentscope 的 metaclass 机制会导致钩子在同一轮推理中被触发两次。代码用 `_REENTRANCY_ATTR` 属性守卫来防护——这不是过度设计，而是框架行为的现实约束。
+
+**调试技巧**：如果你想追踪 ReAct 循环的行为，在日志中搜索以下关键字：
+- `"QwenPawAgent.reply: max_iters="` — 确认最大迭代次数
+- `"Auto-continue: text-only"` — 检测自动续行是否被触发
+- `"Proactively stripped"` — 多媒体主动剥离
+- `"Tool guard:"` — 所有守卫相关操作
+
 ---
 
 ## 动手：观察 ReAct 循环日志（观察级）
