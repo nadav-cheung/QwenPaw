@@ -48,6 +48,19 @@ QwenPaw 的异常体系建立在 `agentscope_runtime` 引擎的基础异常类�
 
 ---
 
+## 常见故障排查
+
+| 现象 | 可能异常 | 检查步骤 |
+|------|----------|----------|
+| 启动后 API 调用立即失败 | `UnauthorizedModelAccessException` | 1) `qwenpaw doctor` 检查 API Key 2) 检查环境变量 3) 检查 Provider 配额 |
+| 长时间无响应后报错 | `ModelTimeoutException` | 1) 网络连通性 2) API 端点可达性 3) 增大超时配置 |
+| 上下文过长时失败 | `ModelContextLengthExceededException` | 1) `/compact` 手动压缩记忆 2) 调整 `MEMORY_COMPACT_RATIO` |
+| 高并发场景失败 | `ModelQuotaExceededException` | 1) 降低 `QWENPAW_LLM_MAX_CONCURRENT` 2) 降低 `QWENPAW_LLM_MAX_QPM` |
+| 技能安装失败 | `SkillsError` | 1) 查看 `skill_scanner` 扫描报告 2) 检查 `SKILL.md` 格式 |
+| 渠道收不到消息 | `ChannelError` | 1) `qwenpaw channels status` 2) Webhook URL 配置 3) 网络连通性 |
+
+---
+
 ## 模块级异常
 
 ### ACP 协议 (`agents/acp/core.py`)

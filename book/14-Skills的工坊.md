@@ -118,6 +118,59 @@ Markdown 部分则是一份写给 AI Agent 的"操作手册"。它告诉 Agent�
 
 这就是"Markdown 即代码"的核心思想：**不写 Python，写文档。技能不是程序，而是指令。**
 
+#### SKILL.md Frontmatter 字段规范
+
+`SKILL.md` 的 YAML 头部支持以下字段：
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | Skill 唯一标识符 |
+| `description` | string | 是 | 技能功能描述，展示给用户 |
+| `license` | string | 否 | 许可证声明 |
+| `metadata.builtin_skill_version` | string | 否 | 内置技能版本号 |
+| `metadata.qwenpaw.emoji` | string | 否 | UI 显示的图标 |
+| `metadata.qwenpaw.requires.env` | list | 否 | 依赖的环境变量 |
+| `metadata.qwenpaw.requires.bins` | list | 否 | 依赖的命令行工具 |
+
+示例：
+
+```yaml
+---
+name: pdf
+description: Use this skill whenever the user wants to do anything with PDF files.
+license: Proprietary. LICENSE.txt has complete terms
+metadata:
+  builtin_skill_version: "1.1"
+  qwenpaw:
+    emoji: "📄"
+    requires:
+      bins: ["qpdf", "pdftotext"]
+---
+```
+
+#### 内置技能一览
+
+QwenPaw 内置了以下技能，每个技能提供 `-en`（英文）和 `-zh`（中文）两个语言变体：
+
+| 技能名称 | 功能 | 依赖工具 |
+|----------|------|----------|
+| `pdf` | PDF 读取、合并、分割、表单填充、OCR | pypdf, pdfplumber, reportlab, qpdf |
+| `docx` | Word 文档操作、批注处理 | python-docx |
+| `xlsx` | Excel 表格处理、公式重算 | openpyxl |
+| `pptx` | PowerPoint 幻灯片操作 | python-pptx |
+| `file_reader` | 文本文件读取和摘要 | — |
+| `browser_visible` | 可见浏览器自动化 | Playwright |
+| `browser_cdp` | CDP 协议浏览器控制 | Chrome DevTools |
+| `cron` | 定时任务调度 | — |
+| `news` | 新闻获取（通过浏览器抓取） | — |
+| `himalaya` | 邮件处理 | himalaya |
+| `make_plan` | 计划制定 | — |
+| `channel_message` | 渠道消息处理 | — |
+| `chat_with_agent` | 多智能体对话 | — |
+| `multi_agent_collaboration` | 多智能体协作 | — |
+| `guidance` | QwenPaw 配置问答 | — |
+| `QA_source_index` | 问答来源索引 | — |
+
 ### Skill 的生命周期
 
 一个 Skill 从被创建到被执行，要经历五个阶段：
@@ -278,6 +331,33 @@ def _scan_skill_dir_or_raise(skill_dir: Path, skill_name: str) -> None:
 安全扫描（由 `security/skill_scanner.py` 实现）会检查 Skill 目录中是否存在潜在危险的文件：符号链接穿越、可执行二进制文件、隐藏的系统文件等。如果扫描不通过，整个创建或导入操作会被拒绝。
 
 这是一个"先扫后写"（scan-before-write）的模式。即使 Skill 是 Markdown 格式，也不能完全信任用户上传的内容——攻击者可以在 zip 包里藏匿恶意文件。
+
+#### 扫描威胁分类
+
+安全扫描器检测以下威胁类别：
+
+| 分类 | 说明 |
+|------|------|
+| `prompt_injection` | 提示词注入攻击 |
+| `command_injection` | 命令注入 |
+| `data_exfiltration` | 数据泄露 |
+| `unauthorized_tool_use` | 未授权工具使用 |
+| `hardcoded_secrets` | 硬编码密钥/凭证 |
+| `obfuscation` | 代码混淆 |
+| `social_engineering` | 社会工程攻击 |
+| `malware` | 恶意软件 |
+| `supply_chain_attack` | 供应链攻击 |
+
+#### 严重等级与处理方式
+
+| 等级 | 说明 | 处理方式 |
+|------|------|----------|
+| `CRITICAL` | 严重威胁，立即阻止 | 阻止安装/激活 |
+| `HIGH` | 高风险威胁 | 阻止安装/激活 |
+| `MEDIUM` | 中等风险 | 警告日志 |
+| `LOW` | 低风险 | 仅记录 |
+| `INFO` | 信息性提示 | 仅记录 |
+| `SAFE` | 无问题 | 放行 |
 
 ### 清单的并发安全
 
