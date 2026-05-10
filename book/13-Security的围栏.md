@@ -250,6 +250,12 @@ def _get_master_key() -> bytes:
 
 #### 加密架构的工程细节
 
+SecretStore 使用 Fernet 对称加密（AES-128-CBC + HMAC-SHA256），主密钥为 32 字节（256 位），密文以 `ENC:` 前缀标识。核心是三个函数（`secret_store.py`）：
+
+- `encrypt(plaintext)` -- 加密明文，返回 `ENC:<base64-ciphertext>`。空字符串直接透传。
+- `decrypt(value)` -- 如果值带 `ENC:` 前缀则解密，否则透传。解密失败时不抛异常，而是返回原始密文（优雅降级）。
+- `is_encrypted(value)` -- 检查值是否以 `ENC:` 开头，用于防止重复加密。
+
 SecretStore 的加密层有几个值得注意的工程细节。
 
 **四级密钥解析链**（`secret_store.py` 第 154 行）按优先级查找主密钥：进程内缓存（无锁快速路径） -> OS 钥匙串（通过 `keyring` 库，服务名 `qwenpaw`） -> 文件 `SECRET_DIR/.master_key`（64 个十六进制字符） -> `secrets.token_hex(32)` 生成新密钥。每一步失败都静默降级到下一步，不会抛出异常。
@@ -260,7 +266,9 @@ SecretStore 的加密层有几个值得注意的工程细节。
 
 **备份恢复的密钥冲突处理**。从备份恢复时，如果备份的 `.master_key` 与当前磁盘上的不同，`handle_master_key_conflict()` 会先把当前密钥备份到 `_pre_restore_keys/` 目录，然后用恢复的密钥覆盖。恢复后调用 `reload_master_key_from_disk()` 使进程内缓存失效并重新同步 OS 钥匙串。
 
-**容器环境的自动检测**。`_should_skip_keyring()` 检测 Docker 容器（`QWENPAW_RUNNING_IN_CONTAINER`）、无 GUI 的 Linux（没有 `DISPLAY` 或 `WAYLAND_DISPLAY`）、CI 环境（`CI=true`），在这些环境中自动跳过 OS 钥匙串，直接使用文件存储。
+**容器环境的自动检测**。`_should_skip_keyring()` 检测 Docker 容器（`QWENPAW_RUNNING_IN_CONTAINER`）、无 GUI 的 Linux（没有 `DISPLAY` 或 `WAYLAND_DISPLAY`）、CI 环境（`CI=true`），在这些环境中自动跳过 OS 钥匙串，直接使用文件存储。不同操作系统的 Keychain 后端由 `keyring` 库自动适配：macOS 使用 Keychain，Windows 使用 Credential Locker，Linux 使用 Secret Service（GNOME）/ kwallet。
+
+**密钥轮换的未来路径**。当前实现使用单一 Fernet 密钥。Python `cryptography` 库提供的 `MultiFernet` 支持密钥列表——第一个密钥用于加密，所有密钥都尝试解密。这意味着密钥轮换可以这样实现：把新密钥插入列表头部，旧密钥保留在尾部用于解密已有数据，然后用 `rotate()` 方法逐步重新加密。目前 QwenPaw 尚未实现这个机制，但加密架构已经为此预留了空间。
 
 #### SkillScanner 的威胁分类
 
@@ -275,7 +283,7 @@ SkillScanner 内置的 YAML 签名规则覆盖六类威胁（`rules/signatures/`
 | `eval_usage` | 使用 `eval()`/`exec()` | 中 |
 | `import_suspicious` | 导入 `socket`、`pty` 等可疑模块 | 中 |
 
-扫描策略由 `ScanPolicy`（`data/default_policy.yaml`）控制，它定义了哪些文件类型被扫描、哪些扩展名被排除。`PatternAnalyzer` 加载 YAML 签名并做正则匹配，结果是 `ScanResult.is_safe` 布尔判定。高严重程度的发现阻止安装，中等程度的发出警告但允许继续。
+扫描策略由 `ScanPolicy`（`data/default_policy.yaml`）控制，它定义了哪些文件类型被扫描、哪些扩展名被排除。`PatternAnalyzer` 加载 YAML 签名并做正则匹配，结果是 `ScanResult.is_safe` 布尔判定。高严重程度的发现阻止安装，中等程度的发出警告但允许继续。签名规则以 YAML 格式存储在 `rules/signatures/` 目录下，每条规则包含 `id`、`severity`、`patterns`（正则列表）和 `file_types` 字段。新增规则只需添加 YAML 文件，不需要修改代码。此外，`SkillScanner` 支持通过 `scanner.register_analyzer()` 注册自定义的 `BaseAnalyzer` 实现，扩展检测能力。
 
 ### 安全全景：所有防线的协作
 
