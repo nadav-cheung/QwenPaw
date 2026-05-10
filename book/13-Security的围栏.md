@@ -248,6 +248,35 @@ def _get_master_key() -> bytes:
 
 解析顺序是：内存缓存 -> OS 钥匙串 -> 磁盘文件 -> 首次生成。首次生成时会同时存入钥匙串和磁盘文件，保证两条路径都可用。
 
+#### 加密架构的工程细节
+
+SecretStore 的加密层有几个值得注意的工程细节。
+
+**四级密钥解析链**（`secret_store.py` 第 154 行）按优先级查找主密钥：进程内缓存（无锁快速路径） -> OS 钥匙串（通过 `keyring` 库，服务名 `qwenpaw`） -> 文件 `SECRET_DIR/.master_key`（64 个十六进制字符） -> `secrets.token_hex(32)` 生成新密钥。每一步失败都静默降级到下一步，不会抛出异常。
+
+**加密/解密的幂等性**。`encrypt()` 在加密前检查值是否已经有 `ENC:` 前缀，已加密的值不会重复加密。`decrypt()` 在解密失败时返回原始密文而非抛出异常——这看起来"不安全"，但确保了服务不会因为密钥不匹配而崩溃。
+
+**Provider 配置的透明加密**。`ProviderManager` 在保存 Provider 时通过 `encrypt_dict_fields()` 自动加密 `api_key` 等敏感字段（`secret_store.py` 第 297 行定义了 `PROVIDER_SECRET_FIELDS = frozenset({"api_key"})`），加载时通过 `decrypt_dict_fields()` 透明解密。如果检测到遗留的明文值，`_maybe_migrate_plaintext()` 会在读取时自动重新加密并写回，对调用方完全透明。
+
+**备份恢复的密钥冲突处理**。从备份恢复时，如果备份的 `.master_key` 与当前磁盘上的不同，`handle_master_key_conflict()` 会先把当前密钥备份到 `_pre_restore_keys/` 目录，然后用恢复的密钥覆盖。恢复后调用 `reload_master_key_from_disk()` 使进程内缓存失效并重新同步 OS 钥匙串。
+
+**容器环境的自动检测**。`_should_skip_keyring()` 检测 Docker 容器（`QWENPAW_RUNNING_IN_CONTAINER`）、无 GUI 的 Linux（没有 `DISPLAY` 或 `WAYLAND_DISPLAY`）、CI 环境（`CI=true`），在这些环境中自动跳过 OS 钥匙串，直接使用文件存储。
+
+#### SkillScanner 的威胁分类
+
+SkillScanner 内置的 YAML 签名规则覆盖六类威胁（`rules/signatures/` 目录）：
+
+| 规则类别 | 检测内容 | 严重程度 |
+|---------|----------|----------|
+| `network_connection` | `requests.`、`urllib.` 等异常网络连接 | 高 |
+| `file_write_outside` | 在工作区外写文件 | 高 |
+| `subprocess_execute` | `subprocess`、`os.system` 等外部命令执行 | 高 |
+| `env_access` | 读取环境变量 | 中 |
+| `eval_usage` | 使用 `eval()`/`exec()` | 中 |
+| `import_suspicious` | 导入 `socket`、`pty` 等可疑模块 | 中 |
+
+扫描策略由 `ScanPolicy`（`data/default_policy.yaml`）控制，它定义了哪些文件类型被扫描、哪些扩展名被排除。`PatternAnalyzer` 加载 YAML 签名并做正则匹配，结果是 `ScanResult.is_safe` 布尔判定。高严重程度的发现阻止安装，中等程度的发出警告但允许继续。
+
 ### 安全全景：所有防线的协作
 
 把所有防线画在一起，QwenPaw 的安全架构是这样的：
