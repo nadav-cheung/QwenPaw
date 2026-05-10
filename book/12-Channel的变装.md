@@ -338,6 +338,36 @@ _BUILTIN_SPECS = {
 
 **新增一个平台，整个过程就是：写一个继承 `BaseChannel` 的类，在注册表里加一行。** ChannelManager 不需要改，Agent 不需要改，Runner 不需要改。
 
+### 自定义渠道发现
+
+注册表不仅包含内置渠道，还支持用户自定义渠道。`_discover_custom_channels()`（registry.py 第 85 行）从 `custom_channels/` 目录自动发现并加载自定义渠道类：
+
+```python
+def _discover_custom_channels() -> dict[str, type[BaseChannel]]:
+    for path in sorted(CUSTOM_CHANNELS_DIR.iterdir()):
+        # 加载 .py 文件或带 __init__.py 的目录
+        mod = importlib.import_module(name)
+        # 查找 BaseChannel 子类，以 channel 属性为键注册
+```
+
+自定义渠道模块还可以通过 `register_app_routes(app)` 函数注册额外的 FastAPI HTTP 路由（如 webhook 端点），系统会自动调用并验证路由前缀。
+
+### 命令优先级路由：CommandRegistry
+
+ChannelManager 内部有一个 `CommandRegistry`（`channels/command_registry.py`），它管理命令到优先级的映射，用于 `UnifiedQueueManager` 的优先级队列路由：
+
+```python
+class CommandRegistry:
+    _priority_names = {
+        "critical": 0,   # 紧急控制命令（如 /stop）
+        "high": 10,      # 高优先级（如 /daemon status）
+        "normal": 20,    # 普通消息（默认）
+        "low": 30,       # 低优先级批处理
+    }
+```
+
+当消息到达时，ChannelManager 用 `_command_registry.get_priority_level(query)` 查询优先级，然后路由到 UnifiedQueueManager 的对应优先级队列。`is_control_command()` 方法还用于判断消息是否为控制命令——控制命令可以绕过 TaskTracker 的防重入检查，确保 `/stop` 等紧急操作始终能立即执行。
+
 ---
 
 ## 实验：对比两个 Channel 的 process 路径
