@@ -1,0 +1,671 @@
+# 技能系统 (Skills)
+
+## 本章导读
+
+| 项目 | 内容 |
+|------|------|
+| **学习目标** | 完成本章后，你能够：1) 列举技能的来源类型和安装方式 2) 使用 CLI 管理技能的完整生命周期 3) 在对话中通过触发词调用技能 4) 理解技能的安全扫描机制 |
+| **前置知识** | [A-环境变量速查](./A-环境变量速查.md)、[B-CLI命令参考](./B-CLI命令参考.md) |
+| **预计时长** | 40 分钟（阅读 20 分钟 + 练习 20 分钟） |
+| **难度等级** | ⭐⭐ |
+| **核心关键词** | `Skill` `技能池` `安全扫描` `触发词` `SKILL.md` |
+
+> **一句话概述**：Skills 是 QwenPaw 扩展智能体能力的核心机制——每个 Skill 是一个独立功能模块，通过触发词激活，让智能体执行特定任务。
+
+## 概述
+
+Skills 是 QwenPaw 扩展智能体能力的核心机制。每个 Skill 是一个独立的功能模块，可以让智能体执行特定任务。
+
+## 技能来源
+
+技能可以从多个来源安装：
+
+| 来源 | 示例 URL | 说明 |
+|------|----------|------|
+| ClawHub | `clawhub.ai` | 主要技能市场 |
+| GitHub | `github.com/user/repo` | 直接从 Git 仓库安装 |
+| LobeHub | `market.lobehub.com` | LobeHub 市场 |
+| ModelScope | `modelscope.cn` | 模型scope市场 |
+| skills.sh | `skills.sh` | Another skill registry |
+| skillsmp.com | `skillsmp.com` | Yet another registry |
+
+## 内置技能
+
+| 技能 | 功能 |
+|------|------|
+| pdf | PDF 文档处理（读取、写入、合并、分割、OCR） |
+| docx | Word 文档创建与编辑 |
+| pptx | PowerPoint 演示文稿创建与编辑 |
+| xlsx | Excel 电子表格操作 |
+| browser_cdp | 浏览器 CDP 连接管理（无头模式） |
+| browser_visible | 带可见窗口的浏览器自动化 |
+| cron | 定时任务管理 |
+| news | 通过浏览器抓取新闻 |
+| guidance | QwenPaw 配置问答 |
+| himalaya | 邮件 CLI 管理 |
+| dingtalk_channel | 钉钉渠道相关指导 |
+| channel_message | 渠道消息处理 |
+| chat_with_agent | 智能体间对话 |
+| file_reader | 文件读取操作 |
+| make_plan | 任务规划 |
+| multi_agent_collaboration | 多智能体协作 |
+| QA_source_index | Q&A 源索引 |
+
+> 每个内置技能均提供中文（`-zh`）和英文（`-en`）两个版本，运行时根据配置的语言自动选择。
+
+## 安装技能
+
+### 创建智能体时安装技能
+
+技能在创建智能体时通过 `--skill` 参数安装：
+
+```bash
+# 创建智能体并安装技能
+qwenpaw agents create --name my_agent --skill pdf --skill browser_visible
+
+# 查看支持的模板
+qwenpaw agents create --help
+```
+
+### 查看可用技能
+
+```bash
+# 列出所有可用技能
+qwenpaw skills list
+
+# 查看技能详情
+qwenpaw skills info pdf
+```
+
+## 管理技能
+
+### 配置技能
+
+```bash
+# 交互式配置技能参数
+qwenpaw skills config
+```
+
+### 技能启用状态
+
+技能的启用/禁用状态在 `workspace/skill.json` 中管理，通过 `qwenpaw skills config` 进行配置。
+
+## 在对话中使用技能
+
+### 基本语法
+
+在对话中直接调用技能：
+
+```
+/pdf 请帮我总结这个文档的内容
+
+/docx 创建一个包含会议纪要的 Word 文档
+
+/xlsx 分析这个销售数据表格
+```
+
+### 技能调用语法
+
+| 语法 | 示例 | 说明 |
+|------|------|------|
+| `/skill_name input` | `/pdf 分析这份文件` | 调用技能并传递输入 |
+| `/[skill name] input` | `/[file reader] ./notes.txt` | 支持空格名称 |
+| `/skill_name` | `/pdf` | 仅显示技能信息 |
+
+## 技能依赖
+
+部分技能需要系统依赖：
+
+| 技能 | 依赖 | 安装方式 |
+|------|------|---------|
+| pdf | pypdf, pdfplumber | `pip install pypdf pdfplumber` |
+| docx | python-docx | `pip install python-docx` |
+| xlsx | openpyxl | `pip install openpyxl` |
+| pptx | python-pptx | `pip install python-pptx` |
+| browser_visible | playwright | `playwright install` |
+| himalaya | himalaya | `pip install himalaya` |
+
+系统会自动检查依赖并在缺失时提示安装。
+
+## 技能安全
+
+所有技能在安装时都会经过安全扫描：
+
+- 没有恶意代码（`SkillScanner` 模式分析器）
+- 文件访问权限合理（`FilePathToolGuardian` 路径守卫）
+- 网络请求安全（`RuleBasedToolGuardian` 规则守卫）
+
+安全扫描在技能创建/导入/启用操作时自动触发，详细机制见 [19-安全系统详解](./19-安全系统详解.md)。
+
+## 内部架构
+
+### 核心模块结构
+
+```
+src/qwenpaw/agents/skills/
+├── __init__.py
+├── skills_manager.py      # 技能管理器 (1,697 行)
+├── skills_hub.py          # 技能中心 (1,698 行)
+├── skill_store.py         # 技能存储
+├── skill_project.py       # 技能项目结构
+├── cli.py                 # 技能 CLI 命令
+└── scanner.py             # 技能安全扫描器
+```
+
+### 核心数据模型
+
+```python
+@dataclass
+class SkillInfo:
+    """技能信息"""
+    name: str                           # 技能名称
+    version: str                        # 版本号
+    description: str                    # 描述
+    author: Optional[str]               # 作者
+    homepage: Optional[str]             # 主页
+    triggers: list[str]                 # 触发词列表
+    activation_message: Optional[str]   # 激活消息
+    requirements: SkillRequirements     # 依赖要求
+    builtin: bool = False               # 是否内置
+    builtin_variant: Optional[str] = None  # 内置变体
+    auto_install: bool = False          # 自动安装
+
+@dataclass
+class SkillRequirements:
+    """技能依赖要求"""
+    api: list[str]                     # 需要的 API
+    environment: dict[str, str]         # 环境变量
+    file_access: list[str]              # 文件访问权限
+    tools: list[str]                    # 需要的工具
+    skills: list[str]                   # 依赖的技能
+
+@dataclass
+class BuiltinSkillVariant:
+    """内置技能变体"""
+    name: str                           # 变体名称
+    lang: str                           # 语言 (zh/en)
+    triggers: list[str]                 # 触发词
+    skill_name: str                     # 关联的技能名
+```
+
+### SkillService 服务
+
+**源码路径**: `src/qwenpaw/agents/skills_manager.py`
+
+```python
+class SkillService:
+    """技能服务，管理技能的生命周期"""
+
+    def __init__(self, agent_config: AgentConfig):
+        self.agent_config = agent_config
+        self.extra_dir: Optional[str] = None
+        self._pool_svc: Optional[SkillPoolService] = None
+
+    async def resolve_effective_skills(
+        self,
+        skills: list[str],
+        context: Optional[dict[str, Any]] = None,
+    ) -> list[Skill]:
+        """解析技能列表，返回可用的技能对象
+
+        技能解析优先级：
+        1. 内置技能 (Builtin)
+        2. 技能池 (Pool)
+        3. 工作空间技能 (Workspace)
+        """
+        resolved = []
+        for name in skills:
+            skill = await self._resolve_skill(name, context)
+            if skill:
+                resolved.append(skill)
+        return resolved
+
+    async def _resolve_skill(
+        self,
+        name: str,
+        context: Optional[dict[str, Any]],
+    ) -> Optional[Skill]:
+        """解析单个技能"""
+        # 1. 检查内置技能
+        if builtin := self._get_builtin_skill(name, context):
+            return builtin
+
+        # 2. 检查技能池
+        if pool_skill := await self._pool_svc.get_skill(name):
+            return pool_skill
+
+        # 3. 检查工作空间
+        return await self._load_workspace_skill(name)
+
+    async def _register_skills(self, skills: list[Skill]) -> None:
+        """注册技能到智能体"""
+        for skill in skills:
+            await skill.register(self.agent_config)
+```
+
+### SkillPoolService 技能池
+
+```python
+class SkillPoolService:
+    """技能池服务，集中管理所有可用技能"""
+
+    def __init__(self, config: SkillPoolConfig):
+        self.config = config
+        self._pool: dict[str, Skill] = {}
+        self._lock = asyncio.Lock()
+
+    async def install_skill(
+        self,
+        name: str,
+        source: SkillSource,
+        agent_config: Optional[AgentConfig] = None,
+    ) -> Skill:
+        """安装技能到池中"""
+        async with self._lock:
+            skill = await self._fetch_and_build_skill(name, source)
+            self._pool[name] = skill
+            return skill
+
+    async def get_skill(self, name: str) -> Optional[Skill]:
+        """从池中获取技能"""
+        return self._pool.get(name)
+
+    async def list_available_skills(self) -> list[str]:
+        """列出所有可用技能"""
+        return list(self._pool.keys())
+```
+
+### 技能加载流程
+
+```
+智能体初始化
+    │
+    ▼
+SkillService.resolve_effective_skills()
+    │
+    ├───► _get_builtin_skill() ──► 内置技能 (pdf-zh, pdf-en, ...)
+    │
+    ├───► _pool_svc.get_skill() ──► 技能池 (clawhub, github, ...)
+    │
+    └───► _load_workspace_skill() ──► 工作空间技能
+              │
+              ▼
+         _register_skills()
+              │
+              ▼
+         skill.register(agent_config)
+              │
+              ▼
+         技能就绪，可被调用
+```
+
+### 技能来源优先级
+
+当多个来源提供同名技能时：
+
+| 优先级 | 来源 | 说明 |
+|--------|------|------|
+| 1 | 内置 (Builtin) | 系统内置的原生技能 |
+| 2 | 技能池 (Pool) | 用户安装的共享技能 |
+| 3 | 工作空间 (Workspace) | 当前项目本地技能 |
+
+### Hub Sources 详细配置
+
+**源码路径**: `src/qwenpaw/agents/skills_hub.py`
+
+| 来源 | 检测函数 | 获取方式 | API 端点 |
+|------|---------|---------|----------|
+| **ClawHub** | `_extract_clawhub_slug_from_url()` | REST API | `https://clawhub.ai/api/v1/skills/{slug}/file` |
+| **GitHub** | `_extract_github_spec()` | GitHub API / 直接文件 | `https://api.github.com/repos/{owner}/{repo}` |
+| **LobeHub** | `_extract_lobehub_identifier()` | ZIP 下载 | `https://market.lobehub.com/api/v1/skills/{id}/download` |
+| **ModelScope** | `_extract_modelscope_skill_spec()` | REST API | `https://modelscope.cn/api/v1/skills/@{owner}/{skill_name}` |
+| **SkillsMP** | `_extract_skillsmp_slug()` | GitHub 仓库解析 | - |
+
+**Hub 基础配置** (skills_hub.py 第 191-226 行):
+```python
+def _hub_base_url() -> str         # 默认: https://clawhub.ai
+def _hub_search_path() -> str       # 默认: /api/v1/search
+def _hub_version_path() -> str      # 默认: /api/v1/skills/{slug}/versions/{version}
+def _hub_detail_path() -> str      # 默认: /api/v1/skills/{slug}
+def _hub_file_path() -> str        # 默认: /api/v1/skills/{slug}/file
+```
+
+**GitHub 缓存机制** (第 94-127 行):
+- 缓存字典: `_github_cache: dict[str, tuple[float, Any]]`
+- TTL: 300 秒 (5分钟)
+- 用于减少 API 调用
+
+### 技能安装流程详解
+
+**Workspace Skill 安装流程** (`install_skill_from_hub` 第 1597 行):
+
+```
+1. URL 类型检测 (_resolve_bundle_from_url)
+   ├── skills.sh URL → _fetch_bundle_from_skills_sh_url
+   ├── GitHub URL → _fetch_bundle_from_github_url
+   ├── LobeHub URL → _fetch_bundle_from_lobehub_url
+   ├── ModelScope URL → _fetch_bundle_from_modelscope_url
+   ├── SkillsMP URL → _fetch_bundle_from_skillsmp_url
+   └── ClawHub slug → _fetch_bundle_from_clawhub_slug
+
+2. Bundle 规范化 (_normalize_bundle 第 643 行)
+   └── 提取 name, content, references, scripts, extra_files
+
+3. SkillService.create_skill() (第 2198 行)
+   ├── 内容验证 (_validate_skill_content)
+   ├── 目录创建
+   ├── 安全扫描 (_scan_skill_dir_or_raise 第 2120 行)
+   └── manifest 更新
+
+4. 可选启用 (enable_skill)
+   └── 再次扫描确认安全
+```
+
+### 安全扫描机制详解
+
+**源码路径**: `src/qwenpaw/security/skill_scanner/`
+
+**扫描入口** (`scan_skill_directory` __init__.py 第 424 行):
+
+```python
+# 扫描模式
+_VALID_MODES = {"block", "warn", "off"}
+# 优先级: env QWENPAW_SKILL_SCAN_MODE > config > default "block"
+
+# 扫描流程
+1. 模式检查 ("off" 模式直接返回)
+2. 白名单检查 (is_skill_whitelisted)
+3. 缓存检查 (mtime-based cache)
+4. SkillScanner.scan_skill() 执行扫描
+5. 结果处理:
+   - block 模式: 记录历史 + 抛出 SkillScanError
+   - warn 模式: 记录历史 + 记录警告日志
+```
+
+**SkillScanner** (scanner.py 第 76 行):
+```python
+class SkillScanner:
+    def scan_skill(skill_dir, skill_name) -> ScanResult:
+        # 1. 文件发现 (_discover_files)
+        #    - 跳过符号链接 (防止路径遍历)
+        #    - 验证真实路径在 skill 目录内
+        #    - 验证文件数量和大小限制
+
+        # 2. 分析器执行
+        #    - PatternAnalyzer (YAML 正则签名)
+
+        # 3. 结果去重
+```
+
+**扫描调用点** (skills_manager.py):
+```python
+# 所有创建/导入/启用操作都会触发扫描:
+- SkillService.create_skill()          # 第 2220 行
+- SkillService.save_skill()           # 第 2345, 2411 行
+- SkillService.enable_skill()          # 第 2580 行
+- SkillPoolService.create_skill()      # 第 2796 行
+- SkillPoolService.import_from_zip()   # 第 2856 行
+```
+
+### SkillPool vs Workspace Skill 差异
+
+| 特性 | SkillPoolService | SkillService |
+|------|-----------------|--------------|
+| 作用域 | 全局共享 | Workspace 私有 |
+| 渠道控制 | 不支持 | 支持 (channels) |
+| 导入来源 | Hub/ZIP/从 Workspace 上传 | Hub/ZIP/手动创建 |
+| 分发目标 | 分发到多个 Workspace | 单个 Workspace |
+| 保护状态 | 支持 protected 标记 | 无 |
+| 存储位置 | `WORKING_DIR/skill_pool` | `workspace_dir/skills` |
+| Manifest | `WORKING_DIR/skill_pool/skill.json` | `workspace_dir/skill.json` |
+
+### Manifest 协调机制
+
+**Pool Manifest 默认结构** (`_default_pool_manifest()` 第555-560行):
+```python
+{
+    "schema_version": "skill-pool-manifest.v1",
+    "version": 0,
+    "skills": {},
+    "builtin_skill_names": [],
+}
+```
+
+**Workspace Manifest 默认结构** (`_default_workspace_manifest()` 第563-569行):
+```python
+{
+    "schema_version": "workspace-skill-manifest.v1",
+    "version": 0,
+    "skills": {},
+}
+```
+
+**协调流程** (`reconcile_pool_manifest()` 第1428-1506行):
+
+| 阶段 | 操作 | 说明 |
+|------|------|------|
+| 1 | 扫描 `skill_pool/` 目录 | 查找包含 `SKILL.md` 的子目录 |
+| 2 | 对比现有 Manifest | 检查哪些技能已存在 |
+| 3 | 分类来源 | `_classify_pool_skill_source()` 区分 builtin/customized |
+| 4 | 保留用户状态 | 保留 `config` 和 `tags` 配置 |
+| 5 | 清理孤儿 | 删除磁盘已不存在的技能条目 |
+
+**Manifest 条目结构** (`_build_skill_metadata()` 第893-917行):
+```python
+{
+    "name": skill_name,
+    "description": str(post.get("description", "") or ""),
+    "version_text": _extract_version(post),
+    "source": "builtin" | "customized",
+    "protected": bool,
+    "requirements": dict,
+    "updated_at": _get_skill_mtime(skill_dir),
+    "builtin_language": str,    # 内置技能专属
+    "builtin_source_name": str, # 内置技能专属
+    "config": dict,
+    "tags": list,
+}
+```
+
+**Workspace Manifest 条目扩展** (第2239-2249行):
+```python
+{
+    "enabled": bool,           # 运行时启用/禁用状态
+    "channels": list,          # 路由渠道, 默认 ["all"]
+    "source": str,
+    "config": dict,
+    "metadata": dict,
+    "requirements": dict,
+    "updated_at": str,
+}
+```
+
+### QA 源索引系统 (QA_source_index)
+
+**源码路径**: `src/qwenpaw/agents/skills/QA_source_index-zh/` (中文版)
+
+**QA_source_index** 技能是关键词到文档路径的映射系统：
+
+```python
+# 主题/关键词 → 文档路径 + 源代码入口点
+```
+
+**主题映射表** (SKILL.md 第23-40行):
+
+| 主题 | 文档 | 源代码入口 |
+|------|------|-----------|
+| Installation | `quickstart`, `intro` | `src/qwenpaw/cli/`, `pyproject.toml` |
+| Configuration | `config` | `src/qwenpaw/config/config.py`, `src/qwenpaw/constant.py` |
+| Skills | `skills` | `src/qwenpaw/agents/skills_manager.py` |
+| MCP/Plugins | `mcp` | `src/qwenpaw/app/routers/` (grep `mcp`) |
+| Multi-agent | `multi-agent` | `src/qwenpaw/app/migration.py` |
+| Memory | `memory` | `src/qwenpaw/agents/memory/` |
+| CLI | `cli` | `src/qwenpaw/cli/` |
+| Channels | `channels` | `src/qwenpaw/app/channels/` |
+| Models/API Key | `models` | `src/qwenpaw/config/config.py` |
+
+**解析步骤** (SKILL.md 第17-19行):
+
+```
+1. 从用户问题中提取主题
+2. 通过 `which qwenpaw` 解析 $QWENPAW_ROOT
+3. 先读取文档 ($QWENPAW_ROOT/website/public/docs/<topic>.<language>.md)
+4. 再读取源代码入口点
+```
+
+**QA Agent 常量** (constant.py 第127-138行):
+
+```python
+BUILTIN_QA_AGENT_ID = "QwenPaw_QA_Agent_0.2"
+BUILTIN_QA_AGENT_NAME = "QA Agent"
+BUILTIN_QA_AGENT_SKILL_NAMES = ("guidance", "QA_source_index")
+LEGACY_QA_AGENT_ID = "CoPaw_QA_Agent_0.1beta1"
+```
+
+**QA Agent 工具配置** (config.py 第1275-1294行):
+
+```python
+def build_qa_agent_tools_config() -> ToolsConfig:
+    """QA Agent 只启用以下工具: execute_shell_command, read_file,
+    write_file, edit_file, view_image"""
+    allow = frozenset({
+        "execute_shell_command", "read_file", "write_file",
+        "edit_file", "view_image",
+    })
+```
+
+**QA Agent 工作区结构**:
+
+```
+<workspace_dir>/
+├── sessions/         # 会话数据
+├── memory/           # 记忆文件
+├── skills/           # 已安装技能
+├── HEARTBEAT.md      # 心跳清单
+├── AGENTS.md         # Agent 指令 (来自 md_files/qa/<lang>/)
+└── MEMORY.md         # 长期记忆
+```
+
+**QA 标准流程** (AGENTS.md):
+
+```
+1. 读取 MEMORY.md → 有环境信息？→ 有则跳过发现
+2. 运行环境发现 → 写入 MEMORY.md
+3. 问题分类 → 匹配文档类型
+4. 读取文档 + 用户配置 → 提取事实
+5. 撰写答案 → 直接给出结论
+6. 本地仍不足？→ 回退到官网文档
+```
+
+---
+
+## 常见问题
+
+| 问题 | 解决方案 |
+|------|----------|
+| 技能无法激活 | 检查依赖是否安装：`qwenpaw doctor` |
+| 技能无响应 | 查看日志：`grep skill ~/.qwenpaw/logs/qwenpaw.log` |
+| 安装失败 | 检查网络连接，或使用 `--from-path` 本地安装 |
+| 安全扫描阻止 | 如确认安全，可使用 `--no-scan` 或加入白名单 |
+
+## 下一步
+
+- 想开发自己的技能？查看 [09-技能扩展系统](./09-技能扩展系统.md)
+- 想了解技能的内部实现？查看 [07-智能体核心架构](./07-智能体核心架构.md)
+
+---
+
+## 来自 Java 的你
+
+| QwenPaw Skill | Java Spring 等价 | 说明 |
+|---------------|-----------------|------|
+| Skill | `@Component` / Maven Plugin | 独立功能模块 |
+| SkillPool | `BeanFactory` | 全局单例技能仓库 |
+| Workspace Skill | `@Scope("prototype")` | 每工作空间独立实例 |
+| SKILL.md | `@Configuration` + `application.yml` | 技能元数据和配置 |
+| 触发词 | `@Qualifier` + 命令模式 | 通过 `/skill_name` 调用 |
+| 安全扫描 | JAAS / Security Manager | 安装前安全验证 |
+
+**关键差异**：Spring 通过反射注入依赖，QwenPaw 在启动时解析并动态加载；Spring 用 JAR 分发，QwenPaw 用 SKILL.md + 脚本目录。
+
+---
+
+## 知识检查
+
+1. **概念题**：技能的来源优先级是什么？当内置技能和技能池中有同名技能时，哪个会被使用？
+2. **判断题**：安装技能时安全扫描可以永久关闭。（错误 — 可以用 `--no-scan` 跳过单次扫描，但默认 `block` 模式确保安全性）
+3. **场景题**：你想让智能体在群聊中自动处理 PDF 文件，但在私聊中不触发。应该如何配置技能的渠道路由？
+
+---
+
+## 练习题
+
+### 基础练习
+
+1. **技能安装**：安装 `browser_visible` 技能并验证其功能
+2. **技能管理**：使用 CLI 命令列出所有已安装技能，查看其状态
+3. **触发验证**：在对话中输入 `/pdf` 触发技能，观察响应
+
+### 进阶练习
+
+4. **自定义技能**：创建一个简单的"天气查询"技能，包含 SKILL.md 和实现脚本
+5. **安全扫描**：尝试安装一个第三方技能，观察安全扫描的输出
+6. **多技能协作**：配置一个技能依赖另一个技能的场景
+
+### 高级练习
+
+7. **源码阅读**：阅读 `skills_manager.py` 中的 `resolve_effective_skills()` 方法，理解技能解析优先级
+8. **技能池机制**：分析 `SkillPoolService` 和 `SkillService` 的差异，设计一个需要在两者间选择场景
+9. **Hub 扩展**：研究 ClawHub API，尝试发布一个自己的技能到 ClawHub
+
+### 参考答案
+
+<details>
+<summary>点击展开答案</summary>
+
+**练习 1 & 2：**
+```bash
+qwenpaw skills list
+qwenpaw agents create --name test_agent --skill browser_visible
+```
+
+**练习 3：**
+```
+/pdf 请读取这个文档：./example.pdf
+```
+
+**练习 4：**
+参考 `09-技能扩展系统.md` 创建 SKILL.md 和 Python 脚本。
+
+**练习 5：**
+创建智能体时安装技能，观察安全扫描的输出。
+
+**练习 6：**
+在 SKILL.md 中添加 `requirements.skills: ["pdf"]`，使技能依赖 pdf 技能。
+
+**练习 7：**
+`resolve_effective_skills()` 按优先级调用：
+1. `_get_builtin_skill()` - 内置技能
+2. `_pool_svc.get_skill()` - 技能池
+3. `_load_workspace_skill()` - 工作空间技能
+
+**练习 8：**
+- SkillPoolService：全局共享，支持分发到多个工作空间
+- SkillService：工作空间私有，单个实例
+
+**练习 9：**
+参考 ClawHub API 文档使用 `curl` 或 Python requests 上传技能。
+
+</details>
+
+---
+
+## 延伸阅读
+
+| 方向 | 章节 | 说明 |
+|------|------|------|
+| 技能开发 | [09-技能扩展系统](./09-技能扩展系统.md) | 学习如何开发自定义技能 |
+| 智能体核心 | [07-智能体核心架构](./07-智能体核心架构.md) | 理解技能如何被 Agent 加载和调用 |
+| 安全机制 | [19-安全系统详解](./19-安全系统详解.md) | 深入了解技能安全扫描 |
+| 下一章 | [E-错误代码速查](./E-错误代码速查.md) | 继续学习消息渠道配置 |
+
