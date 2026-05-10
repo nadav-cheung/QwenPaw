@@ -1,400 +1,147 @@
-# 快速开始指南
+# B CLI 命令参考
 
-## 本章导读
+> **源码依据**: `src/qwenpaw/cli/main.py` — Click 懒加载命令组，所有子命令按需导入以减少启动延迟。
 
-| 项目 | 内容 |
+## 全局选项
+
+| 选项 | 说明 |
 |------|------|
-| 学习目标 | 完成本章后，你能够：1) 通过多种方式安装 QwenPaw 2) 完成初始化配置并启动应用 3) 使用 CLI 命令管理智能体和渠道 |
-| 前置知识 | [A1-项目介绍](./A1-项目介绍.md) |
-| 预计时长 | 30 分钟（阅读 15 分钟 + 动手练习 15 分钟） |
-| 难度等级 | ⭐ |
-| 核心关键词 | `安装` `配置` `CLI` `Docker` |
+| `--host HOST` | API 服务器监听地址 |
+| `--port PORT` | API 服务器监听端口 |
+| `--version` | 显示 QwenPaw 版本号 |
+| `-h, --help` | 显示帮助信息 |
 
-本章带你从零开始，5 分钟内完成 QwenPaw 的安装、配置和首次运行。
+## 命令列表
 
----
+### 初始化与启动
 
-## 1. 安装前准备
-
-### 1.1 系统要求
-
-| 要求 | 最低配置 | 推荐配置 |
-|------|---------|---------|
-| Python | 3.10-3.13 | 3.11 或更高 |
-| 内存 | 4 GB | 8 GB 或更多 |
-| 磁盘 | 2 GB 可用空间 | 10 GB 或更多 |
-| 系统 | macOS 12+, Ubuntu 20.04+, Windows 10+ | macOS 14+, Ubuntu 22.04+ |
-
-### 1.2 前置依赖
-
-```bash
-# 检查 Python 版本
-python --version  # 或 python3 --version
-
-# 如果没有 Python，官网下载：https://www.python.org/downloads/
-```
-
----
-
-## 2. 安装方式
-
-### 2.1 pip 安装（推荐）
-
-最简单的方式：
-
-```bash
-# 安装
-pip install qwenpaw
-
-# 验证安装
-qwenpaw --version
-```
-
-### 2.2 脚本安装（自动处理依赖）
-
-**macOS / Linux**：
-```bash
-curl -fsSL https://qwenpaw.agentscope.io/install.sh | bash
-```
-
-**Windows (CMD)**：
-```cmd
-curl -fsSL https://qwenpaw.agentscope.io/install.bat -o install.bat && install.bat
-```
-
-**Windows (PowerShell)**：
-```powershell
-irm https://qwenpaw.agentscope.io/install.ps1 | iex
-```
-
-### 2.3 Docker 安装
-
-```bash
-# 拉取镜像
-docker pull agentscope/qwenpaw:latest
-
-# 运行
-docker run -p 127.0.0.1:8088:8088 \
-  -v qwenpaw-data:/app/working \
-  -v qwenpaw-secrets:/app/working.secret \
-  agentscope/qwenpaw:latest
-
-# 然后打开 http://127.0.0.1:8088/
-```
-
-### 2.4 源码安装（开发用）
-
-```bash
-# 克隆仓库
-git clone https://github.com/agentscope-ai/QwenPaw.git
-cd QwenPaw
-
-# 构建前端
-cd console && npm ci && npm run build && cd ..
-
-# 复制前端文件
-mkdir -p src/qwenpaw/console
-cp -R console/dist/. src/qwenpaw/console/
-
-# 安装 Python 包
-pip install -e ".[dev,full]"
-
-# 验证
-qwenpaw --version
-```
-
-### 2.5 桌面应用（Beta）
-
-不想用命令行的用户可以下载桌面版：
-
-1. 访问 [GitHub Releases](https://github.com/agentscope-ai/QwenPaw/releases)
-2. 下载对应系统的安装包
-3. 双击运行
-
----
-
-## 3. 初始化配置
-
-### 3.1 交互式初始化
-
-```bash
-qwenpaw init
-```
-
-向导会询问：
-- 工作目录位置（默认 `~/.qwenpaw`）
-- LLM 提供商选择
-- API Key 配置
-- 默认渠道选择
-
-### 3.2 自动初始化（使用默认配置）
-
-```bash
-qwenpaw init --defaults
-```
-
-### 3.3 初始化后配置
-
-配置存储在 `~/.qwenpaw/config.json`，你可以手动编辑或使用命令：
-
-```bash
-# 配置模型
-qwenpaw models set-llm
-
-# 配置渠道
-qwenpaw channels config
-
-# 查看配置（直接读取 config.json）
-cat ~/.qwenpaw/config.json
-```
-
----
-
-## 4. 启动应用
-
-### 4.1 基本启动
-
-```bash
-qwenpaw app
-```
-
-启动后打开浏览器访问：**http://127.0.0.1:8088/**
-
-### 4.2 自定义端口
-
-```bash
-qwenpaw app --port 9000
-```
-
-### 4.3 后台运行
-
-```bash
-# Linux/macOS 使用 nohup
-nohup qwenpaw app > qwenpaw.log 2>&1 &
-
-# 或使用 systemd
-sudo qwenpaw app --autostart
-```
-
-### 4.4 Docker 启动后访问
-
-Docker 方式启动后，同样访问 **http://127.0.0.1:8088/**
-
----
-
-## 5. Web 控制台使用
-
-### 5.1 首次配置
-
-1. 打开 http://127.0.0.1:8088/
-2. 点击右上角 **设置**
-3. 选择 **模型** 标签
-4. 选择提供商并填写 API Key
-5. 启用模型并设为默认
-
-### 5.2 配置示例
-
-**通义千问**：
-- 提供商：`dashscope`
-- API Key：阿里云百炼控制台获取
-- 模型：`qwen3-max` 或 `qwen2.5-72b-instruct`
-
-**OpenAI**：
-- 提供商：`openai`
-- API Key：OpenAI 平台获取
-- 模型：`gpt-4o` 或 `gpt-4o-mini`
-
-### 5.3 基本对话
-
-配置完成后，在主界面输入消息即可开始对话。
-
----
-
-## 6. 常用 CLI 命令
-
-### 6.1 应用命令
-
-| 命令 | 功能 |
-|------|------|
-| `qwenpaw app` | 启动 Web 应用 |
-| `qwenpaw init` | 初始化配置 |
-| `qwenpaw shutdown` | 关闭运行中的实例 |
-
-### 6.2 智能体命令
-
-| 命令 | 功能 |
-|------|------|
-| `qwenpaw agents list` | 列出所有智能体 |
-| `qwenpaw agents create` | 创建新智能体 |
-| `qwenpaw agents chat` | 与另一个智能体对话 |
-
-### 6.3 渠道命令
-
-| 命令 | 功能 |
-|------|------|
-| `qwenpaw channels list` | 列出所有渠道 |
-| `qwenpaw channels add` | 添加渠道到配置 |
-| `qwenpaw channels config` | 交互式配置渠道 |
-| `qwenpaw channels send` | 通过渠道发送消息 |
-
-### 6.4 技能命令
-
-| 命令 | 功能 |
-|------|------|
-| `qwenpaw skills list` | 列出所有技能 |
-| `qwenpaw skills info` | 查看技能详情 |
-| `qwenpaw skills config` | 配置技能参数 |
-
-### 6.5 运维命令
-
-| 命令 | 功能 |
-|------|------|
-| `qwenpaw doctor` | 系统诊断 |
-| `qwenpaw clean` | 清理缓存 |
-
----
-
-## 7. 首次使用检查清单
-
-```bash
-# 1. 验证安装
-qwenpaw --version
-
-# 2. 运行诊断
-qwenpaw doctor
-
-# 3. 检查模型
-qwenpaw models list
-
-# 4. 检查渠道
-qwenpaw channels list
-
-# 5. 查看日志
-tail -f ~/.qwenpaw/logs/qwenpaw.log
-```
-
----
-
-## 8. 常见问题
-
-### 8.1 端口被占用
-
-```bash
-# 方法1：使用其他端口
-qwenpaw app --port 9000
-
-# 方法2：查找并关闭占用进程
-lsof -i :8088
-kill <PID>
-```
-
-### 8.2 API Key 无效
-
-1. 检查 Key 是否正确
-2. 确认 Key 有足够配额
-3. 检查网络能否访问对应 API
-
-```bash
-# 测试 API 连接
-curl -H "Authorization: Bearer YOUR_API_KEY" https://api.openai.com/v1/models
-```
-
-### 8.3 权限错误
-
-```bash
-# Linux/macOS
-chmod -R 755 ~/.qwenpaw
-
-# Windows 以管理员身份运行
-```
-
-### 8.4 Python 版本不对
-
-```bash
-# 检查版本
-python --version
-
-# 使用 pyenv 管理多版本
-pyenv install 3.11
-pyenv global 3.11
-```
-
----
-
-## 9. 下一步
-
-| 目标 | 教程 |
-|------|------|
-| 了解系统架构 | [A3-项目架构](./A3-项目架构.md) |
-| 扩展智能体能力 | [A4-技能系统](./A4-技能系统.md) |
-| 配置消息渠道 | [A5-消息渠道](./A5-消息渠道.md) |
-| 学习 Python 基础 | [Python 基础教程](./part2/11-5-Python基础教程.md) |
-| 深入核心机制 | [智能体核心架构](./part4/07-智能体核心架构.md) |
-
----
-
-## 10. 实战演练
-
-### 练习 1（⭐）-- 环境检查
-
-使用 pip 安装 QwenPaw，并运行 `qwenpaw doctor` 检查当前环境是否满足运行要求。
-
-提示：
-- 安装命令：`pip install qwenpaw`
-- 诊断命令：`qwenpaw doctor`
-- 观察输出中是否有警告或错误项
-
-### 练习 2（⭐⭐）-- 多提供商配置
-
-配置两个不同的 LLM 提供商（如 DashScope + OpenAI），并切换默认模型。
-
-提示：
-- 在 Web 控制台的"设置 > 模型"中分别添加两个提供商的 API Key
-- 或使用命令：`qwenpaw models set-llm --provider <provider> --model <model>`
-- 切换默认模型后，发送一条消息验证是否生效
-
-### 练习 3（⭐⭐）-- Docker 部署
-
-使用 Docker 方式部署 QwenPaw，并验证 Web 控制台可通过浏览器正常访问。
-
-提示：
-- 拉取镜像：`docker pull agentscope/qwenpaw:latest`
-- 启动容器时注意端口映射和数据卷挂载
-- 启动后访问 http://127.0.0.1:8088/ 确认页面可打开
-- 使用 `docker ps` 和 `docker logs` 检查容器运行状态
-
----
-
-## 11. 知识检查
-
-**问题 1**：QwenPaw 支持哪些安装方式？各适合什么场景？
-
-参考要点：支持 pip 安装、脚本安装、Docker 安装、源码安装和桌面应用五种方式。pip 适合大多数用户日常使用；脚本安装自动处理依赖，适合新手；Docker 适合服务器部署和隔离环境；源码安装适合二次开发和贡献代码；桌面应用适合不想使用命令行的用户。
-
-**问题 2**：如何验证 QwenPaw 安装成功？
-
-参考要点：运行 `qwenpaw --version` 确认版本号输出正常；运行 `qwenpaw doctor` 进行系统诊断，检查各项配置是否就绪。
-
-**问题 3**：端口 8088 被占用时如何处理？
-
-参考要点：有两种方式 -- 使用 `qwenpaw app --port <其他端口>` 指定新端口启动，或通过 `lsof -i :8088` 查找占用进程并使用 `kill` 终止。
-
----
-
-## 12. 获取帮助
-
-- [官方文档](https://qwenpaw.agentscope.io/docs)
-- [GitHub Discussions](https://github.com/agentscope-ai/QwenPaw/discussions)
-- [报告问题](https://github.com/agentscope-ai/QwenPaw/issues)
-- [Discord 社区](https://discord.gg/eYMpfnkG8h)
-
----
-
-## 延伸阅读
-
-| 方向 | 章节 | 说明 |
+| 命令 | 源码 | 说明 |
 |------|------|------|
-| 项目概览 | [A1-项目介绍](./A1-项目介绍.md) | 了解 QwenPaw 的核心概念 |
-| 架构设计 | [03-项目架构](./03-项目架构.md) | 深入理解系统架构 |
-| 技能系统 | [04-技能系统](./04-技能系统.md) | 学习技能安装和管理 |
-| 下一章 | [03-项目架构](./03-项目架构.md) | 继续学习 |
+| `qwenpaw init` | `cli/init_cmd.py` | 初始化工作目录，交互式配置 API Key 和默认模型 |
+| `qwenpaw init --defaults` | — | 使用默认配置快速初始化 |
+| `qwenpaw app` | `cli/app_cmd.py` | 启动 FastAPI 服务器（Web UI + API） |
+| `qwenpaw app --port 8080` | — | 指定端口启动 |
+
+### 诊断与维护
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw doctor` | `cli/doctor_cmd.py` | 系统诊断：检查 Python 环境、依赖、API Key、Provider 可达性 |
+| `qwenpaw update` | `cli/update_cmd.py` | 更新 QwenPaw 到最新版本 |
+| `qwenpaw shutdown` | `cli/shutdown_cmd.py` | 安全关闭正在运行的服务 |
+| `qwenpaw clean` | `cli/clean_cmd.py` | 清理临时文件和缓存 |
+| `qwenpaw uninstall` | `cli/uninstall_cmd.py` | 卸载 QwenPaw |
+
+### Agent 管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw agents` / `qwenpaw agent` | `cli/agents_cmd.py` | 列出、创建、删除、配置 Agent |
+
+### 渠道管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw channels` / `qwenpaw channel` | `cli/channels_cmd.py` | 管理消息渠道（添加、配置、启停） |
+
+### 模型管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw models` | `cli/providers_cmd.py` | 管理 LLM Provider（添加/删除模型、配置 API Key） |
+
+### 技能管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw skills` | `cli/skills_cmd.py` | 管理技能池（安装、卸载、列表、搜索） |
+
+### 定时任务
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw cron` | `cli/cron_cmd.py` | 管理定时任务（创建、列表、删除、启停） |
+
+### 对话管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw chats` / `qwenpaw chat` | `cli/chats_cmd.py` | 管理对话会话 |
+
+### 环境变量
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw env` | `cli/env_cmd.py` | 管理持久化环境变量 |
+
+### 守护进程
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw daemon` | `cli/daemon_cmd.py` | 管理后台守护进程 |
+
+### 认证
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw auth` | `cli/auth_cmd.py` | 管理 API 认证 Token |
+
+### 插件
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw plugin` | `cli/plugin_commands.py` | 管理插件（安装、卸载、列表） |
+
+### ACP 协议
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw acp` | `cli/acp_cmd.py` | ACP 智能体通信协议管理 |
+
+### Mission 模式
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw mission` | `cli/mission_cmd.py` | 管理 Mission（任务模式） |
+
+### 任务管理
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw task` | `cli/task_cmd.py` | 管理异步任务 |
+
+### 桌面模式
+
+| 命令 | 源码 | 说明 |
+|------|------|------|
+| `qwenpaw desktop` | `cli/desktop_cmd.py` | 启动桌面应用模式 |
+
+## 懒加载设计
+
+CLI 采用 `LazyGroup` 模式（`cli/main.py:58-92`），子命令在首次调用时才导入：
+
+```python
+class LazyGroup(click.Group):
+    """支持懒加载子命令的 Click Group"""
+
+    lazy_subcommands = {
+        "app": ("qwenpaw.cli.app_cmd", "app_cmd", ".app_cmd"),
+        "channels": ("qwenpaw.cli.channels_cmd", "channels_group", ".channels_cmd"),
+        # ... 20+ subcommands
+    }
+```
+
+设计目的：`qwenpaw --help` 响应时间 < 100ms，避免导入所有依赖。
+
+## 别名
+
+| 命令 | 别名 |
+|------|------|
+| `agents` | `agent` |
+| `channels` | `channel` |
+| `chats` | `chat` |
+
+---
+
+*基于源码 `src/qwenpaw/cli/main.py` (v1.1.2)*
+*最后更新：2026-05-10*

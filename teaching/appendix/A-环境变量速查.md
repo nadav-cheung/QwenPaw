@@ -1,210 +1,107 @@
-# QwenPaw 项目介绍
+# A 环境变量速查
 
-## 本章导读
+> **源码依据**: `src/qwenpaw/constant.py` — 所有环境变量通过 `EnvVarLoader` 统一读取，自动支持 `COPAW_` → `QWENPAW_` 向后兼容回退。
 
-| 项目 | 内容 |
-|------|------|
-| **学习目标** | 列举 QwenPaw 的核心特点与主要模块；描述 QwenPaw 的典型使用场景；识别 QwenPaw 与其他 AI 助手项目的关键差异 |
-| **前置知识** | 无 |
-| **预计时长** | 20 分钟 |
-| **难度等级** | ⭐ |
-| **核心关键词** | QwenPaw、个人 AI 助手、本地部署、Skills 技能系统、多渠道、多智能体 |
+## 核心目录
 
-QwenPaw 是一个开源的本地化个人 AI 助手，通过技能扩展和多渠道接入，为你提供隐私可控的智能化服务。
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_WORKING_DIR` | `~/.qwenpaw`（或 `~/.copaw` 如存在） | 全局工作目录，所有 Agent 数据、配置、记忆的根目录 |
+| `QWENPAW_SECRET_DIR` | `{WORKING_DIR}.secret` | 加密密钥和敏感数据存储目录 |
+| `QWENPAW_BACKUP_DIR` | `{WORKING_DIR}.backups` | 自动备份存储目录 |
+| `QWENPAW_CONFIG_FILE` | `config.json` | 主配置文件名（相对于 WORKING_DIR） |
 
-## 什么是 QwenPaw？
+## 模型与 LLM 调用
 
-**QwenPaw** (Qwen Personal Agent Workstation) 是一个开源的个人 AI 助手，完全运行在你的本地环境中。原名 CoPaw，后因深度集成 Qwen 开源生态而更名。
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_LLM_MAX_RETRIES` | `3` | API 调用失败最大重试次数 |
+| `QWENPAW_LLM_BACKOFF_BASE` | `1.0` | 指数退避基础秒数，每次重试等待 `base * 2^attempt` |
+| `QWENPAW_LLM_BACKOFF_CAP` | `10.0` | 退避等待上限（秒） |
+| `QWENPAW_LLM_MAX_CONCURRENT` | `10` | 最大并发 LLM 调用数（超出排队等待） |
+| `QWENPAW_LLM_MAX_QPM` | `600` | 每分钟最大查询数（QPM），0=不限制，60秒滑动窗口 |
+| `QWENPAW_LLM_RATE_LIMIT_PAUSE` | `5.0` | 收到 429 后全局暂停秒数（被 Retry-After 头覆盖） |
+| `QWENPAW_LLM_RATE_LIMIT_JITTER` | `1.0` | 速率限制恢复时的随机抖动范围（避免并发重试雪崩） |
+| `QWENPAW_LLM_ACQUIRE_TIMEOUT` | `300.0` | 等待并发槽位的最大秒数，超时抛 RuntimeError |
+| `QWENPAW_MODEL_PROVIDER_CHECK_TIMEOUT` | `5.0` | Provider 可达性检查超时（秒） |
 
-> **定位**：面向开发者的本地化 AI 助手框架，强调隐私可控、技能可扩展、渠道可接入。
+## 记忆系统
 
-## 核心特点
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_MEMORY_COMPACT_KEEP_RECENT` | `3` | 记忆压缩时保留最近 N 轮对话不压缩 |
+| `QWENPAW_MEMORY_COMPACT_RATIO` | `0.7` | 记忆压缩触发比例（当前用量/上下文窗口上限） |
 
-| 特点 | 说明 |
-|------|------|
-| **隐私优先** | 数据保存在本地，无需第三方托管 |
-| **高度可扩展** | 通过 Skills 扩展功能，无限可能 |
-| **多渠道支持** | 支持钉钉、飞书、微信、Discord、Telegram 等 |
-| **多智能体** | 创建多个可以协作的智能体 |
-| **安全可靠** | 多层安全防护，保障数据安全 |
-| **本地部署** | 支持 Ollama、LM Studio 等本地模型 |
+## 心跳与定时任务
 
-## 版本信息
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_HEARTBEAT_FILE` | `HEARTBEAT.md` | 心跳输出文件名 |
+| `QWENPAW_JOBS_FILE` | `jobs.json` | 定时任务持久化文件 |
+| `QWENPAW_CHATS_FILE` | `chats.json` | 对话历史持久化文件 |
 
-| 版本 | 发布日期 | 主要更新 |
-|------|---------|---------|
-| v1.1.2 | 2026-04-17 | Mission 模式、ACP 协议、记忆定时整理 |
-| v1.1.1 | 2026-04-14 | Bug 修复和优化 |
-| v1.1.0 | 2026-04-12 | CoPaw 更名为 QwenPaw |
+## 工具安全
 
-## 技术栈
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS` | `600` | 工具执行审批超时（秒），最低 1.0s |
 
-| 层级 | 技术 | 说明 |
-|------|------|------|
-| **语言** | Python 3.10-3.13 | 核心开发语言 |
-| **智能体框架** | AgentScope | 多智能体运行时 |
-| **Web UI** | React 18, TypeScript, Ant Design 5, Zustand, Vite | 前端界面 |
-| **Web 服务器** | FastAPI, Uvicorn | 后端 API 服务 |
-| **异步 I/O** | anyio | 异步编程框架 |
-| **任务调度** | APScheduler | 定时任务管理 |
+## 运行时与调试
 
-## 主要模块
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `QWENPAW_LOG_LEVEL` | `info` | 日志级别（debug/info/warning/error），影响 CLI 和 Server 子进程 |
+| `QWENPAW_OPENAPI_DOCS` | `false` | 是否暴露 `/docs`、`/redoc`、`/openapi.json`（生产环境应关闭） |
+| `QWENPAW_RUNNING_IN_CONTAINER` | `false` | 容器内运行标识（Docker 等），影响路径和行为 |
+| `QWENPAW_CORS_ORIGINS` | 空（不启用 CORS） | 开发模式 CORS 允许的源（逗号分隔） |
+| `QWENPAW_DEBUG_HISTORY_FILE` | `debug_history.jsonl` | `/dump_history` 和 `/load_history` 命令的调试文件 |
+| `QWENPAW_TOKEN_USAGE_FILE` | `token_usage.json` | Token 用量统计文件 |
 
-| 模块 | 路径 | 功能 |
-|------|------|------|
-| `agents` | `src/qwenpaw/agents/` | 智能体核心实现、工具和技能管理 |
-| `app` | `src/qwenpaw/app/` | Web 应用、渠道管理、API 端点 |
-| `providers` | `src/qwenpaw/providers/` | LLM 提供商集成 |
-| `cli` | `src/qwenpaw/cli/` | 命令行界面 |
-| `security` | `src/qwenpaw/security/` | 安全工具、权限控制 |
-| `console` | `console/` | 前端 Web UI |
+## 渠道相关
 
-## 功能模块详解
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | — | Playwright 浏览器控制的 Chromium 路径（容器内必须设置） |
 
-### 1. 智能体系统 (Agents)
+## 服务相关
 
-```
-agents/
-├── react_agent.py      # QwenPawAgent 核心类
-├── tools/              # 内置工具集
-├── skills/              # 内置技能
-├── memory/              # 记忆管理系统
-├── acp/                 # Agent 通信协议
-├── mission/             # 任务模式
-└── hooks/              # 生命周期钩子
-```
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `DASHSCOPE_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | 阿里云 DashScope API 端点 |
 
-### 2. 应用系统 (App)
+## EnvVarLoader API
 
-```
-app/
-├── server.py           # FastAPI 服务器
-├── channels/           # 消息渠道实现
-├── mcp/                # MCP 客户端管理
-├── runner/             # 请求处理器
-└── multi_agent_manager.py  # 多智能体管理
-```
+`constant.py` 提供了类型安全的 `EnvVarLoader` 工具类（`src/qwenpaw/constant.py:28-87`）：
 
-### 3. 提供商系统 (Providers)
+```python
+# 布尔值（支持 true/1/yes）
+EnvVarLoader.get_bool("QWENPAW_OPENAPI_DOCS", False)
 
-```
-providers/
-├── provider_manager.py  # 提供商管理器
-├── openai_provider.py  # OpenAI
-├── anthropic_provider.py # Anthropic
-├── ollama_provider.py  # Ollama 本地模型
-├── lmstudio_provider.py # LM Studio
-└── ...
+# 整数（带范围限制）
+EnvVarLoader.get_int("QWENPAW_LLM_MAX_RETRIES", 3, min_value=0)
+
+# 浮点数（带范围限制和无穷值处理）
+EnvVarLoader.get_float("QWENPAW_LLM_BACKOFF_BASE", 1.0, min_value=0.1)
+
+# 字符串
+EnvVarLoader.get_str("QWENPAW_LOG_LEVEL", "info")
 ```
 
-### 4. 安全系统 (Security)
+## COPAW_ 兼容性
 
-```
-security/
-├── tool_guard/         # 工具调用守卫
-├── file_guard/         # 文件访问守卫
-├── skill_scanner/      # 技能安全扫描
-└── secret_store.py     # 密钥加密存储
-```
+所有 `QWENPAW_*` 环境变量自动回退到对应的 `COPAW_*` 变量（`src/qwenpaw/constant.py:12-25`）。例如：
+- 设置 `COPAW_WORKING_DIR` 等同于设置 `QWENPAW_WORKING_DIR`
+- 如果两个都设置，`QWENPAW_*` 优先
 
-## 典型使用场景
+此机制保证从旧版 CoPaw 升级的用户无需修改环境配置。
 
-| 场景 | 说明 |
-|------|------|
-| **社交媒体** | 每日热帖摘要、新闻推送 |
-| **生产力** | 邮件整理、日程管理 |
-| **创意与构建** | 睡前说明目标、次日获得雏形 |
-| **研究与学习** | 追踪科技资讯、知识库检索 |
-| **桌面与文件** | 整理搜索本地文件、文档摘要 |
+## 加载顺序
 
-## 谁适合使用 QwenPaw
+1. **`.env` 文件** — 项目根目录的 `.env` 文件最先加载（`constant.py:7-9`）
+2. **操作系统环境变量** — 覆盖 `.env` 中的值
+3. **`QWENPAW_*` 优先于 `COPAW_*`** — 两者同时存在时使用 `QWENPAW_*`
 
-QwenPaw 适合以下几类用户：
+---
 
-- **个人效率爱好者**：希望用 AI 自动化日常任务（信息整理、邮件处理、日程提醒），同时不愿将数据托管到第三方平台。
-- **开发者和技术探索者**：对智能体架构、本地模型部署、技能扩展机制感兴趣，希望在自己的机器上搭建和定制 AI 助手。
-- **隐私敏感用户**：关注数据主权，需要所有对话和文件处理在本地完成，不经过外部服务器。
-- **开源贡献者**：希望参与一个活跃的开源项目，贡献新渠道、新技能或改进文档。
-
-如果你符合以上任意一种情况，并且有一台能运行 Python 3.10+ 的机器，QwenPaw 就是为你的场景设计的。
-
-## 项目结构
-
-```
-QwenPaw/
-├── src/qwenpaw/        # Python 源代码
-├── console/            # 前端 Web UI
-├── website/            # 文档网站
-├── tests/              # 测试代码
-├── teaching/          # 教学文档
-├── scripts/           # 构建脚本
-├── deploy/            # 部署配置
-├── pyproject.toml      # 项目配置
-└── Makefile           # 构建任务
-```
-
-## 路线图
-
-| 方向 | 事项 | 状态 |
-|------|------|------|
-| **横向拓展** | 更多渠道、模型、技能、MCP | 征集中 |
-| **多智能体** | HiClaw 接入、Agent Swarm | 进行中 |
-| **大小模型协同** | 端云模型智能切换 | 进行中 |
-| **记忆系统** | 场景感知主动推送 | 进行中 |
-| **版本管理** | 一键打包、多设备迁移 | 进行中 |
-| **安全** | 细粒度安全控制 | 进行中 |
-
-## 相关资源
-
-| 资源 | 链接 |
-|------|------|
-| 官方文档 | https://qwenpaw.agentscope.io/ |
-| GitHub | https://github.com/agentscope-ai/QwenPaw |
-| PyPI | https://pypi.org/project/qwenpaw/ |
-| Discord | https://discord.gg/eYMpfnkG8h |
-
-## 参与贡献
-
-QwenPaw 欢迎各种形式的参与：
-
-- **横向拓展**：新渠道、模型、技能、MCP
-- **功能完善**：展示优化、下载提示、Windows 兼容等
-- **文档改进**：教程、API 文档、示例代码
-
-详见 [CONTRIBUTING](https://github.com/agentscope-ai/QwenPaw/blob/main/CONTRIBUTING_zh.md)
-
-## 许可证
-
-Apache License 2.0 - 详见 [LICENSE](https://github.com/agentscope-ai/QwenPaw/blob/main/LICENSE)
-
-## 来自 Java 的你
-
-### 核心概念对照
-
-| Java | Python / QwenPaw | 说明 |
-|------|-------------------|------|
-| Maven / Gradle | `pyproject.toml` | Python 使用 `pyproject.toml` 管理依赖和构建配置，无需 XML 或 Groovy DSL |
-| Spring Boot | FastAPI | QwenPaw 使用 FastAPI 作为 Web 框架，启动快、自带异步支持，无需 `@SpringBootApplication` |
-| Spring Security | ToolGuard | QwenPaw 的安全机制通过 ToolGuard 实现工具调用拦截，而非过滤器链 |
-| Java 接口 (interface) | Python Protocol | Python 使用 `typing.Protocol` 或 ABC 定义抽象接口，无 `implements` 关键字 |
-| Java 包 (package) | Python 模块 (module) | Python 用目录 + `__init__.py` 组织模块，导入用 `.` 而非 `.` + `class` |
-
-### 关键差异
-
-Python 没有编译阶段的类型检查，`pyproject.toml` 不像 Maven 那样管理生命周期阶段。QwenPaw 的模块组织更轻量，不需要 `pom.xml` 那样的繁重配置。
-
-## 知识检查
-
-1. **（概念题）** QwenPaw 的六大核心特点是什么？其中哪一项是它与基于云端的 AI 助手最根本的区别？
-2. **（判断题）** QwenPaw 只能使用 OpenAI 等云端模型，不支持本地大语言模型。请判断正误并说明理由。
-3. **（场景题）** 如果你希望每天早上自动收到一份科技新闻摘要，并通过飞书推送给你，QwenPaw 的哪些模块会参与这个流程？
-4. **（概念题）** 列举 QwenPaw 的四个主要功能模块，并各用一句话描述其职责。
-5. **（判断题）** QwenPaw 的 Skills 技能系统位于 `src/qwenpaw/skills/` 路径下。请判断正误并指出正确路径。（答案：`src/qwenpaw/agents/skills/`）
-
-## 延伸阅读
-
-| 章节 | 说明 |
-|------|------|
-| [A2-快速开始](A2-快速开始.md) | 安装、初始化和首次运行 QwenPaw 的完整步骤 |
-| [A3-项目架构](A3-项目架构.md) | 深入了解 QwenPaw 的分层架构设计和模块间通信机制 |
-| [04-技能系统](04-技能系统.md) | 学习 Skills 的工作原理、内置技能和自定义技能开发方法 |
+*基于源码 `src/qwenpaw/constant.py` (v1.1.2)*
+*最后更新：2026-05-10*

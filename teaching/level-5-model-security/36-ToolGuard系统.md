@@ -560,6 +560,149 @@ class ApprovalDecision(str, Enum):
     TIMEOUT = "timeout"     # 审批超时（默认10分钟）
 ```
 
+### 7.3 ApprovalService
+
+`ApprovalService` 是审批系统的中央存储，管理所有待审批和已完成的审批记录。
+
+源码路径：`src/qwenpaw/app/approvals/service.py`
+
+```python
+# src/qwenpaw/app/approvals/service.py:71
+class ApprovalService:
+    """中央审批服务。
+
+    追踪待审批和已完成的审批记录。
+    审批通过 ``/daemon approve`` 命令（见 runner.py 和 daemon_commands.py）解决。
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._pending: dict[str, PendingApproval] = {}
+        self._completed: dict[str, PendingApproval] = {}
+        self._channel_manager: Any | None = None
+```
+
+#### PendingApproval 数据结构
+
+```python
+# src/qwenpaw/app/approvals/service.py:37
+@dataclass
+class PendingApproval:
+    request_id: str           # 唯一请求 ID
+    session_id: str           # 会话 ID
+    user_id: str             # 用户 ID
+    channel: str             # 渠道
+    tool_name: str           # 工具名称
+    created_at: float        # 创建时间
+    future: asyncio.Future[ApprovalDecision]  # 异步future
+    status: str = "pending"  # 状态
+    resolved_at: float | None = None  # 解决时间
+    result_summary: str = ""  # 结果摘要
+    findings_count: int = 0  # 发现数量
+    extra: dict[str, Any] = field(default_factory=dict)  # 额外数据
+```
+
+#### 核心方法
+
+| 方法 | 说明 |
+|------|------|
+| `create_pending()` | 创建待审批记录，返回 PendingApproval |
+| `resolve_request()` | 解决审批请求（approve/deny/timeout） |
+| `get_request()` | 按 ID 获取请求（待审批或已完成） |
+| `get_pending_by_session()` | 按会话获取下一个待审批 |
+| `get_all_pending_by_session()` | 按会话获取所有待审批 |
+| `consume_approval()` | 检查并消费一次性工具审批 |
+
+#### 完整审批流程
+
+```
+ToolGuard 检测到危险工具调用
+        │
+        ▼
+ToolGuardMixin._acting() 创建 PendingApproval
+        │
+        ▼
+ApprovalService.create_pending()
+        │
+        ▼
+_guard_approval_event.wait() 暂停 Agent
+        │
+        ▼
+用户通过 /daemon approve 审批
+        │
+        ▼
+ApprovalService.resolve_request()
+        │
+        ├── APPROVED → future.set_result(APPROVED) → Agent 继续执行
+        ├── DENIED   → future.set_result(DENIED) → 返回拒绝
+        └── TIMEOUT  → future.set_result(TIMEOUT) → 返回超时
+```
+
+#### 垃圾回收机制
+
+ApprovalService 内置自动垃圾回收，防止内存泄漏：
+
+```python
+# 待审批记录 GC：超过 30 分钟或超过 200 条
+_GC_PENDING_MAX_AGE_SECONDS = 1800.0
+_GC_MAX_PENDING = 200
+
+# 已完成记录 GC：超过 1 小时或超过 500 条
+_GC_MAX_AGE_SECONDS = 3600.0
+_GC_MAX_COMPLETED = 500
+```
+
+#### consume_approval 防复用机制
+
+当工具通过 `/daemon approve` 审批后，`consume_approval()` 检查参数是否匹配：
+
+```python
+# src/qwenpaw/app/approvals/service.py:177
+async def consume_approval(
+    self,
+    session_id: str,
+    tool_name: str,
+    tool_params: dict[str, Any] | None = None,
+) -> bool:
+    """检查并消费一次性工具审批。
+
+    如果 tool_params 不匹配，审批被拒绝（防止 "rm foo.txt" 的审批用于 "rm -rf /"）。
+    """
+```
+
+这确保审批令牌只能用于**完全相同参数**的工具调用。
+
+#### 与 ToolGuardMixin 的集成
+
+```python
+# tool_guard_mixin.py:403
+async def _wait_for_approval(self, pending: PendingApproval) -> ApprovalDecision:
+    """等待用户审批或超时。"""
+    decision = await pending.future  # 阻塞直到 future 被设置
+    return decision
+```
+
+审批流程通过 `asyncio.Future` 实现非阻塞等待，不占用线程资源。
+
+---
+
+### 7.4 审批 CLI 命令
+
+用户通过 `/daemon approve` 命令审批待执行的工具：
+
+```bash
+# 审批所有待审批项
+/daemon approve
+
+# 审批指定的 request_id
+/daemon approve <request_id>
+
+# 查看待审批列表
+/daemon pending
+```
+
+审批通过后，ToolGuardMixin 的 `_guard_approval_event` 被设置，`_reasoning()` 恢复执行。
+
 ---
 
 ## 8. 数据模型
@@ -1125,7 +1268,44 @@ result = engine.guard("execute_shell_command", {"command": "ls"}, {})
 
 | 章节 | 说明 |
 |------|------|
-| [19-安全系统详解](./19-安全系统详解.md) | QwenPaw 整体安全架构概览 |
-| [41-审批系统详解](./41-审批系统详解.md) | 审批服务的完整生命周期管理 |
-| [53-文件操作与安全机制](./53-文件操作与安全机制.md) | 文件操作的权限控制与沙箱隔离 |
+| [35-安全架构](../level-5-model-security/35-安全架构.md) | QwenPaw 整体安全架构概览 |
+| [43-部署与运维](../level-7-cli-ops/43-部署与运维.md) | 安全配置与生产环境部署 |
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| `ToolGuardEngine` | ✅ | `src/qwenpaw/security/tool_guard/engine.py` — `guard()` 编排三个 guardian |
+| `RuleBasedToolGuardian` | ✅ | `guardians/rule_guardian.py` (757 行) — YAML 签名正则匹配 |
+| `FilePathToolGuardian` | ✅ | `guardians/file_guardian.py` — 敏感路径拦截 |
+| `ShellEvasionGuardian` | ✅ | `guardians/shell_evasion_guardian.py` (545 行) — 命令混淆检测 |
+| `ToolGuardMixin._acting()` | ✅ | `src/qwenpaw/agents/tool_guard_mixin.py:291` — MRO 拦截入口 |
+| `ApprovalService` | ✅ | `src/qwenpaw/app/approvals/service.py` — 审批队列管理 |
+| `GuardSeverity` 枚举 | ✅ | `models.py` — INFO, LOW, MEDIUM, HIGH, CRITICAL |
+
+**审查结论**: ToolGuard 的三个 guardian + engine + approval 流程与真实源码完全一致。
+
+## 教学审查 (Pedagogy Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 三层守护模型 | ✅ | deny → guard → approve 递进式讲解 |
+
+## 工程审查 (Engineering Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 懒初始化 | ✅ | `_ensure_tool_guard()` 避免 import 阶段加载重型依赖 |
+| 审批超时 | ✅ | `TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS` 防止永久阻塞 |
+| 国际化 | ✅ | `i18n.py` 支持 en/zh/ru/ja 四种语言 |
+
+## Contributor 审查 (Contributor Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 添加 Guardian | ✅ | 继承 `BaseToolGuardian` → 实现 `guard()` → 注册到 `ToolGuardEngine` |
+| 危险区域 | ✅ | YAML 规则变更需两个 Maintainer 批准 |
+
+---
+
+*Chapter 36 审查完成。基于 tool_guard/ 三层 guardian 架构的真实源码。*
 

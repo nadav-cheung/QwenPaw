@@ -1,300 +1,336 @@
-# 项目架构 (Architecture Overview)
+# C 源码结构速查
 
-## 本章导读
+> 完整 `src/qwenpaw/` 模块树，按职责分组。标注了本书对应的教学章节编号。
 
-| 项目 | 内容 |
-|------|------|
-| **学习目标** | 完成本章后，你能够：1) 描述 QwenPaw 的分层架构和核心模块 2) 识别各模块的职责边界和数据流方向 3) 理解关键设计模式的运用场景 |
-| **前置知识** | [A1-项目介绍](./A1-项目介绍.md)、[A2-快速开始](./A2-快速开始.md) |
-| **预计时长** | 45 分钟（阅读 25 分钟 + 练习 20 分钟） |
-| **难度等级** | ⭐⭐ |
-| **核心关键词** | `分层架构` `Workspace` `Agent` `Channel` `Provider` `生命周期` |
-
-> **一句话概述**：本章从宏观视角拆解 QwenPaw 的系统架构，帮你建立对整体设计的认知地图，为后续深入学习各模块奠定基础。
-
----
-
-## 1. 整体架构
-
-QwenPaw 采用经典分层架构，从上到下分为接入层、服务层、核心层和基础层：
+## 项目根目录结构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        接入层 (Channels)                      │
-│    钉钉 | 飞书 | Telegram | Discord | Weixin | Console       │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ Webhook / WebSocket / Polling
-┌───────────────────────────▼─────────────────────────────────┐
-│                      服务层 (FastAPI + Runner)                │
-│              路由分发 | 认证鉴权 | SSE 流式 | 任务追踪           │
-└───────┬───────────┬───────────┬───────────┬─────────────────┘
-        │           │           │           │
-┌───────▼───┐ ┌─────▼─────┐ ┌─▼─────────┐ ┌▼──────────────┐
-│  Agents   │ │  Skills   │ │ Providers │ │   Security     │
-│ 智能体核心 │ │ 技能系统   │ │ 模型提供商 │ │   安全守卫      │
-│ 工具/记忆  │ │ 扩展机制   │ │ LLM 调用   │ │   审批/加密     │
-└───────────┘ └───────────┘ └───────────┘ └────────────────┘
-        │                                     │
-┌───────▼─────────────────────────────────────▼───────────────┐
-│                     基础层 (Config + Storage)                  │
-│        配置管理 | 环境变量 | 密钥存储 | 文件系统 | 日志           │
-└──────────────────────────────────────────────────────────────┘
+QwenPaw/
+├── src/qwenpaw/           # Python 源码（核心）
+├── console/               # React 前端 Web UI
+├── website/               # 文档站点
+├── tests/                 # 测试代码
+├── teaching/              # 本书源码
+├── scripts/               # 构建/检查脚本
+├── deploy/                # 部署配置
+├── pyproject.toml         # Python 项目配置
+├── docker-compose.yml     # Docker 部署
+└── Makefile               # 构建任务
 ```
 
-### 核心设计理念
+## 源码模块树
 
-| 原则 | 体现 |
-|------|------|
-| **关注点分离** | Agent / Channel / Provider / Memory 各自独立 |
-| **Workspace 隔离** | 每个 Agent 拥有独立工作空间、记忆和配置 |
-| **两阶段启动** | Phase 1 快速响应（<100ms），Phase 2 后台加载 |
-| **插件化扩展** | Skills、MCP、Plugin 三级扩展机制 |
-| **安全纵深防护** | ToolGuard + FileGuard + SkillScanner + SecretStore |
-
----
-
-## 2. 核心模块概览
-
-### 2.1 Agents — 智能体核心
-
-**源码路径**: `src/qwenpaw/agents/`
+### 智能体核心 (`agents/`) — 第 18-25 章
 
 ```
 agents/
-├── react_agent.py       # QwenPawAgent — 核心智能体类
-├── tool_guard_mixin.py  # ToolGuardMixin — 工具安全拦截
-├── tools/               # 内置工具集（Shell、文件、浏览器等）
-├── skills/              # 技能管理器
-├── memory/              # 记忆系统（短期 + 长期 + Dream 优化）
-├── hooks/               # 生命周期钩子（Bootstrap、Compaction）
-├── mission/             # Mission 模式（自主迭代任务）
-└── acp/                 # Agent Communication Protocol
+├── react_agent.py              # QwenPawAgent — 主智能体
+├── tool_guard_mixin.py         # ToolGuardMixin — 工具安全拦截
+├── command_handler.py          # CommandHandler — 系统命令处理
+├── model_factory.py            # create_model_and_formatter — 模型工厂
+├── prompt.py                   # build_system_prompt — 系统提示构建
+├── templates.py                # 模板系统
+├── skills_manager.py           # SkillsManager — 技能管理
+├── skills_hub.py               # SkillsHub — 技能市场
+├── tools/                      # 内置工具集（第 20 章）
+│   ├── __init__.py             # 工具注册入口
+│   ├── shell.py                # execute_shell_command
+│   ├── file_io.py              # read_file, write_file, edit_file
+│   ├── file_search.py          # grep_search, glob_search
+│   ├── browser_control.py      # browser_use
+│   ├── browser_snapshot.py     # 浏览器快照
+│   ├── view_media.py           # view_image, view_video
+│   ├── memory_search.py        # create_memory_search_tool
+│   ├── agent_management.py     # list_agents, chat_with_agent
+│   ├── delegate_external_agent.py # delegate_external_agent
+│   ├── get_current_time.py     # get_current_time
+│   ├── get_token_usage.py      # get_token_usage
+│   ├── send_file.py            # send_file_to_user
+│   ├── desktop_screenshot.py   # desktop_screenshot
+│   └── utils.py                # 工具辅助函数
+├── memory/                     # 记忆系统（第 21 章）
+│   ├── __init__.py
+│   ├── base_memory_manager.py  # BaseMemoryManager
+│   ├── agent_md_manager.py     # Agent MD 文件管理
+│   └── proactive/              # 主动记忆推送
+│       ├── proactive_prompts.py
+│       ├── proactive_responder.py
+│       ├── proactive_trigger.py
+│       ├── proactive_types.py
+│       └── proactive_utils.py
+├── acp/                        # ACP 协议（第 31 章）
+│   ├── __init__.py
+│   ├── core.py                 # 异常定义
+│   ├── server.py               # QwenPawACPAgent
+│   ├── client.py               # ACP 客户端
+│   ├── service.py              # ACPService
+│   ├── permissions.py          # 权限管理
+│   └── tool_adapter.py         # 工具适配器
+├── mission/                    # Mission 模式（第 23 章）
+│   ├── __init__.py
+│   ├── handler.py              # MissionHandler
+│   ├── mission_runner.py       # MissionRunner
+│   ├── prompts.py              # Mission 提示模板
+│   └── state.py                # Mission 状态机
+├── hooks/                      # 生命周期钩子（第 24 章）
+│   ├── __init__.py
+│   ├── bootstrap.py            # BootstrapHook
+│   └── memory_compaction.py    # MemoryCompactionHook
+├── skills/                     # 内置技能（第 22 章）
+│   ├── skills_manager.py
+│   ├── *.yaml / SKILL.md       # 各技能定义文件（中英文）
+│   └── */scripts/              # 技能脚本（PDF, DOCX, PPTX, XLSX）
+├── md_files/                   # 启动注入的 Markdown 知识文件
+│   ├── en/ zh/ ru/             # 多语言系统知识
+│   ├── qa/                     # QA Agent 知识
+│   └── local/                  # 用户本地知识
+└── utils/                      # 智能体工具函数
 ```
 
-**类继承链**: `QwenPawAgent → ToolGuardMixin → ReActAgent`
-
-QwenPawAgent 采用 **ReAct（Reasoning + Acting）模式**：推理决定下一步行动，执行工具调用，循环迭代直到任务完成。详细实现见 [07-智能体核心架构](./07-智能体核心架构.md)。
-
-### 2.2 App — 应用服务层
-
-**源码路径**: `src/qwenpaw/app/`
+### 应用系统 (`app/`) — 第 26-31 章
 
 ```
 app/
-├── _app.py              # FastAPI 应用入口、生命周期管理
-├── workspace/           # Workspace 隔离（ServiceManager 驱动）
-├── channels/            # 消息渠道实现
-├── runner/              # 请求处理器（AgentRunner）
-├── mcp/                 # MCP 客户端管理
-└── routers/             # API 路由（agents、skills、messages）
+├── _app.py                     # FastAPI 应用工厂 + DynamicMultiAgentRunner
+├── server.py                   # Uvicorn 服务器启动
+├── auth.py                     # AuthMiddleware
+├── multi_agent_manager.py      # MultiAgentManager（第 25 章）
+├── agent_context.py            # AgentContext
+├── agent_config_watcher.py     # 配置文件热重载
+├── migration.py                # 旧版工作区迁移
+├── console_push_store.py       # Console 推送存储
+├── utils.py                    # 应用工具函数
+├── routers/                    # FastAPI 路由
+│   ├── __init__.py             # API 路由注册
+│   ├── agent_scoped.py         # AgentContextMiddleware
+│   └── voice.py                # 语音路由
+├── runner/                     # 请求处理器（第 27-28 章）
+│   ├── runner.py               # Runner
+│   ├── session.py              # Session 管理
+│   ├── task_tracker.py         # 任务追踪
+│   ├── control_commands/       # 控制命令
+│   └── repo/                   # 数据持久化
+├── channels/                   # 消息渠道（第 29-30 章）
+│   ├── registry.py             # 渠道注册
+│   ├── manager.py              # ChannelManager
+│   ├── schema.py               # 渠道数据模型
+│   ├── renderer.py             # 消息渲染
+│   ├── command_registry.py     # 命令注册
+│   ├── console/                # Console 渠道
+│   ├── dingtalk/               # 钉钉
+│   ├── feishu/                 # 飞书/Lark
+│   ├── telegram/               # Telegram
+│   ├── discord_/               # Discord
+│   ├── weixin/                 # 微信 iLink
+│   ├── wecom/                  # 企业微信
+│   ├── qq/                     # QQ
+│   ├── onebot/                 # OneBot 协议
+│   ├── imessage/               # Apple iMessage
+│   ├── matrix/                 # Matrix
+│   ├── mattermost/             # Mattermost
+│   ├── mqtt/                   # MQTT
+│   ├── voice/                  # Twilio 语音
+│   └── xiaoyi/                 # 小i机器人
+├── mcp/                        # MCP 客户端管理
+│   ├── manager.py              # MCPClientManager
+│   ├── stateful_client.py      # HttpStatefulClient, StdIOStatefulClient
+│   └── watcher.py              # MCPConfigWatcher
+├── crons/                      # 定时任务（第 42 章）
+│   ├── manager.py              # CronManager
+│   ├── executor.py             # CronExecutor
+│   ├── heartbeat.py            # 心跳机制
+│   ├── models.py               # 数据模型
+│   ├── api.py                  # REST 端点
+│   └── repo/                   # 持久化
+├── approvals/                  # 审批系统
+├── workspace/                  # 工作区管理
+│   ├── workspace.py            # Workspace
+│   └── service_manager.py      # ServiceManager
 ```
 
-**两阶段启动流程**:
+### 模型与安全 — 第 32-38 章
 
 ```
-Phase 1（同步，<100ms）         Phase 2（后台）
-┌──────────────────────┐      ┌──────────────────────┐
-│ 初始化核心管理器        │      │ 启动智能体实例         │
-│ 设置云隧道             │  →   │ 连接消息渠道           │
-│ FastAPI 就绪           │      │ 加载 MCP 客户端        │
-│ 开始响应请求           │      │ 启动定时任务           │
-└──────────────────────┘      └──────────────────────┘
+providers/                      # Provider 系统（第 32-34 章）
+├── provider_manager.py         # ProviderManager — 单例管理器
+├── provider.py                 # Provider, ModelInfo, ProviderInfo
+├── openai_provider.py          # OpenAI 集成
+├── anthropic_provider.py       # Anthropic 集成
+├── gemini_provider.py          # Google Gemini 集成
+├── ollama_provider.py          # Ollama 本地模型
+├── lmstudio_provider.py        # LM Studio 本地模型
+├── openrouter_provider.py      # OpenRouter 聚合
+├── openai_chat_model_compat.py # OpenAI ChatModel 兼容
+├── retry_chat_model.py         # RetryChatModel — 重试包装
+├── rate_limiter.py             # LLMRateLimiter — 限流
+├── capability_baseline.py      # 模型能力基线
+└── multimodal_prober.py        # 多模态能力探测
+
+security/                       # 安全系统（第 35-38 章）
+├── secret_store.py             # SecretStore — 密钥加密
+├── tool_guard/                 # ToolGuard（第 36 章）
+│   ├── __init__.py
+│   ├── engine.py               # 守卫引擎
+│   ├── approval.py             # 审批机制
+│   ├── models.py               # 数据模型
+│   ├── utils.py                # 工具函数
+│   ├── i18n.py                 # 国际化
+│   └── guardians/              # 守卫器插件
+│       ├── file_guardian.py    # 文件操作守卫
+│       ├── rule_guardian.py    # 规则匹配守卫
+│       └── shell_evasion_guardian.py # Shell 注入检测
+└── skill_scanner/              # 技能扫描（第 38 章）
+    ├── scanner.py              # SkillScanner — 编排器
+    ├── scan_policy.py          # ScanPolicy — 策略配置
+    ├── models.py               # Finding, ScanResult, ThreatCategory
+    ├── analyzers/              # 分析器插件
+    │   ├── __init__.py         # BaseAnalyzer 抽象
+    │   └── pattern_analyzer.py # PatternAnalyzer — YAML 签名匹配
+    ├── rules/signatures/       # YAML 检测签名
+    │   ├── command_injection.yaml
+    │   ├── data_exfiltration.yaml
+    │   ├── hardcoded_secrets.yaml
+    │   ├── obfuscation.yaml
+    │   ├── prompt_injection.yaml
+    │   ├── social_engineering.yaml
+    │   ├── supply_chain.yaml
+    │   └── unauthorized_tool_use.yaml
+    └── data/
+        └── default_policy.yaml # 默认安全策略
+
+local_models/                   # 本地模型管理
+├── manager.py                  # LocalModelManager
+├── download_manager.py         # 模型下载
+└── llamacpp.py                 # llama.cpp 集成
 ```
 
-### 2.3 Providers — 模型提供商
-
-**源码路径**: `src/qwenpaw/providers/`
-
-统一的 LLM 调用抽象层，支持多种提供商：
-
-| 提供商 | 类型 | 说明 |
-|--------|------|------|
-| DashScope | 云端 | 阿里云通义千问（默认推荐） |
-| OpenAI | 云端 | GPT-4o、GPT-4o-mini |
-| Anthropic | 云端 | Claude 系列 |
-| Ollama | 本地 | 本地部署开源模型 |
-| LM Studio | 本地 | 本地模型管理 |
-| OpenAI兼容 | 通用 | 任何 OpenAI API 兼容端点 |
-
-核心包装器链：`Provider → TokenRecording → RetryChatModel → Formatter`
-
-详见 [11-Model系统与LLM提供商](./11-Model系统与LLM提供商.md) 和 [82-Provider系统深度解析](./82-Provider系统深度解析.md)。
-
-### 2.4 Skills — 技能扩展系统
-
-**源码路径**: `src/qwenpaw/agents/skills/`
+### 配置、CLI 与插件 — 第 39-43 章
 
 ```
-技能来源优先级：
-内置 (Builtin) > 技能池 (Pool) > 工作空间 (Workspace)
+config/                         # 配置系统（第 39 章）
+├── __init__.py
+├── config.py                   # load_config, Config
+├── context.py                  # 配置上下文
+├── utils.py                    # get_config_path, read_last_api
+└── timezone.py                 # 时区处理
+
+cli/                            # CLI 命令（第 41 章）
+├── main.py                     # LazyGroup — 懒加载命令组
+├── init_cmd.py                 # qwenpaw init
+├── app_cmd.py                  # qwenpaw app
+├── doctor_cmd.py               # qwenpaw doctor
+├── channels_cmd.py             # qwenpaw channels
+├── agents_cmd.py               # qwenpaw agents
+├── skills_cmd.py               # qwenpaw skills
+├── providers_cmd.py            # qwenpaw models
+├── cron_cmd.py                 # qwenpaw cron
+├── plugin_commands.py          # qwenpaw plugin
+├── chats_cmd.py                # qwenpaw chats
+├── env_cmd.py                  # qwenpaw env
+├── auth_cmd.py                 # qwenpaw auth
+├── acp_cmd.py                  # qwenpaw acp
+├── mission_cmd.py              # qwenpaw mission
+├── task_cmd.py                 # qwenpaw task
+├── daemon_cmd.py               # qwenpaw daemon
+├── desktop_cmd.py              # qwenpaw desktop
+├── clean_cmd.py                # qwenpaw clean
+├── update_cmd.py               # qwenpaw update
+├── shutdown_cmd.py             # qwenpaw shutdown
+├── uninstall_cmd.py            # qwenpaw uninstall
+├── doctor_checks.py            # 诊断检查项
+├── doctor_connectivity.py      # 连通性检查
+├── doctor_fix_runner.py        # 修复运行器
+├── doctor_registry.py          # 诊断注册
+├── http.py                     # HTTP 客户端
+├── process_utils.py            # 进程工具
+└── utils.py                    # CLI 工具函数
+
+plugins/                        # 插件系统（第 40 章）
+├── __init__.py
+├── loader.py                   # PluginLoader
+├── registry.py                 # PluginRegistry
+├── runtime.py                  # 插件运行时
+├── api.py                      # 插件 API
+└── architecture.py             # 插件架构
+
+envs/                           # 环境变量持久化
+├── __init__.py                 # load_envs_into_environ
+
+backup/                         # 备份系统
+├── _ops.py                     # 备份操作
+└── _utils.py                   # 备份工具
+
+tunnel/                         # 隧道/穿透
+├── binary_manager.py           # 隧道二进制管理
 ```
 
-| 组件 | 职责 |
-|------|------|
-| `SkillService` | 工作空间级技能生命周期管理 |
-| `SkillPoolService` | 全局共享技能仓库 |
-| `SkillScanner` | 安装前安全扫描 |
-
-详见 [04-技能系统](./04-技能系统.md) 和 [09-技能扩展系统](./09-技能扩展系统.md)。
-
-### 2.5 Security — 安全体系
-
-**源码路径**: `src/qwenpaw/security/`
-
-多层安全防护：
+### 基础设施
 
 ```
-请求入口
-    ↓
-┌──────────────────────────────────────────┐
-│ AuthMiddleware        — JWT 认证          │
-│ ToolGuardEngine      — 工具调用拦截       │
-│ FilePathToolGuardian — 敏感文件保护       │
-│ SkillScanner         — 技能安装扫描       │
-│ SecretStore          — 密钥加密存储       │
-└──────────────────────────────────────────┘
+constant.py                     # 全局常量 + EnvVarLoader（附录 A）
+exceptions.py                   # 业务异常（附录 E）
+__init__.py                     # 包初始化
+__version__.py                  # 版本号
+__main__.py                     # python -m qwenpaw 入口
+
+utils/                          # 通用工具
+├── logging.py                  # 日志（setup_logger, LOG_FILE_PATH）
+├── stdio.py                    # 标准 I/O（ensure_standard_streams）
+└── system_info.py              # 系统信息（summarize_python_environment）
+
+token_usage/                    # Token 统计
+├── manager.py
+└── model_wrapper.py
+
+tokenizer/                      # 分词器
+├── tokenizer.json
+├── tokenizer_config.json
+├── vocab.json
+└── merges.txt
+
+agent_stats/                    # Agent 统计
+├── models.py
+└── service.py
 ```
 
-详见 [19-安全系统详解](./19-安全系统详解.md) 和 [38-工具Guard安全系统](./38-工具Guard安全系统.md)。
+## 教学章节与源码映射
+
+| 章节 | 编号 | 主要源码路径 |
+|------|------|-------------|
+| QwenPaw 是什么 | 01 | `__version__.py`, `constant.py` |
+| 源码架构概览 | 02 | 全部模块 |
+| 安装和运行 | 14 | `cli/main.py`, `cli/init_cmd.py` |
+| 控制台使用 | 15 | `app/_app.py` |
+| 技能系统入门 | 16 | `agents/skills_manager.py` |
+| 项目结构 | 17 | 全部模块 |
+| 智能体架构 | 18 | `agents/react_agent.py` |
+| ReAct 模式 | 19 | `agents/react_agent.py` |
+| 工具系统 | 20 | `agents/tools/` |
+| 记忆系统 | 21 | `agents/memory/` |
+| 技能系统 | 22 | `agents/skills_manager.py`, `agents/skills/` |
+| Mission 模式 | 23 | `agents/mission/` |
+| 模板与钩子 | 24 | `agents/templates.py`, `agents/hooks/` |
+| 多智能体协作 | 25 | `app/multi_agent_manager.py` |
+| FastAPI 服务器 | 26 | `app/_app.py` |
+| 请求处理器 | 27 | `app/runner/runner.py` |
+| 会话管理 | 28 | `app/runner/session.py` |
+| 消息渠道架构 | 29 | `app/channels/` |
+| 渠道实现 | 30 | `app/channels/console/` |
+| ACP 协议 | 31 | `agents/acp/` |
+| Provider 系统 | 32 | `providers/provider_manager.py` |
+| OpenAIProvider | 33 | `providers/provider.py` 等 |
+| 本地模型 Provider | 34 | `providers/ollama_provider.py` |
+| 安全架构 | 35 | `security/` |
+| ToolGuard 系统 | 36 | `security/tool_guard/` |
+| 密钥存储 | 37 | `security/secret_store.py` |
+| 技能安全扫描 | 38 | `security/skill_scanner/` |
+| 配置系统 | 39 | `config/` |
+| 插件系统 | 40 | `plugins/` |
+| CLI 命令系统 | 41 | `cli/` |
+| 定时任务 | 42 | `app/crons/` |
+| 部署与运维 | 43 | `app/_app.py`, `deploy/` |
 
 ---
 
-## 3. 数据流：一个请求的旅程
-
-以用户在 Telegram 发送消息为例，追踪一个请求的完整生命周期：
-
-```
-Telegram 用户发送 "帮我总结这份 PDF"
-    │
-    ▼
-① 渠道接收 — TelegramChannel.on_message()
-    │ Webhook 触发，解析消息格式
-    ▼
-② 认证鉴权 — AuthMiddleware
-    │ 验证渠道身份和权限
-    ▼
-③ Runner 分发 — AgentRunner.query_handler()
-    │ 解析命令/技能调用
-    ▼
-④ 智能体处理 — QwenPawAgent.reply()
-    │ 进入 ReAct 循环
-    ├── _reasoning() — 推理决定调用 pdf 技能
-    ├── _acting()    — ToolGuard 安全检查 → 执行
-    ├── _reasoning() — 推理生成总结
-    └── 返回响应
-    ▼
-⑤ 响应回传 — SSE 流式 → 渠道发送
-    │ TelegramChannel.send_message()
-    ▼
-用户收到总结结果
-```
-
----
-
-## 4. Workspace 隔离机制
-
-每个 Agent 运行在独立的 Workspace 中：
-
-```
-~/.qwenpaw/
-├── config.json              # 全局配置
-├── agents/
-│   └── {agent_id}/          # 每个 Agent 的独立空间
-│       ├── AGENTS.md         # Agent 指令
-│       ├── SOUL.md           # Agent 人格
-│       ├── MEMORY.md         # 长期记忆
-│       ├── memory/           # 记忆日志
-│       ├── skills/           # 已安装技能
-│       ├── media/            # 媒体文件
-│       └── missions/         # Mission 任务数据
-├── .secret/                 # 加密密钥存储
-└── backups/                 # 备份数据
-```
-
-**ServiceManager** 统一管理 Workspace 内所有服务的生命周期，支持按优先级启动/停止、热重载和优雅关闭。
-
-详见 [28-Workspace隔离机制](./28-Workspace隔离机制.md) 和 [94-生命周期管理](./94-生命周期管理.md)。
-
----
-
-## 5. 关键设计模式
-
-| 模式 | 应用位置 | 说明 |
-|------|----------|------|
-| **ReAct** | QwenPawAgent | 推理-行动循环，Agent 的核心执行模式 |
-| **Mixin** | ToolGuardMixin | 通过 MRO 注入安全拦截，不修改基类 |
-| **包装器** | RetryChatModel, TokenRecording | 逐层增强功能（重试、限流、记录） |
-| **策略** | RoutingPolicy | 大小模型智能切换策略 |
-| **观察者** | MCPConfigWatcher | 监听配置变更触发热重载 |
-| **工厂** | create_model_and_formatter | 根据配置创建模型+格式化器组合 |
-
----
-
-## 来自 Java 的你
-
-| QwenPaw 概念 | Java Spring 等价 | 说明 |
-|-------------|-----------------|------|
-| `__init__.py` 入口 | `@SpringBootApplication` | 应用启动和初始化 |
-| `constant.py` | `application.properties` | 系统级配置常量 |
-| `QwenPawAgent` | `@Service` | 核心业务组件 |
-| `Workspace` | `@Scope("prototype")` | 每实例隔离的运行环境 |
-| `ServiceManager` | `ApplicationContext` | 组件生命周期管理 |
-| `ToolGuardMixin` | Spring AOP `@Aspect` | 横切关注点拦截 |
-| `SkillPoolService` | `BeanFactory` | 全局单例仓库 |
-| `PluginApi` | SPI `ServiceLoader` | 插件扩展点 |
-| `create_model_and_formatter()` | `FactoryBean` | 工厂方法创建复杂对象 |
-
----
-
-## 环境变量速查
-
-最常用的环境变量（完整列表见 [47-环境变量系统](./47-环境变量系统.md)）：
-
-| 变量 | 默认值 | 说明 |
-|------|---------|------|
-| `QWENPAW_WORKING_DIR` | `~/.qwenpaw` | 工作目录 |
-| `QWENPAW_LOG_LEVEL` | `info` | 日志级别 |
-| `QWENPAW_LLM_MAX_CONCURRENT` | `10` | LLM 最大并发 |
-| `QWENPAW_LLM_MAX_QPM` | `600` | 每分钟最大请求 |
-
----
-
-## 实战演练
-
-### 基础练习（⭐）
-**目标**: 找到 `react_agent.py` 中 `QwenPawAgent` 的类定义，列出它的直接父类
-**提示**: 关注 `class QwenPawAgent(...)` 这一行，注意括号中有几个基类
-**参考思路**: 在 `src/qwenpaw/agents/react_agent.py` 中搜索类定义，观察 MRO（方法解析顺序）。`QwenPawAgent` 的继承链体现了 Mixin 模式的运用——安全拦截通过 `ToolGuardMixin` 注入，而非直接写在 Agent 代码中。
-
-### 进阶练习（⭐⭐⭐）
-**目标**: 追踪一个 Webhook 请求从 FastAPI 入口到 Agent 响应的完整调用链
-**提示**: 从 `app/_app.py` 的路由注册开始，经过 `AuthMiddleware` → `Runner.query_handler()` → `QwenPawAgent.reply()`
-**参考思路**: 对照本文第 3 节"数据流：一个请求的旅程"，在源码中逐一找到对应的方法。重点关注：路由如何分发到 Runner、Runner 如何构建 Agent 实例、Agent 的 ReAct 循环如何执行。在日志文件中搜索 `query_handler` 关键词可以验证你的追踪结果。
-
-### 挑战练习（⭐⭐⭐⭐⭐）
-**目标**: 画一个简化的架构图，标注至少 5 个核心模块的数据流向
-**提示**: 包括 Channel、Runner、Agent、Provider、Security、Memory 六个模块之间的调用关系
-**参考思路**: 以本文第 1 节的四层架构图为基础，用箭头标注模块间的实际调用路径。例如：Channel → Runner（Webhook 触发）、Runner → Provider（模型调用）、Agent → Security（工具审批）。可以参考第 3 节的数据流示例，但需要涵盖更多模块（如 MCP、Memory、Skill）的交互。
-
----
-
-## 知识检查
-
-1. **概念题**：QwenPaw 的四层架构中，Channel 属于哪一层？它的职责是什么？
-2. **判断题**：QwenPawAgent 直接继承自 Agent 基类。（错误 — 继承链为 QwenPawAgent → ToolGuardMixin → ReActAgent，中间通过 Mixin 注入安全拦截）
-3. **场景题**：当两个 Agent 同时运行时，它们的记忆数据会互相干扰吗？为什么？
-4. **概念题**：两阶段启动的设计目的是什么？Phase 1 和 Phase 2 分别做什么？
-
----
-
-## 延伸阅读
-
-| 方向 | 章节 | 说明 |
-|------|------|------|
-| 智能体核心 | [07-智能体核心架构](./07-智能体核心架构.md) | ReAct 模式、工具系统、记忆管理 |
-| 消息渠道 | [08-消息渠道系统](./08-消息渠道系统.md) | 渠道实现细节 |
-| 技能扩展 | [04-技能系统](./04-技能系统.md) | 技能安装、管理、开发 |
-| 模型配置 | [11-Model系统与LLM提供商](./11-Model系统与LLM提供商.md) | Provider 架构 |
-| 安全体系 | [19-安全系统详解](./19-安全系统详解.md) | 安全防护机制 |
-| 设计哲学 | [22-架构设计思维](./22-架构设计思维.md) | 设计原则与决策 |
-| 下一章 | [04-技能系统](./04-技能系统.md) | 继续学习技能系统 |
+*基于源码 `src/qwenpaw/` 目录树 (v1.1.2)*
+*最后更新：2026-05-10*

@@ -1,329 +1,90 @@
-# 消息渠道
+# E 错误代码速查
 
-## 本章导读
+> **源码依据**: `src/qwenpaw/exceptions.py` — 所有业务异常定义和 LLM 错误转换逻辑。
 
-| 项目 | 内容 |
-|------|------|
-| **学习目标** | 完成本章后，你能够：1) 列举 QwenPaw 支持的消息渠道及其通信协议 2) 配置至少一个渠道（钉钉/Telegram/Discord/飞书） 3) 理解渠道策略的含义和配置方式 |
-| **前置知识** | [A1-项目介绍](./A1-项目介绍.md)、[A2-快速开始](./A2-快速开始.md) |
-| **预计时长** | 55 分钟（阅读 15 分钟 + 练习 40 分钟） |
-| **难度等级** | ⭐⭐ |
-| **核心关键词** | `渠道` `Webhook` `策略` `钉钉` `Telegram` |
+## QwenPaw 业务异常
 
-> **一句话概述**：本章讲解 QwenPaw 消息渠道的配置与使用，帮助你理解如何将智能体接入钉钉、Telegram、Discord、飞书等主流聊天平台。
+| 错误代码 | 异常类 | 说明 |
+|----------|--------|------|
+| `PROVIDER_ERROR` | `ProviderError` | LLM 提供商配置或调用错误 |
+| `MODEL_FORMATTER_ERROR` | `ModelFormatterError` | 模型消息格式化失败（多模态适配、工具调用格式等） |
+| `SYSTEM_COMMAND_ERROR` | `SystemCommandException` | `/compact`、`/new` 等系统命令执行失败 |
+| `SKILLS_ERROR` | `SkillsError` | 技能加载、注册、扫描失败 |
+| `AGENT_STATE_ERROR` | `AgentStateError` | Agent 会话状态异常（含 session_id） |
+| — | `ChannelError(channel_name, message)` | 渠道通信错误（含渠道名称） |
 
-消息渠道是 QwenPaw 与用户之间的通信桥梁 -- 通过配置不同的渠道，智能体可以接入钉钉、Telegram、Discord、飞书等平台，在用户习惯的聊天工具中提供服务。
+## AgentScope 运行时异常
 
-## 支持的渠道
+以下异常来自 `agentscope_runtime` 框架，QwenPaw 复用并通过 `convert_model_exception()` 转换：
 
-| 渠道 | 说明 | 特点 |
-|------|------|------|
-| DingTalk | 钉钉 | 企业级稳定性，支持 stream 长连接，适合内部办公场景 |
-| Feishu | 飞书/Lark | WebSocket 实时推送，支持富文本卡片消息，与企业组织架构深度集成 |
-| Weixin | 微信 iLink | 面向个人微信用户，覆盖面广，需额外部署中转服务 |
-| WeCom | 企业微信 | 企业通讯录集成，支持应用消息推送，适合企业内部通知场景 |
-| QQ | QQ (OneBot 协议) | 基于 OneBot 开放协议，支持 QQNT/icq 等多平台，需第三方客户端 |
-| OneBot | OneBot 协议 | 独立的 OneBot 通道，支持 WebSocket/Polling 多种连接方式 |
-| Discord | Discord | Gateway WebSocket 实时通信，支持 Slash Command，社区场景首选 |
-| Telegram | Telegram | 配置最为简单，仅需 Bot Token，支持内联键盘和富格式，国际用户常用 |
-| iMessage | Apple Messages | 端到端加密，隐私性最强，依赖 Apple 生态 |
-| Matrix | Matrix | 去中心化实时通信协议，支持端到端加密和联邦互联 |
-| Mattermost | Mattermost | 企业级自托管聊天平台，支持 webhook 集成 |
-| MQTT | MQTT | 物联网消息传输协议，适合低带宽场景 |
-| Voice | Twilio 语音 | 电话/短信双通道，支持 TTS/STT 配置 |
-| Console | Web Console | 内置 Web 调试控制台，零配置即用，适合开发和测试阶段 |
-| Xiaoyi | 小i机器人 | 国产智能客服平台，支持 webhook 接入 |
+| 错误代码 | 异常类 | 触发条件 |
+|----------|--------|----------|
+| — | `ModelExecutionException` | LLM API 调用通用失败 |
+| — | `ModelTimeoutException` | LLM 调用超时 |
+| — | `UnauthorizedModelAccessException` | API Key 无效或无权限 (HTTP 401/403) |
+| — | `ModelQuotaExceededException` | API 配额耗尽或限流 (HTTP 429) |
+| — | `ModelContextLengthExceededException` | 上下文超出模型窗口上限 |
+| — | `UnknownAgentException` | 请求的目标 Agent 不存在 |
+| — | `ExternalServiceException` | 外部服务（渠道等）通信失败 |
+| — | `AgentRuntimeErrorException` | Agent 运行时通用错误基类 |
 
-## 渠道选择指南
+## LLM 异常自动转换
 
-不同使用场景下，推荐选择的渠道有所不同。以下表格对比了常见场景的推荐方案：
+`convert_model_exception()` (`src/qwenpaw/exceptions.py:165-253`) 自动将 Provider SDK 原始异常转为 AgentScope 标准异常：
 
-| 使用场景 | 推荐渠道 | 推荐理由 |
-|----------|----------|----------|
-| 个人使用 | Telegram / Discord | 配置简单，只需 Bot Token 即可运行，无需企业账号 |
-| 企业内部 | 钉钉 / 飞书 / Mattermost | 与企业组织架构集成，支持审批、卡片等企业级功能 |
-| 开发调试 | Console | 内置 Web 控制台，零配置，适合快速验证对话逻辑 |
-| 隐私优先 | iMessage / Matrix | 端到端加密传输，消息不经过第三方服务器 |
-| 去中心化 | Matrix | 联邦制通信，支持跨平台互联 |
-| 物联网 | MQTT | 低带宽协议，适合传感器和嵌入式设备 |
-| 国产平台 | 钉钉 / 飞书 / 小i | 国内生态兼容性好 |
-
-选择渠道时还需考虑以下因素：
-
-- **网络环境**：Telegram、Discord 在国内需要代理才能访问；钉钉、飞书、QQ 无此限制。
-- **消息格式**：飞书和钉钉支持卡片消息等富文本格式；Telegram 支持 Markdown 和内联键盘。
-- **部署复杂度**：Console 和 Telegram 只需配置文件；微信和企业微信通常需要额外的中转服务。
-- **用户群体**：根据目标用户的平台习惯选择，避免强迫用户安装不常用的工具。
-
-## 快速配置
-
-### DingTalk 钉钉
-
-**步骤 1**: 在钉钉开放平台创建应用
-
-1. 访问 [钉钉开放平台](https://open.dingtalk.com/)
-2. 创建企业自建应用
-3. 获取 `App Key` 和 `App Secret`
-
-**步骤 2**: 配置 QwenPaw
-
-```bash
-qwenpaw channels config dingtalk
+```
+原始异常（openai.APIError / anthropic.APIStatusError / ...）
+    │
+    ├── _is_model_related_error()  ← 判断是否模型相关
+    │
+    ├── Level 1: HTTP 状态码映射
+    │     401/403 → UnauthorizedModelAccessException
+    │     429     → ModelQuotaExceededException
+    │
+    ├── Level 2: 错误消息关键词匹配
+    │     "unauthorized" / "api key" → UnauthorizedModelAccessException
+    │     "rate limit" / "quota"    → ModelQuotaExceededException
+    │     "timeout" / "deadline"    → ModelTimeoutException
+    │     "context" / "too many tokens" → ModelContextLengthExceededException
+    │
+    └── Level 3: 兜底
+         模型相关 → ModelExecutionException
+         非模型   → UnknownAgentException
 ```
 
-或在 `config.json` 中配置：
+## 常见故障排查
 
-```json
-{
-  "channels": {
-    "dingtalk": {
-      "enabled": true,
-      "client_id": "your_client_id",
-      "client_secret": "your_client_secret"
-    }
-  }
-}
-```
+| 现象 | 可能异常 | 检查步骤 |
+|------|----------|----------|
+| 启动后 API 调用立即失败 | `UnauthorizedModelAccessException` | 1) `qwenpaw doctor` 检查 API Key 2) 检查环境变量 3) 检查 Provider 配额 |
+| 长时间无响应后报错 | `ModelTimeoutException` | 1) 网络连通性 2) API 端点可达性 3) 增大超时配置 |
+| 上下文过长时失败 | `ModelContextLengthExceededException` | 1) `/compact` 手动压缩记忆 2) 调整 `MEMORY_COMPACT_RATIO` |
+| 高并发场景失败 | `ModelQuotaExceededException` | 1) 降低 `QWENPAW_LLM_MAX_CONCURRENT` 2) 降低 `QWENPAW_LLM_MAX_QPM` |
+| 技能安装失败 | `SkillsError` | 1) 查看 `skill_scanner` 扫描报告 2) 检查 `SKILL.md` 格式 |
+| 渠道收不到消息 | `ChannelError` | 1) `qwenpaw channels status` 2) Webhook URL 配置 3) 网络连通性 |
 
-**步骤 3**: 验证连接
+## 自定义异常处理
 
-```bash
-# 查看渠道状态
-qwenpaw channels list
+```python
+from qwenpaw.exceptions import (
+    ProviderError,
+    SkillsError,
+    SystemCommandException,
+    ChannelError,
+    AgentStateError,
+)
+
+try:
+    await agent.process(message)
+except ProviderError as e:
+    logger.error(f"Provider error: {e.message}, details={e.details}")
+except ChannelError as e:
+    logger.error(f"Channel {e.service_name} error: {e.message}")
+except AgentStateError as e:
+    logger.error(f"Session {e.details['session_id']} error: {e.message}")
 ```
 
 ---
 
-### Telegram
-
-**步骤 1**: 创建 Bot
-
-1. 在 Telegram 搜索 `@BotFather`
-2. 发送 `/newbot` 创建新机器人
-3. 获取 `bot_token`
-
-**步骤 2**: 配置 QwenPaw
-
-```bash
-qwenpaw channels config telegram
-```
-
-或在 `config.json` 中配置：
-
-```json
-{
-  "channels": {
-    "telegram": {
-      "enabled": true,
-      "bot_token": "your_bot_token"
-    }
-  }
-}
-```
-
----
-
-### Discord
-
-**步骤 1**: 创建 Discord 应用
-
-1. 访问 [Discord Developer Portal](https://discord.com/developers/applications)
-2. 创建新应用
-3. 在 "Bot" 设置中获取 Token
-4. 开启 Message Content Intent
-
-**步骤 2**: 配置 QwenPaw
-
-```json
-{
-  "channels": {
-    "discord": {
-      "enabled": true,
-      "bot_token": "your_bot_token"
-    }
-  }
-}
-```
-
----
-
-### Feishu 飞书
-
-**步骤 1**: 创建飞书应用
-
-1. 访问 [飞书开放平台](https://open.feishu.cn/)
-2. 创建企业自建应用
-3. 获取 `App ID` 和 `App Secret`
-
-**步骤 2**: 配置 QwenPaw
-
-```json
-{
-  "channels": {
-    "feishu": {
-      "enabled": true,
-      "app_id": "your_app_id",
-      "app_secret": "your_app_secret"
-    }
-  }
-}
-```
-
----
-
-## 通用配置
-
-### 通过 CLI 配置
-
-```bash
-# 列出所有已配置的渠道
-qwenpaw channels list
-
-# 交互式配置渠道参数
-qwenpaw channels config
-
-# 添加渠道到配置
-qwenpaw channels add dingtalk
-
-# 安装自定义渠道到 custom_channels/
-qwenpaw channels install mychannel --from-path ./my-channel
-
-# 发送消息（需要先查询 session）
-qwenpaw channels send --agent-id default --channel console \
-  --target-user alice --target-session alice_session_001 \
-  --text "Hello"
-```
-
-### 渠道策略
-
-渠道策略用于控制智能体在不同场景下的响应行为。通过策略配置，可以精确控制哪些用户或群组能够与智能体交互。
-
-| 策略 | 说明 |
-|------|------|
-| `dm_policy` | 私聊策略：`open`（开放，所有人可私聊）或 `allowlist`（仅白名单用户可私聊） |
-| `group_policy` | 群聊策略：`open`（开放，所有群可用）或 `allowlist`（仅白名单群可用） |
-| `require_mention` | 群聊中是否需要 @ 机器人才响应，避免在活跃群中产生噪音 |
-| `filter_tool_messages` | 是否过滤工具调用过程中的中间消息，仅展示最终结果 |
-| `filter_thinking` | 是否过滤模型的思考过程输出，保持对话界面的简洁 |
-
-### 配置示例
-
-以下是一个完整的钉钉渠道配置示例，包含策略设置：
-
-```json
-{
-  "channels": {
-    "dingtalk": {
-      "enabled": true,
-      "client_id": "your_client_id",
-      "client_secret": "your_client_secret",
-      "dm_policy": "open",
-      "group_policy": "allowlist",
-      "allow_from": ["group_id_1", "group_id_2"]
-    }
-  }
-}
-```
-
-在这个示例中：
-- `dm_policy: "open"` 表示任何人都可以私聊智能体
-- `group_policy: "allowlist"` 表示只有在 `allow_from` 列表中的群组才能使用
-- `allow_from` 数组中列出了允许的群组 ID
-
-## 实战演练
-
-### 练习 1：配置 Telegram Bot 并发送测试消息（难度 1/5）
-
-**目标**：完成 Telegram 渠道的完整配置流程，验证消息收发。
-
-**步骤**：
-
-1. 在 Telegram 中找到 `@BotFather`，发送 `/newbot`，按提示完成 Bot 创建，记录 `bot_token`
-2. 运行 `qwenpaw channels add telegram` 添加 Telegram 渠道到配置
-3. 运行 `qwenpaw channels config` 交互式配置 `bot_token`
-4. 启动 QwenPaw 服务后，用你的 Telegram 账号向 Bot 发送一条消息，观察日志中的消息接收记录
-
-**验证标准**：Bot 能够正常回复消息，日志中无报错。
-
----
-
-### 练习 2：配置钉钉渠道，设置群聊白名单策略（难度 2/5）
-
-**目标**：在钉钉中配置智能体，并限制只有特定群组可以使用。
-
-**步骤**：
-
-1. 在钉钉开放平台创建企业自建应用，获取 `Client ID` 和 `Client Secret`
-2. 运行 `qwenpaw channels add dingtalk` 添加渠道，设置 `group_policy: "allowlist"`
-3. 创建一个钉钉群，将机器人添加到群中，获取群组 ID
-4. 将群组 ID 添加到 `allow_from` 数组
-5. 在白名单群中 @ 机器人发送消息，验证能够正常回复
-6. 在非白名单群中 @ 机器人发送消息，验证被拒绝
-
-**验证标准**：白名单群正常响应，非白名单群不响应。
-
----
-
-### 练习 3：同时启用两个渠道，观察消息路由行为（难度 3/5）
-
-**目标**：同时配置 Telegram 和 Console 两个渠道，理解多渠道并行的工作方式。
-
-**步骤**：
-
-1. 确保 Telegram 渠道已正确配置并启用
-2. 运行 `qwenpaw channels add console` 添加 Console 渠道（如尚未添加）
-3. 启动 QwenPaw 服务，观察日志中两个渠道的初始化信息
-4. 分别通过 Telegram 和 Web Console 发送消息，观察日志中的路由记录
-5. 在两个渠道中发送相同的提问，对比回复内容是否一致
-
-**验证标准**：两个渠道均能独立收发消息，日志中可看到消息来源渠道的标识。
-
----
-
-## 常见问题
-
-| 问题 | 解决方案 |
-|------|----------|
-| 渠道无法连接 | 检查 Client ID/Client Secret 是否正确，确认应用已发布上线 |
-| 消息发送失败 | 检查网络连接和防火墙设置，确认目标群组/用户 ID 正确 |
-| 无法 @ 机器人 | 在群设置中确认机器人已被添加为群成员 |
-| Telegram Bot 无响应 | 确认网络可以访问 Telegram API，检查 Bot Token 是否有效 |
-| 钉钉机器人不回复群消息 | 确认 `group_policy` 和 `allow_from` 配置正确，检查机器人是否被添加到群 |
-
-## 来自 Java 的你
-
-### 核心概念对照
-
-| Java | Python / QwenPaw | 说明 |
-|------|-------------------|------|
-| Spring Integration Channel | QwenPaw Channel | QwenPaw 渠道是独立的适配器模块，无需 `@EnableIntegration` 注解 |
-| JMS (ActiveMQ/RabbitMQ) | Webhook / Stream SDK | QwenPaw 渠道直接对接聊天平台 API，不经过消息中间件 |
-| `@RabbitListener` | Channel handler | QwenPaw 渠道通过配置文件启用，handler 按命名约定自动注册 |
-| `MessageConverter` | `MessageFormatter` | QwenPaw 的消息格式转换嵌入在各渠道实现内部，而非独立的转换器 Bean |
-
-### 关键差异
-
-Spring Integration 需要显式配置通道适配器和消息路由，QwenPaw 的渠道只需在 `config.json` 中启用并填写凭据即可。渠道之间的消息格式差异由各渠道模块内部处理，开发者无需编写 MessageConverter。
-
-## 知识检查
-
-1. **概念题**：QwenPaw 支持哪些消息渠道？它们的通信协议有什么区别？
-
-   提示：回顾"支持的渠道"表格中的协议列，对比各渠道使用的连接方式（Stream SDK、WebSocket、Polling、Gateway 等）。
-
-2. **判断题**：`group_policy` 设置为 `allowlist` 后，任何用户私聊智能体都会被拒绝。请判断对错并说明理由。
-
-   提示：注意区分 `dm_policy` 和 `group_policy` 的作用范围。
-
-3. **场景题**：某企业需要在钉钉中部署智能体，要求仅允许 HR 部门的两个群组使用，同时所有员工都可以私聊智能体。请写出对应的渠道策略配置。
-
-   提示：需要同时配置 `dm_policy`、`group_policy` 和 `allow_from`。
-
-## 延伸阅读
-
-| 方向 | 章节 | 说明 |
-|------|------|------|
-| 深入实现 | [08-消息渠道系统](./08-消息渠道系统.md) | 渠道内部实现架构、消息流转机制和插件扩展方式 |
-| 跨渠道路由 | [77-跨渠道消息路由](./77-跨渠道消息路由.md) | 多渠道并行的消息路由策略和跨渠道会话管理 |
-| 安全配置 | [10-CLI配置与安全](./10-CLI配置与安全.md) | CLI 安全相关的配置与权限管理 |
-| 下一章 | [Python 基础教程](./part2/11-5-Python基础教程.md) | 继续学习 |
+*基于源码 `src/qwenpaw/exceptions.py` (v1.1.2)*
+*最后更新：2026-05-10*

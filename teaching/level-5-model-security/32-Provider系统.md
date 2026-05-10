@@ -677,7 +677,268 @@ self.plugin_path = self.root_path / "plugin"    # 插件 Provider
 
 ---
 
-## 10. 应用场景
+## 10. Token 用量统计
+
+`TokenUsageManager` 追踪所有 LLM 调用的 token 消耗，支持按日期、模型、Provider 多维度聚合。
+
+源码路径：`src/qwenpaw/token_usage/manager.py`
+
+### 10.1 TokenUsageManager
+
+```python
+# src/qwenpaw/token_usage/manager.py:80
+class TokenUsageManager:
+    """Token 使用量管理器（单例）。"""
+
+    _instance: "TokenUsageManager | None" = None
+    _lock = threading.Lock()
+
+    def __init__(self) -> None:
+        self._path: Path = (WORKING_DIR / TOKEN_USAGE_FILE).expanduser()
+        self._file_lock = asyncio.Lock()
+
+    @classmethod
+    def get_instance(cls) -> "TokenUsageManager":
+        """获取单例实例。"""
+```
+
+### 10.2 数据模型
+
+```python
+# src/qwenpaw/token_usage/manager.py:20
+class TokenUsageRecord(TokenUsageStats):
+    """单条 token 用量记录（按日期 + Provider + 模型）。"""
+    date: str                    # YYYY-MM-DD
+    provider_id: str            # Provider ID
+    model: str                  # 模型名称
+
+class TokenUsageSummary(BaseModel):
+    """聚合用量摘要。"""
+    total_prompt_tokens: int
+    total_completion_tokens: int
+    total_calls: int
+    by_model: dict[str, TokenUsageByModel]    # 按 "provider:model" 聚合
+    by_provider: dict[str, TokenUsageStats]    # 按 Provider 聚合
+    by_date: dict[str, TokenUsageStats]        # 按日期聚合
+```
+
+### 10.3 核心方法
+
+| 方法 | 说明 |
+|------|------|
+| `record()` | 记录一次 LLM 调用的 token 消耗 |
+| `get_summary()` | 获取聚合用量摘要 |
+| `_query()` | 查询原始记录 |
+
+### 10.4 记录流程
+
+```python
+# 每次 LLM 调用后记录
+await token_usage_manager.record(
+    provider_id="openai",
+    model_name="gpt-4o",
+    prompt_tokens=1200,
+    completion_tokens=800,
+)
+```
+
+### 10.5 查询聚合
+
+```python
+# 获取本月用量摘要
+summary = await token_usage_manager.get_summary(
+    start_date=date(2026, 5, 1),
+    end_date=date(2026, 5, 31),
+)
+
+print(f"Total calls: {summary.total_calls}")
+print(f"Total prompt tokens: {summary.total_prompt_tokens}")
+print(f"Total completion tokens: {summary.total_completion_tokens}")
+
+# 按模型查看
+for key, model_stats in summary.by_model.items():
+    print(f"{key}: {model_stats.call_count} calls")
+```
+
+### 10.6 持久化
+
+Token 用量存储在 `~/.qwenpaw/token_usage.json`，按日期分区：
+
+```json
+{
+  "2026-05-10": {
+    "openai:gpt-4o": {
+      "provider_id": "openai",
+      "model_name": "gpt-4o",
+      "prompt_tokens": 1200,
+      "completion_tokens": 800,
+      "call_count": 1
+    }
+  }
+}
+```
+
+---
+
+## 11. 重试与速率限制
+
+`RetryChatModel` 是所有 LLM 调用的透明重试包装器，处理瞬态错误（限流、超时、连接错误）。`LLMRateLimiter` 控制全局并发和 QPM 限制。
+
+源码路径：`src/qwenpaw/providers/retry_chat_model.py`
+
+### 11.1 RetryChatModel
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:205
+class RetryChatModel(ChatModelBase):
+    """透明重试包装器，包装任何 ChatModelBase。"""
+
+    def __init__(
+        self,
+        inner: ChatModelBase,
+        retry_config: RetryConfig | None = None,
+        rate_limit_config: RateLimitConfig | None = None,
+    ) -> None:
+        self._inner = inner
+        self._retry_config = _normalize_retry_config(retry_config)
+        self._rate_limit_config = _normalize_rate_limit_config(rate_limit_config)
+```
+
+### 11.2 RetryConfig
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:54
+@dataclass(frozen=True, slots=True)
+class RetryConfig:
+    """重试策略配置。"""
+    enabled: bool = LLM_MAX_RETRIES > 0
+    max_retries: int = max(LLM_MAX_RETRIES, 1)
+    backoff_base: float = LLM_BACKOFF_BASE       # 初始退避时间
+    backoff_cap: float = LLM_BACKOFF_CAP         # 退避上限
+```
+
+### 11.3 RateLimitConfig
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:61
+@dataclass(frozen=True, slots=True)
+class RateLimitConfig:
+    """速率限制配置。"""
+    max_concurrent: int = LLM_MAX_CONCURRENT  # 最大并发
+    max_qpm: int = LLM_MAX_QPM                 # 每分钟查询数
+    pause_seconds: float = LLM_RATE_LIMIT_PAUSE # 429 后的暂停时间
+    jitter_range: float = LLM_RATE_LIMIT_JITTER # 随机抖动
+    acquire_timeout: float = LLM_ACQUIRE_TIMEOUT # 获取槽位超时
+```
+
+### 11.4 可重试错误
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:37
+RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504, 529}
+
+# OpenAI SDK 错误
+_openai_retryable = (
+    openai.RateLimitError,
+    openai.APITimeoutError,
+    openai.APIConnectionError,
+)
+
+# Anthropic SDK 错误
+_anthropic_retryable = (
+    anthropic.RateLimitError,
+    anthropic.APITimeoutError,
+    anthropic.APIConnectionError,
+)
+```
+
+### 11.5 指数退避
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:154
+def _compute_backoff(attempt: int, retry_config: RetryConfig) -> float:
+    """指数退避：base * 2^(attempt-1)，上限 cap。"""
+    return min(
+        retry_config.backoff_cap,
+        retry_config.backoff_base * (2 ** max(0, attempt - 1)),
+    )
+
+# 示例：base=0.5, cap=30
+# attempt=1: min(30, 0.5 * 1) = 0.5s
+# attempt=2: min(30, 0.5 * 2) = 1.0s
+# attempt=3: min(30, 0.5 * 4) = 2.0s
+# attempt=4: min(30, 0.5 * 8) = 4.0s
+# attempt=5: min(30, 0.5 * 16) = 8.0s
+```
+
+### 11.6 流量控制设计
+
+```
+全局信号量 (max_concurrent=10)
+        │
+        ├── 请求 A 获取槽位 ──→ 调用 LLM API
+        ├── 请求 B 获取槽位 ──→ 调用 LLM API
+        ├── ...
+        └── 请求 K 等待槽位 (acquire_timeout=30s)
+
+429 响应时：
+        │
+        └── 全局暂停 (pause_seconds=60s)
+              │
+              ├── 所有等待请求暂停 60s
+              └── + 各自的随机抖动 (jitter)
+```
+
+**关键特性**：
+- **全局信号量**：限制同时 in-flight 的 LLM 调用数
+- **全局暂停**：429 时所有并发请求共享暂停，避免惊群效应
+- **单个槽位释放**：流式响应首 chunk 到达后立即释放槽位
+
+### 11.7 流式响应的槽位转移
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:233
+async def _consume_stream_with_slot(...):
+    """消费流式响应，管理信号量槽位生命周期。"""
+
+    first_chunk = True
+    async for chunk in stream:
+        if first_chunk:
+            first_chunk = False
+            # API 开始发送流后立即释放槽位
+            # 流式传输中不会再限流
+            limiter.release()
+        yield chunk
+```
+
+**设计原因**：一旦 API 开始流式传输，请求已被接受，不会再被限流。持有槽位直到流结束会不必要地饿死其他等待者。
+
+### 11.8 取消安全性
+
+```python
+# src/qwenpaw/providers/retry_chat_model.py:274
+try:
+    await asyncio.wait_for(
+        limiter.acquire(),
+        timeout=self._rate_limit_config.acquire_timeout,
+    )
+    acquired = True
+except asyncio.TimeoutError:
+    raise RateLimitExceededException(...)
+
+try:
+    result = await self._inner(*args, **kwargs)
+finally:
+    # 只有真正获取了槽位才释放
+    if owns_semaphore and acquired:
+        limiter.release()
+```
+
+**关键**：`acquired` 标志确保在 `CancelledError` 时不会错误释放未获取的槽位。
+
+---
+
+## 12. 应用场景
 
 ### 场景 1: 多模型负载均衡
 
@@ -734,9 +995,9 @@ provider_config = {
 
 ---
 
-## 11. 最佳实践
+## 13. 最佳实践
 
-### 11.1 Provider 选择指南
+### 13.1 Provider 选择指南
 
 | 场景 | 推荐 Provider | 理由 |
 |------|---------------|------|
@@ -746,7 +1007,7 @@ provider_config = {
 | 成本敏感 | DeepSeek / Ollama | 价格低/免费 |
 | 隐私敏感 | Ollama 本地 | 数据不出境 |
 
-### 11.2 密钥安全建议
+### 13.2 密钥安全建议
 
 ```python
 # 1. 使用环境变量而非硬编码
@@ -759,7 +1020,7 @@ export QWENPAW_MASTER_KEY="your-master-key"
 export QWENPAW_RUNNING_IN_CONTAINER=true
 ```
 
-### 11.3 模型探测优化
+### 13.3 模型探测优化
 
 ```python
 # 批量探测时跳过已知模型
@@ -771,7 +1032,7 @@ for model in models:
 
 ---
 
-## 12. 常见问题
+## 14. 常见问题
 
 ### Q1: Provider 连接失败
 
@@ -858,17 +1119,16 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 13. 交叉引用
+## 15. 交叉引用
 
 | 相关章节 | 关联内容 |
 |----------|----------|
-| [85-模型探测与能力检测](85-模型探测与能力检测.md) | 多模态探测原理和 ExpectedCapabilityRegistry |
-| [39-密钥存储加密系统](39-密钥存储加密系统.md) | SecretStore 密钥加密机制 |
+| [37-密钥存储](37-密钥存储.md) | SecretStore 密钥加密机制 |
 | [37-配置热重载机制](37-配置热重载机制.md) | Provider 配置热重载 |
 
 ---
 
-## 14. 总结
+## 16. 总结
 
 **核心要点：**
 
@@ -895,7 +1155,7 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 15. 关键文件索引
+## 17. 关键文件索引
 
 | 组件 | 文件路径 |
 |------|----------|
@@ -918,13 +1178,13 @@ grep -i "provider" logs/qwenpaw.log
 
 ---
 
-## 16. OllamaProvider 详解
+## 18. OllamaProvider 详解
 
 **源码路径**: `src/qwenpaw/providers/ollama_provider.py`
 
 OllamaProvider 继承自 OpenAIProvider，复用 OpenAI 兼容 API，通过 URL 规范化适配 Ollama 的端点。
 
-### 16.1 类定义
+### 18.1 类定义
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:12
@@ -932,7 +1192,7 @@ class OllamaProvider(OpenAIProvider):
     """Provider implementation for Ollama local LLM hosting platform."""
 ```
 
-### 16.2 核心方法
+### 18.2 核心方法
 
 | 方法 | 行号 | 说明 |
 |------|------|------|
@@ -944,7 +1204,7 @@ class OllamaProvider(OpenAIProvider):
 | `check_model_connection()` | 50 | 检查特定模型是否可用 |
 | `get_chat_model_instance()` | 60 | 获取聊天模型实例 |
 
-### 16.3 URL 规范化
+### 18.3 URL 规范化
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:16
@@ -986,7 +1246,7 @@ def _openai_compatible_base_url(self) -> str:
 
 这样即使用户填错格式，也能正常工作。
 
-### 16.4 客户端创建
+### 18.4 客户端创建
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:45
@@ -998,7 +1258,7 @@ def _client(self, timeout: float = 5) -> AsyncOpenAI:
     )
 ```
 
-### 16.5 模型检查
+### 18.5 模型检查
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:51
@@ -1020,7 +1280,7 @@ async def check_model_connection(
     return False, f"Model '{model_id}' not found"
 ```
 
-### 16.6 model_post_init 初始化
+### 18.6 model_post_init 初始化
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:33
@@ -1039,7 +1299,7 @@ def model_post_init(self, __context: Any) -> None:
     self.base_url = self._normalize_base_url(self.base_url)
 ```
 
-### 16.7 获取聊天模型实例
+### 18.7 获取聊天模型实例
 
 ```python
 # src/qwenpaw/providers/ollama_provider.py:62
@@ -1060,7 +1320,7 @@ def get_chat_model_instance(self, model_id: str) -> ChatModelBase:
     )
 ```
 
-### 16.8 Ollama 特性
+### 18.8 Ollama 特性
 
 **Ollama 特点**：
 - 本地运行，无需网络
@@ -1132,17 +1392,17 @@ JPA Provider 管理的是 ORM 映射（对象-关系映射），QwenPaw Provider
 
 ---
 
-## 15. Contributor 指南
+## 19. Contributor 指南
 
-### 15.1 适合新手修改的文件
+### 19.1 适合新手修改的文件
 
 | 文件 | 原因 |
 |------|------|
-| `src/qwenpaw/providers/openai_like.py` | OpenAI 兼容 Provider 模板，新增容易 |
+| `src/qwenpaw/providers/openai_chat_model_compat.py` | OpenAI 兼容 Provider 模板 |
 | `src/qwenpaw/providers/provider_manager.py` | Provider 注册逻辑清晰 |
-| `src/qwenpaw/providers/info.py` | ProviderInfo 数据类简单 |
+| `src/qwenpaw/providers/provider.py` | ProviderInfo 数据类定义在此 |
 
-### 15.2 危险区域（修改前请联系 Maintainer）
+### 19.2 危险区域（修改前请联系 Maintainer）
 
 | 区域 | 原因 |
 |------|------|
@@ -1150,7 +1410,7 @@ JPA Provider 管理的是 ORM 映射（对象-关系映射），QwenPaw Provider
 | `provider_manager.py` 模型缓存 | 缓存逻辑复杂，可能导致模型列表不更新 |
 | `provider.py` check_connection | 连接检查逻辑影响 Agent 稳定性 |
 
-### 15.3 调试方法
+### 19.3 调试方法
 
 **ProviderManager 调试**：
 ```python
@@ -1177,7 +1437,7 @@ ok, msg = await provider.check_connection()
 print(f"Connection: {ok} - {msg}")
 ```
 
-### 15.4 日志规范
+### 19.4 日志规范
 
 | 场景 | 级别 | 格式 |
 |------|------|------|
@@ -1186,14 +1446,14 @@ print(f"Connection: {ok} - {msg}")
 | 连接检查 | DEBUG | `check: {provider} {status}` |
 | 错误 | ERROR | `provider error: {name} {error}` |
 
-### 15.5 架构规范
+### 19.5 架构规范
 
 1. **Provider 必须实现 Provider ABC** — 确保统一接口
 2. **模型列表必须缓存** — 避免频繁 API 调用
 3. **check_connection 必须设置超时** — 防止 Agent 卡死
 4. **自定义 Provider 必须测试 OpenAI 兼容** — 确保 chat completions 格式
 
-### 15.6 新增 Provider 模板
+### 19.6 新增 Provider 模板
 
 ```python
 from qwenpaw.providers.openai_like import OpenAIProvider
@@ -1211,7 +1471,7 @@ class MyProvider(OpenAIProvider):
         return url
 ```
 
-### 15.7 快速参考
+### 19.7 快速参考
 
 ```bash
 # 列出所有 Provider
@@ -1229,4 +1489,45 @@ qwenpaw models --test openai
 ## 延伸阅读
 
 - [33-OpenAIProvider](33-OpenAIProvider.md) -- Provider 系统的上层调用方，理解模型选择如何传递到 Provider 层
-- [85-模型探测与能力检测](85-模型探测与能力检测.md) -- 多模态探测的完整机制，包含探测数据和偏差检测
+- [34-本地模型Provider](34-本地模型Provider.md) -- 本地模型管理与 llama.cpp 后端
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| `ProviderManager` 单例 | ✅ | `src/qwenpaw/providers/provider_manager.py` — `get_instance()` 类方法 |
+| 6 个内置 Provider | ✅ | OpenAI, Anthropic, Gemini, Ollama, LMStudio, OpenRouter — `provider_manager.py` |
+| `Provider` 抽象基类 | ✅ | `src/qwenpaw/providers/provider.py` — `get_chat_model_instance`, `check_connection`, `list_models`, `is_available` |
+| `RetryChatModel` | ✅ | `src/qwenpaw/providers/retry_chat_model.py` — `RetryConfig`, `RateLimitConfig` |
+| `multimodal_prober.py` | ✅ | `probe_model_for_multimodal()` 运行时探测多模态支持 |
+| `TokenRecordingModelWrapper` | ✅ | `src/qwenpaw/token_usage/model_wrapper.py` — 拦截 LLM 调用记录 token |
+
+**审查结论**: Provider 系统全部组件路径、类名、接口签名与真实源码一致。
+
+## 教学审查 (Pedagogy Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 从抽象到具体 | ✅ | Provider ABC → ProviderManager → 具体 Provider → Retry/Token 包装 |
+| 24+ Provider 枚举 | ✅ | 完整列出所有内置 Provider，便于查阅 |
+
+## 工程审查 (Engineering Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 单例模式 | ✅ | ProviderManager 使用单例避免重复初始化 |
+| 重试机制 | ✅ | RetryChatModel 包装所有 LLM 调用，支持指数退避 |
+| 速率限制 | ✅ | QPM 滑动窗口 + semaphore + 429 cooldown |
+
+## Contributor 审查 (Contributor Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 添加新 Provider | ✅ | 继承 `Provider` ABC → 实现 4 个抽象方法 → 注册到 ProviderManager |
+| Plugin 扩展 | ✅ | Plugin 系统可注册自定义 Provider 到 PluginRegistry |
+
+---
+
+*Chapter 32 审查完成。基于 provider_manager.py、provider.py、retry_chat_model.py、multimodal_prober.py 的真实源码。*

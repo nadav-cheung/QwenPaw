@@ -815,7 +815,7 @@ if all(s.get("passes") for s in stories):
 |------|------|------|
 | `src/qwenpaw/agents/mission/state.py` | ⭐ | Mission 状态定义，结构清晰 |
 | `src/qwenpaw/agents/mission/handler.py` (部分) | ⭐ | 处理器逻辑相对独立 |
-| `src/qwenpaw/agents/mission/schema.py` | ⭐⭐ | 消息模式定义清晰 |
+| `src/qwenpaw/agents/mission/prompts.py` | ⭐⭐ | 提示词模板相对独立 |
 | `src/qwenpaw/agents/mission/mission_runner.py` (部分) | ⭐⭐ | 运行器部分逻辑独立 |
 
 ### 8.2 危险区域（修改前必须咨询 Maintainer）
@@ -825,7 +825,6 @@ if all(s.get("passes") for s in stories):
 | `src/qwenpaw/agents/mission/mission_runner.py` (核心) | Mission 执行核心，错误会导致任务失败 |
 | `src/qwenpaw/agents/mission/handler.py` (核心) | 任务处理器协调复杂的工作流 |
 | `src/qwenpaw/agents/mission/state.py` (核心) | 状态转换逻辑影响任务正确性 |
-| `src/qwenpaw/agents/mission/master.py` | Master Agent 协调逻辑复杂 |
 
 ### 8.3 调试方法
 
@@ -882,3 +881,42 @@ qwen mission run <mission_id> --dry-run
 - [27-请求处理器](../level-4-application/27-请求处理器.md) — Runner 如何检测和启动 Mission Mode
 - [28-会话管理](../level-4-application/28-会话管理.md) — Mission 执行中的任务追踪机制
 - [25-多智能体协作](./25-多智能体协作.md) — Master Agent 与 Worker 的协作模式
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| Mission 模块存在 | ✅ | `src/qwenpaw/agents/mission/` — `handler.py`, `mission_runner.py`, `prompts.py`, `state.py` |
+| Mission 入口 | ✅ | `app/runner/mission_dispatch.py` — `maybe_handle_mission_command()`, `detect_active_mission_phase()` |
+| 状态机实现 | ✅ | `mission/state.py` — Mission 状态定义和转换 |
+| Two-phase 模型 | ✅ | Phase 1 (理解/规划) + Phase 2 (执行) — `mission_runner.py` |
+| 与 Runner 集成 | ✅ | `app/runner/runner.py` 中通过 `mission_dispatch` 检测和路由 Mission 命令 |
+
+**审查结论**: Mission 模块的所有组件路径和两阶段模型与真实源码一致。
+
+## 教学审查 (Pedagogy Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| Two-phase 概念清晰 | ✅ | Phase 1 (PRD生成) → Phase 2 (任务执行) 递进式讲解 |
+| 状态机可视化 | ✅ | Mission 生命周期状态转换明确 |
+
+## 工程审查 (Engineering Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| Mission 与 ReAct 的区别 | ✅ | Mission 是自主迭代模式（长任务），ReAct 是单轮推理模式 |
+| 状态持久化 | ✅ | Mission 状态在 session 中持久化，支持跨重启恢复 |
+
+## Contributor 审查 (Contributor Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 危险区域标注 | ✅ | 状态机修改需完整测试，Phase 添加需实现覆盖 |
+| 测试命令 | ✅ | `pytest tests/agents/mission/ -v` |
+
+---
+
+*Chapter 23 审查完成。基于 agents/mission/ 的真实源码。*

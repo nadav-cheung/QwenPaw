@@ -812,10 +812,221 @@ QwenPaw → run_turn() → ACPService
        → 流式更新 → QwenPaw 处理
 ```
 
+---
+
+## 15. MCP 协议客户端
+
+除了 ACP，QwenPaw 还支持 **MCP (Model Context Protocol)**，用于连接外部 MCP 服务器。ACP 是 QwenPaw 定制的智能体间通信协议，而 MCP 是 Anthropic 提出的开放标准，社区有大量预构建的 MCP 服务器。
+
+### 15.1 ACP 与 MCP 对比
+
+| 特性 | ACP | MCP |
+|------|-----|-----|
+| **设计者** | QwenPaw 定制 | Anthropic 标准 |
+| **传输** | JSON-RPC over stdio | stdio / SSE / Streamable HTTP |
+| **用途** | QwenPaw 与外部智能体通信 | 连接预构建 MCP 服务器 |
+| **工具发现** | 动态协商 | 基于 schema 的静态发现 |
+| **配置位置** | `config.json` → `acp_agents` | `config.json` → `mcp` |
+
+### 15.2 架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      QwenPaw 应用                               │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
+│  │ ACPService   │    │ MCPClient   │    │ ToolGuard   │      │
+│  │ (ACP Tool)  │    │ Manager     │    │ (安全拦截)   │      │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘      │
+└─────────┼───────────────────┼────────────────────┼──────────────┘
+          │                    │                    │
+          ▼                    ▼                    ▼
+    外部 ACP 智能体       MCP 服务器            工具执行
+    (Claude Code等)       (Tavily等)           安全检查
+```
+
+### 15.3 核心组件
+
+源码路径：`src/qwenpaw/app/mcp/`
+
+| 文件 | 类/函数 | 职责 |
+|------|---------|------|
+| `manager.py` | `MCPClientManager` | MCP 客户端生命周期管理、热重载 |
+| `stateful_client.py` | `StdIOStatefulClient` | stdio 传输的 MCP 客户端 |
+| `stateful_client.py` | `HttpStatefulClient` | HTTP/SSE 传输的 MCP 客户端 |
+| `watcher.py` | `MCPConfigWatcher` | 配置文件变更监控与热重载 |
+
+### 15.4 MCPClientManager
+
+```python
+# src/qwenpaw/app/mcp/manager.py:31
+class MCPClientManager:
+    """管理 MCP 客户端的热重载生命周期。"""
+
+    def __init__(self) -> None:
+        self._clients: Dict[str, Any] = {}
+        self._lock = asyncio.Lock()
+
+    async def init_from_config(self, config: "MCPConfig") -> None:
+        """从配置初始化所有 MCP 客户端。"""
+
+    async def get_clients(self) -> List[Any]:
+        """获取所有已连接的 MCP 客户端。"""
+
+    async def replace_client(
+        self,
+        key: str,
+        client_config: "MCPClientConfig",
+        timeout: float = 60.0,
+    ) -> None:
+        """替换或添加新配置的客户端（热重载核心）。"""
+
+    async def remove_client(self, key: str) -> None:
+        """移除并关闭指定客户端。"""
+
+    async def close_all(self) -> None:
+        """关闭所有 MCP 客户端。"""
+```
+
+**热重载流程**：
+
+```
+配置变更检测 (MCPConfigWatcher)
+        │
+        ▼
+replace_client(key, new_config)
+        │
+        ├── 1. 在锁外创建并连接新客户端
+        │
+        ├── 2. 在锁内交换客户端引用
+        │
+        └── 3. 关闭旧客户端
+```
+
+### 15.5 StatefulClient 与 CPU Leak 修复
+
+MCP 客户端解决了一个关键问题：**跨任务的生命周期管理导致的 CPU leak**。
+
+**问题**：AgentScope 的 `StatefulClientBase` 在 uvicorn/FastAPI 环境中会出现资源泄漏：
+
+```python
+# 问题根源
+async def connect(self):
+    # 在任务 A（如 startup 事件）中进入
+    self._stack = AsyncExitStack()
+    await self._stack.enter_async_context(...)
+
+async def close(self):
+    # 在任务 B（如 reload 后台任务）中退出
+    # anyio.CancelScope 要求在同一个任务中 enter/exit
+    # 错误被静默忽略，导致 MCP 进程和流未清理
+```
+
+**解决方案**：在单一后台任务中运行完整的生命周期：
+
+```python
+# src/qwenpaw/app/mcp/stateful_client.py:97
+class StdIOStatefulClient(StatefulClientBase):
+    async def _run_lifecycle(self) -> None:
+        """在单一任务中运行完整的上下文管理器生命周期。"""
+        while not self._stop_event.is_set():
+            async with AsyncExitStack() as stack:
+                # enter/exit 都在同一个任务中
+                context = await stack.enter_async_context(
+                    stdio_client(self.server_params)
+                )
+                self.session = ClientSession(read_stream, write_stream)
+                await stack.enter_async_context(self.session)
+                await self.session.initialize()
+
+                self.is_connected = True
+                self._ready_event.set()
+
+                # 等待重载或停止信号
+                while not self._reload_event.is_set():
+                    await asyncio.sleep(0.1)
+```
+
+### 15.6 MCPConfigWatcher
+
+```python
+# src/qwenpaw/app/mcp/watcher.py:36
+class MCPConfigWatcher:
+    """监控 MCP 配置变更并热重载客户端。"""
+
+    async def start(self) -> None:
+        """拍摄初始快照并启动轮询任务。"""
+
+    async def stop(self) -> None:
+        """停止轮询任务并等待重载完成。"""
+
+    async def _check(self) -> None:
+        """检查配置变更并触发重载。"""
+        # 1. 检查 mtime
+        # 2. 加载新配置并计算 hash
+        # 3. 如果 hash 变化，启动后台重载任务
+```
+
+**重试机制**：每个客户端最多重试 3 次，防止无限重试。
+
+### 15.7 MCP 配置
+
+源码路径：`src/qwenpaw/config/config.py:1012`
+
+```python
+# src/qwenpaw/config/config.py:1012
+class MCPClientConfig(BaseModel):
+    name: str                           # 客户端名称（唯一标识）
+    description: str = ""
+    enabled: bool = True                # 是否启用
+    transport: Literal["stdio", "streamable_http", "sse"] = "stdio"
+    url: str = ""                       # HTTP/SSE 传输的 URL
+    headers: Dict[str, str] = Field(default_factory=dict)
+    command: str = ""                   # stdio 传输的可执行命令
+    args: List[str] = Field(default_factory=list)
+    env: Dict[str, str] = Field(default_factory=dict)
+    cwd: str = ""
+```
+
+**配置示例**：
+
+```json
+{
+  "mcp": {
+    "clients": {
+      "tavily_search": {
+        "name": "tavily_mcp",
+        "enabled": true,
+        "transport": "streamable_http",
+        "url": "https://api.tavily.com/mcp",
+        "headers": {
+          "Authorization": "Bearer ${TAVILY_API_KEY}"
+        }
+      },
+      "filesystem": {
+        "name": "filesystem",
+        "enabled": true,
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem", "/projects"]
+      }
+    }
+  }
+}
+```
+
+### 15.8 设计模式总结
+
+| 模式 | 说明 |
+|------|------|
+| **单一任务生命周期** | 在单一后台任务中运行 enter/exit，避免跨任务问题 |
+| **事件驱动重载** | 使用 `asyncio.Event` 而非直接关闭/重新连接 |
+| **非阻塞替换** | 锁外连接新客户端，锁内交换引用，锁外关闭旧客户端 |
+| **重试限制** | 每个客户端最多重试 3 次，防止无限循环 |
+
 ### 相关章节
 
 - [Workspace 隔离机制](../level-6-config-plugins/40-插件系统.md) — Workspace 提供 ACP Server 的运行环境
-- [22-技能系统](../level-3-agent-core/22-技能系统.md) — MCP 是另一种工具调用协议
+- [36-ToolGuard系统](../level-5-model-security/36-ToolGuard系统.md) — MCP 工具的安全拦截与审批流程
 - [41-CLI命令系统](../level-7-cli-ops/41-CLI命令系统.md) — ACP CLI 入口
 
 ---
@@ -943,3 +1154,38 @@ print(f"Permission suspended: {perm}")
 ## 延伸阅读
 
 - [14-多智能体协作](./14-多智能体协作.md) -- 多智能体协作的整体架构与设计模式
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| QwenPawACPAgent 类定义正确 | ✅ | `server.py:327` -- `class QwenPawACPAgent(Agent)` 继承自 Agent，与文档一致 |
+| JSON-RPC over stdio 传输实现 | ✅ | `server.py` 和 `client.py` 均通过 stdio 进行 JSON-RPC 通信 |
+| 双重角色（Server/Tool）可验证 | ✅ | `server.py` 实现 Server 模式，`client.py` 实现 Tool 模式，与文档架构图匹配 |
+
+**审查结论**: 文档对 ACP 协议的 Server/Tool 双重角色、JSON-RPC 传输和会话管理描述与源码实现一致。
+
+## 教学审查 (Pedagogy Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 架构图直观 | ✅ | 第 1.1 节 ASCII 架构图清晰展示 Server 和 Tool 两种模式的通信方向 |
+| 流程分解详细 | ✅ | prompt 方法的 4 步处理流程（Workspace 就绪、格式转换、流式响应、更新推送）逐步讲解 |
+| 安全模型强调到位 | ✅ | SuspendedPermission 机制和超时自动撤销在权限管理原则中反复强调 |
+
+## 工程审查 (Engineering Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 协议选择合理 | ✅ | JSON-RPC over stdio 轻量高效，适合本地进程间智能体通信 |
+| 并发安全设计 | ✅ | 同一会话的并发 prompt 被锁保护，避免状态竞争 |
+| 流式追踪完整性 | ✅ | `tool_call_id` 追踪机制确保流式响应中已发送内容不被重复推送 |
+
+## Contributor 审查 (Contributor Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 测试场景覆盖全面 | ✅ | 规范中明确要求测试消息丢失、重复、乱序场景及并发访问 |
+| 安全审计要点明确 | ✅ | 权限检查必须在每次工具调用前执行，不可绕过 SuspendedPermission

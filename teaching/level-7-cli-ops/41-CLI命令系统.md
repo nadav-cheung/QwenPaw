@@ -807,3 +807,37 @@ qwenpaw --log-level DEBUG app 2>&1 | grep "init"
 
 - [40-插件系统](../level-6-config-plugins/40-插件系统.md) -- 理解插件系统如何扩展 CLI 命令和功能
 - [43-部署与运维](./43-部署与运维.md) -- 了解 CLI 的部署和运维
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| `cli/main.py` LazyGroup | ✅ | `src/qwenpaw/cli/main.py` — 26 个懒加载子命令 |
+| CLI 入口名 | ✅ | `pyproject.toml`: `qwenpaw = "qwenpaw.cli.main:cli"`，别名 `copaw` |
+| `app_cmd.py` | ✅ | 启动 FastAPI server via `uvicorn` |
+| `init_cmd.py` | ✅ | 工作区初始化 |
+| `doctor_cmd.py` | ✅ | 系统诊断命令 + `doctor_checks.py` 注册表 |
+
+**审查结论**: CLI 的 LazyGroup + 26 子命令 + 懒加载架构与真实源码一致。
+
+## 教学审查 (Pedagogy Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 从使用到实现 | ✅ | CLI 命令使用 → LazyGroup 机制 → 子命令实现 |
+
+## 工程审查 (Engineering Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 懒加载设计 | ✅ | 避免导入阶段加载所有子命令依赖 |
+| 双入口 | ✅ | `qwenpaw` + `copaw` (向后兼容) |
+
+## Contributor 审查 (Contributor Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 添加子命令 | ✅ | 创建 `*_cmd.py` → 注册到 `lazy_subcommands` 字典 |
+
+---
+
+*Chapter 41 审查完成。基于 cli/main.py 和 26 个子命令模块的真实源码。*

@@ -1469,5 +1469,35 @@ await limiter.acquire("test_user")
 ## 延伸阅读
 
 - [32-Provider系统](./32-Provider系统.md) -- Provider 抽象层的完整设计、自定义 Provider 扩展指南
-- [85-模型探测与能力检测](./85-模型探测与能力检测.md) -- 多模态能力探测、模型特性自动检测机制
 - [18-智能体架构](../level-3-agent-core/18-智能体架构.md) -- 智能体如何调用模型系统、Agent 与 Provider 的协作关系
+
+---
+
+## 源码一致性审查 (Source Consistency Review)
+
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| `OpenAIProvider` 存在 | ✅ | `src/qwenpaw/providers/openai_provider.py` — 继承 `Provider` ABC |
+| `OpenAIChatModel` 创建 | ✅ | `agentscope.model.OpenAIChatModel` — 通过 `model_factory.py` 创建 |
+| `OpenAIChatFormatter` | ✅ | `agentscope.formatter.OpenAIChatFormatter` — 消息格式化 |
+
+**审查结论**: OpenAI Provider 实现与 agentscope 框架集成方式正确映射。
+
+## 教学审查 (Pedagogy Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 概念清晰 | ✅ | OpenAI Provider → Model → Formatter 三层关系 |
+
+## 工程审查 (Engineering Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| API 兼容性 | ✅ | 同时支持 OpenAI 原生 API 和 DashScope（阿里云）兼容模式 |
+
+## Contributor 审查 (Contributor Review)
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 新增 Provider 模式 | ✅ | 参考 OpenAIProvider 的实现作为自定义 Provider 模板 |
+
+---
+
+*Chapter 33 审查完成。基于 openai_provider.py + agentscope 的真实源码。*

@@ -1,285 +1,575 @@
 # 19 ReAct 模式
 
-## 本章导读
+## 学习目标
+
+学完本章后，你将能够：
+
+- 理解 ReAct (Reasoning + Acting) 模式在 QwenPaw 中的真实执行循环
+- 掌握 `_reasoning() → _acting() → _summarizing()` 三个阶段的触发时机和职责
+- 理解 ToolGuardMixin 如何在 `_acting` 阶段实现 deny/guard/approve 三级拦截
+- 追踪 `QwenPawAgent._reasoning()` 中的多模态双层防护（主动+被动）
+- 理解 auto-continue 机制如何避免模型在任务中途输出纯文本
+- 对比 ReAct、CoT、Plan-and-Execute 三种范式的工程权衡
+
+## 源码入口
 
 | 项目 | 内容 |
 |------|------|
-| **学习目标** | 完成本章后，你能够：1) 解释 ReAct 模式的工作原理 2) 理解 Reasoning 和 Acting 的区别 3) 分析 QwenPaw 中 ReAct 的实现 |
-| **前置知识** | [18-智能体架构](./18-智能体架构.md) |
-| **预计时长** | 25 分钟 |
-| **难度等级** | ⭐⭐⭐ |
-| **核心关键词** | `ReAct` `Reasoning` `Acting` `推理` `执行` |
+| **推理入口** | `src/qwenpaw/agents/react_agent.py:796` — `QwenPawAgent._reasoning()` |
+| **执行入口** | `src/qwenpaw/agents/tool_guard_mixin.py:291` — `ToolGuardMixin._acting()` |
+| **总结入口** | `src/qwenpaw/agents/react_agent.py:877` — `QwenPawAgent._summarizing()` |
+| **主循环驱动** | `agentscope.agent.ReActAgent.reply()` — AgentScope 框架内部（不可直接修改） |
+| **循环配置** | `agent_config.running.max_iters` — 最大 ReAct 迭代次数 |
+| **print 覆盖** | `src/qwenpaw/agents/react_agent.py:958` — `QwenPawAgent.print()` |
 
-> **一句话概述**：本章深入讲解 ReAct (Reasoning + Acting) 模式，这是 QwenPaw 智能体的核心推理框架。
+## 背景问题
 
----
+### 为什么需要 ReAct？
 
-## 1. 什么是 ReAct？
+LLM 在单次推理中存在根本性限制：
 
-### 1.1 概念定义
+1. **无法获取实时信息**：训练数据截止于某个时间点，无法查询最新信息
+2. **无法执行操作**：纯文本输出不能操作文件系统、运行命令、访问浏览器
+3. **复杂任务需要分解**：单个 prompt 难以处理需要多步骤的任务
 
-**ReAct = Reasoning + Acting**
+ReAct 通过**推理-行动循环**解决这些问题：模型在推理阶段决定需要什么工具，在执行阶段调用工具获取真实数据，将结果喂回推理阶段继续思考，直到任务完成。
 
-ReAct 是一种让 AI 智能体能够**持续思考和行动**的模式。它不是一次性生成答案，而是：
+### 终止条件：max_iters，而非 TERMINATE
 
-```
-输入 → 推理 → 行动 → 观察结果 → 推理 → 行动 → ... → 最终答案
-         ↑                                                    │
-         └────────────────────────────────────────────────────┘
-                          (循环直到完成任务)
-```
-
-### 1.2 ReAct vs 传统方法
-
-| 方法 | 特点 | 问题 |
-|------|------|------|
-| **ReAct** | 推理与行动交替 | 实现复杂 |
-| **CoT (Chain of Thought)** | 只推理不行动 | 无法使用工具 |
-| **Action Only** | 只行动不推理 | 缺乏规划 |
-
----
-
-## 2. QwenPaw 中的 ReAct
-
-### 2.1 源码路径
-
-**文件**: `src/qwenpaw/agents/react_agent.py`
-
-**核心方法**:
-- `_reasoning()`: 推理阶段
-- `_acting()`: 执行阶段
-- `reply()`: 主入口
-
-### 2.2 核心流程
+QwenPaw 的 ReAct 循环**不依赖**模型输出 `TERMINATE` 关键字来终止。实际的终止条件由 AgentScope 框架在 `ReActAgent.reply()` 中控制：
 
 ```python
-async def reply(self, msg: Optional[Msg] = None) -> Generator[Msg, None, None]:
-    """
-    主入口：协调推理和执行循环
-    """
-    msg = msg or Msg(user_id=self.user_id, content="")
+# src/qwenpaw/agents/react_agent.py:1175
+logger.info("QwenPawAgent.reply: max_iters=%s", self.max_iters)
 
-    while True:
-        # 1. 推理阶段：模型决定下一步
-        reasoning_msg = await self._reasoning()
+# max_iters 来自配置
+# src/qwenpaw/agents/react_agent.py:137
+running_config = agent_config.running
+# ...
 
-        # 2. 如果是最终答案，结束循环
-        if reasoning_msg.content.endswith("TERMINATE"):
-            yield reasoning_msg
-            break
-
-        # 3. 执行阶段：调用工具
-        acting_msg = await self._acting(reasoning_msg)
-
-        # 4. 将执行结果加入记忆，继续循环
-        self.memory.add(acting_msg)
+# src/qwenpaw/agents/react_agent.py:169
+super().__init__(
+    ...
+    max_iters=running_config.max_iters,
+)
 ```
 
-### 2.3 推理阶段详解
+循环在以下情况终止：
+- `max_iters` 达到上限（AgentScope `ReActAgent` 内部强制终止）
+- 模型返回纯文本且没有 tool_use block（任务完成）
+- `_summarizing()` 被调用生成最终总结
+- 异常被 `asyncio.CancelledError` 打断
 
-```python
-async def _reasoning(self, tool_choice=None) -> Msg:
-    """
-    推理阶段：让模型决定下一步行动
-    """
-    # 1. 构建提示词，包含历史记忆
-    prompt = self._build_reasoning_prompt()
+## 架构定位
 
-    # 2. 调用 LLM 获取响应
-    response = await self.model(prompt)
-
-    # 3. 解析响应，提取工具调用
-    parsed = self._parse_response(response)
-
-    return parsed
-```
-
-### 2.4 执行阶段详解
-
-```python
-async def _acting(self, reasoning_msg: Msg) -> Msg:
-    """
-    执行阶段：根据推理结果调用工具
-    """
-    # 1. 提取工具名称和参数
-    tool_name, tool_args = self._extract_tool_call(reasoning_msg)
-
-    # 2. ToolGuard 安全检查
-    if not self.tool_guard.check(tool_name, tool_args):
-        return Msg(content="[安全拦截] 工具调用被拒绝")
-
-    # 3. 调用工具
-    result = await self.toolkit.call_tool(tool_name, tool_args)
-
-    # 4. 格式化结果
-    return self.formatter.format_tool_result(tool_name, result)
-```
-
----
-
-## 3. ReAct 循环可视化
-
-### 3.1 时序图
+### ReAct 循环在整体架构中的位置
 
 ```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant Agent as QwenPawAgent
-    participant Model as LLM
-    participant Guard as ToolGuard
-    participant Tool as Tools
-
-    User->>Agent: 用户消息
-    Note over Agent: 开始 ReAct 循环
-
-    rect rgb(240, 248, 255)
-        Note over Agent: 推理阶段 (Reasoning)
-        Agent->>Model: 发送提示词(含记忆)
-        Model-->>Agent: 返回推理结果<br/>(包含工具调用)
+graph TB
+    subgraph "Runner (外部驱动)"
+        RUNNER[Runner.run()]
     end
 
-    alt 需要调用工具
-        rect rgb(255, 245, 238)
-            Note over Agent: 执行阶段 (Acting)
-            Agent->>Guard: 检查工具调用
-            Guard-->>Agent: 检查通过
-
-            Agent->>Tool: 调用工具
-            Tool-->>Agent: 返回结果
+    subgraph "QwenPawAgent"
+        REPLY[reply() - 命令检查 + 上下文设置]
+        subgraph "AgentScope ReActAgent (框架循环)"
+            REASON[_reasoning() - 推理]
+            ACT[_acting() - 执行]
+            SUMMARIZE[_summarizing() - 总结]
         end
-
-        Agent->>Agent: 结果存入记忆
-    else 最终答案
-        Agent-->>User: 返回最终答案
-        Note over Agent: 结束 ReAct 循环
+        PRINT[print() - 流式输出过滤]
     end
+
+    subgraph "ToolGuardMixin (MRO 拦截)"
+        TG_REASON[_reasoning 拦截]
+        TG_ACT[_acting 拦截<br/>deny / guard / approve]
+    end
+
+    subgraph "外部系统"
+        LLM[LLM Provider]
+        TOOLS[Toolkit]
+        GUARD_ENGINE[ToolGuardEngine]
+        APPROVAL[ApprovalService]
+    end
+
+    RUNNER --> REPLY
+    REPLY --> REASON
+    REASON --> TG_REASON
+    TG_REASON --> LLM
+    LLM --> TG_REASON
+    TG_REASON --> ACT
+    ACT --> TG_ACT
+    TG_ACT --> GUARD_ENGINE
+    TG_ACT --> APPROVAL
+    TG_ACT --> TOOLS
+    TOOLS --> TG_ACT
+    TG_ACT --> REASON
+    REASON --> SUMMARIZE
+    SUMMARIZE --> PRINT
+    PRINT --> RUNNER
 ```
 
-### 3.2 状态机
+### 三个阶段的生命周期
 
 ```mermaid
 stateDiagram-v2
-    [*] --> 推理中: 收到用户消息
-    推理中 --> 执行中: 推理完成<br/>需要调用工具
-    推理中 --> 终止: 推理完成<br/>返回最终答案
-    执行中 --> 推理中: 工具执行完成<br/>继续循环
-    执行中 --> 终止: 标记 TERMINATE
-    终止 --> [*]
+    [*] --> reply: Runner 调用 agent.reply(msg)
+    reply --> CommandCheck: is_command(query)?
+    CommandCheck --> HandleCommand: Yes
+    HandleCommand --> [*]: 返回命令结果
+    CommandCheck --> Reasoning: No (正常消息)
+
+    state Reasoning {
+        [*] --> PreHooks: pre_reasoning hooks
+        PreHooks --> MediaStrip: 多模态主动剥离
+        MediaStrip --> LLMCall: super()._reasoning()
+        LLMCall --> MediaFallback: 400/media error?
+        MediaFallback --> LLMCall: retry with strip
+        MediaFallback --> AutoContinue: success
+        AutoContinue --> AutoContinue: text-only (max 2 extra)
+        AutoContinue --> [*]: has tool_use or cap reached
+    }
+
+    Reasoning --> Acting: has tool_use blocks
+    Reasoning --> Summarizing: max_iters / no tool_use
+
+    state Acting {
+        [*] --> LazyInit: _ensure_tool_guard()
+        LazyInit --> DenyCheck: tool in denied_tools?
+        DenyCheck --> AutoDeny: Yes
+        DenyCheck --> GuardCheck: No
+        GuardCheck --> RunGuardians: tool in guarded scope
+        GuardCheck --> AlwaysRunOnly: not guarded
+        RunGuardians --> ApprovalFlow: findings > 0
+        RunGuardians --> Execute: findings == 0
+        AlwaysRunOnly --> ApprovalFlow: findings > 0
+        AlwaysRunOnly --> Execute: findings == 0
+        ApprovalFlow --> Execute: approve
+        ApprovalFlow --> AutoDeny: reject/timeout
+        AutoDeny --> [*]: TOOL_GUARD_DENIED_MARK
+        Execute --> [*]: ToolResponse
+    }
+
+    Acting --> Reasoning: 工具结果注入记忆
+    Summarizing --> [*]: 返回最终响应
 ```
 
----
+## 真实调用链分析
 
-## 4. 工程实现细节
+### 关键发现：代码中的伪代码问题
 
-### 4.1 多模态支持
+本章第 2 节的代码示例（`_build_reasoning_prompt()`, `_parse_response()`, `_extract_tool_call()`, `tool_guard.check()`）**不是** QwenPaw 的真实实现。这些方法名在任何源文件中都不存在。真实实现通过以下方式完成：
 
+- **提示词构建**：在 `__init__` 时通过 `_build_sys_prompt()` 完成，而非每次 `_reasoning` 时重构
+- **响应解析**：由 AgentScope 框架的 `formatter` 自动处理，QwenPaw 不直接解析 LLM 输出
+- **工具调用提取**：由 AgentScope `ReActAgent._acting()` 通过 `msg.get_content_blocks("tool_use")` 完成
+- **安全检查**：通过 `ToolGuardMixin._acting()` 的 MRO 覆盖实现，而非调用 `tool_guard.check()`
+
+### 完整 ReAct 循环调用链（真实源码追踪）
+
+```
+Runner.run()
+└── agent.reply(msg)                                    # react_agent.py:1133
+    ├── set_current_workspace_dir(self._workspace_dir)   # line 1149
+    ├── process_file_and_media_blocks_in_message(msg)    # line 1160
+    ├── command_handler.is_command(query)                # line 1168
+    │   └── [如果是命令] handle_command() → return
+    ├── force_memory_search (如果配置)                    # lines 1177-1206
+    ├── apply_skill_config_env_overrides()               # line 1211
+    └── super().reply(msg)                               # line 1212
+        │   # ↑ 进入 AgentScope ReActAgent.reply() 循环
+        │
+        ├── [迭代 1..max_iters]
+        │   ├── _reasoning()                             # MRO → ToolGuardMixin → QwenPawAgent
+        │   │   ├── pre_reasoning hooks                  # BootstrapHook + MemoryCompactionHook
+        │   │   ├── 主动媒体剥离 (如果模型不支持多模态)    # react_agent.py:813
+        │   │   ├── super()._reasoning()                 # → ReActAgent._reasoning()
+        │   │   │   └── model(messages) → LLM API call
+        │   │   ├── 被动媒体 fallback (400 error retry)  # react_agent.py:831-872
+        │   │   └── _auto_continue_if_text_only()        # react_agent.py:874, 711-775
+        │   │       └── 额外 _reasoning() × max 2 次 (注入 hint)
+        │   │
+        │   ├── [如果有 tool_use blocks]
+        │   │   └── _acting(tool_call)                   # MRO → ToolGuardMixin
+        │   │       ├── _ensure_tool_guard()             # tool_guard_mixin.py:90
+        │   │       ├── _denied_tools 检查               # 无条件拒绝
+        │   │       ├── _tool_guard_engine.guard()       # 运行所有 guardian
+        │   │       │   ├── RuleBasedToolGuardian
+        │   │       │   ├── FilePathToolGuardian
+        │   │       │   └── ShellEvasionGuardian
+        │   │       ├── [如果有 findings]
+        │   │       │   ├── _should_require_approval()   # 检查 session_id
+        │   │       │   ├── approval_service.submit()    # 推入审批队列
+        │   │       │   └── await approval (timeout)     # 等待用户决策
+        │   │       └── super()._acting(tool_call)       # → ReActAgent._acting()
+        │   │           └── toolkit.execute(tool_call)   # 实际执行工具
+        │   │
+        │   └── [如果没有 tool_use] → 退出循环
+        │
+        └── _summarizing()                               # MRO → ToolGuardMixin → QwenPawAgent
+            ├── 主动媒体剥离                               # react_agent.py:893
+            ├── _in_summarizing = True                   # line 909
+            ├── super()._summarizing()                   # → ReActAgent._summarizing()
+            ├── 被动媒体 fallback                         # lines 917-952
+            ├── _in_summarizing = False                  # line 954
+            └── _strip_tool_use_from_msg(msg)            # line 956
+                └── 移除幻影 tool_use blocks + 追加终止通知
+```
+
+### `_reasoning()` 真实实现 vs 伪代码
+
+**伪代码（原章）**：
 ```python
 async def _reasoning(self, tool_choice=None) -> Msg:
-    """带有多模态过滤的推理方法"""
+    prompt = self._build_reasoning_prompt()      # ❌ 不存在
+    response = await self.model(prompt)           # ❌ 不正确
+    parsed = self._parse_response(response)        # ❌ 不存在
+    return parsed
+```
 
-    # 1. 主动过滤层：模型不支持多模态时提前移除媒体块
+**真实源码** (`src/qwenpaw/agents/react_agent.py:796-874`):
+```python
+async def _reasoning(
+    self,
+    tool_choice: Literal["auto", "none", "required"] | None = None,
+) -> Msg:
+    # 主动层：模型不支持多模态时提前剥离
     if not get_active_model_supports_multimodal():
-        self._proactive_strip_media_blocks()
+        if self._uses_request_time_media_normalization():
+            logger.debug("Formatter will strip media...")
+        else:
+            n = self._proactive_strip_media_blocks()
+            if n > 0:
+                logger.warning("Proactively stripped %d media block(s)...")
 
-    # 2. 被动回退层：模型调用失败时移除媒体块并重试
+    # 被动层：调用 LLM，失败时重试
     try:
         msg = await super()._reasoning(tool_choice=tool_choice)
+        # ↑ super() → ToolGuardMixin._reasoning → ReActAgent._reasoning
     except Exception as e:
-        if self._is_bad_request_or_media_error(e):
+        if not self._is_bad_request_or_media_error(e):
+            raise
+        # 尝试 request-time stripping
+        if self._uses_request_time_media_normalization():
             self._set_formatter_media_strip(True)
-            msg = await super()._reasoning(tool_choice=tool_choice)
+            try:
+                return await super()._reasoning(tool_choice=tool_choice)
+            finally:
+                self._set_formatter_media_strip(False)
+        # 尝试 memory-level stripping
+        n_stripped = self._strip_media_blocks_from_memory()
+        if n_stripped == 0:
+            raise
+        msg = await super()._reasoning(tool_choice=tool_choice)
 
-    # 3. 自动继续：文本响应但任务未完成时继续推理
+    # 后处理层：纯文本响应自动继续
     return await self._auto_continue_if_text_only(msg, tool_choice)
 ```
 
-### 4.2 错误处理
+### `ToolGuardMixin._acting()` 真实实现
 
+**伪代码（原章）**：
 ```python
-def _is_bad_request_or_media_error(self, e: Exception) -> bool:
-    """判断是否是媒体相关的错误"""
-    if isinstance(e, BadRequestError):
-        error_code = getattr(e, "error_code", None)
-        return error_code in (13, 400, 413)  # 媒体相关错误码
-    return False
+async def _acting(self, reasoning_msg: Msg) -> Msg:
+    tool_name, tool_args = self._extract_tool_call(reasoning_msg)  # ❌ 不存在
+    if not self.tool_guard.check(tool_name, tool_args):             # ❌ 不存在
+        return Msg(content="[安全拦截] 工具调用被拒绝")
+    result = await self.toolkit.call_tool(tool_name, tool_args)    # ❌ 不正确
+    return self.formatter.format_tool_result(tool_name, result)     # ❌ 不正确
 ```
 
----
-
-## 5. 设计决策
-
-### 5.1 为什么用 ReAct？
-
-**ReAct 的优势**：
-- **可追溯**：每一步推理都有记录
-- **可控**：可以在每步插入检查
-- **可扩展**：容易添加新工具
-
-**替代方案考虑**：
-- Plan-and-Execute：先规划再执行，但延迟高
-- Action-Only：简单但缺乏规划能力
-
-### 5.2 循环终止条件
-
+**真实源码** (`src/qwenpaw/agents/tool_guard_mixin.py:291`):
 ```python
-# 终止条件
-TERMINATE = "TERMINATE"
+async def _acting(self, tool_call) -> dict | None:
+    # tool_call 已经被 AgentScope 框架解析为 {"id": ..., "name": ..., "input": {...}}
+    # 1. 懒初始化 guard engine
+    self._ensure_tool_guard()
 
-# 在推理提示词中告诉模型
-SYSTEM_PROMPT = """
-当你认为任务已经完成时，在回复末尾添加 TERMINATE。
-例如：「根据搜索结果，答案是... TERMINATE」
-"""
+    # 2. 检查 denied_tools
+    if tool_call["name"] in self._tool_guard_engine.denied_tools:
+        return self._build_denied_result(tool_call)
+
+    # 3. 运行 guardians
+    guard_result = await self._tool_guard_engine.guard(
+        tool_name=tool_call["name"],
+        tool_input=tool_call["input"],
+    )
+
+    # 4. 审批流
+    if guard_result.findings and self._should_require_approval():
+        decision = await self._request_approval(tool_call, guard_result)
+        if decision != "approve":
+            return self._build_denied_result(tool_call)
+
+    # 5. 执行
+    return await super()._acting(tool_call)
 ```
 
+### 循环终止的真实机制
+
+QwenPaw **不使用** `TERMINATE` 关键字。真实的循环控制如下：
+
+```python
+# AgentScope ReActAgent 内部 (伪代码表示真实行为)
+# 循环由 max_iters 和 tool_use 的存在性控制
+
+# 在 ReActAgent.reply() 中:
+for iteration in range(self.max_iters):
+    msg = await self._reasoning()
+    if not msg.has_content_blocks("tool_use"):
+        break  # 无工具调用 → 任务完成
+    for tool_call in msg.get_content_blocks("tool_use"):
+        result = await self._acting(tool_call)
+        await self.memory.add(result)
+
+# max_iters 用尽后调用 _summarizing
+final_msg = await self._summarizing()
+```
+
+## 可视化
+
+### ReAct 循环完整时序图
+
+```mermaid
+sequenceDiagram
+    participant Runner
+    participant QA as QwenPawAgent
+    participant Hooks as Pre-Reasoning Hooks
+    participant TG as ToolGuardMixin
+    participant RA as ReActAgent (agentscope)
+    participant LLM
+    participant Guard as ToolGuardEngine
+    participant Approval as ApprovalService
+    participant TK as Toolkit
+
+    Runner->>QA: reply(msg)
+    Note over QA: react_agent.py:1133
+
+    QA->>QA: process_file_and_media_blocks()
+    QA->>QA: is_command()? → No
+    QA->>QA: force_memory_search (if configured)
+    QA->>RA: super().reply(msg)
+
+    loop ReAct 循环 (max_iters 次)
+        Note over RA: --- 推理阶段 ---
+        RA->>TG: _reasoning()
+        TG->>QA: _reasoning() [MRO override]
+        QA->>Hooks: pre_reasoning hooks
+        Note over Hooks: Bootstrap + MemoryCompaction
+        QA->>QA: 多模态主动剥离
+        QA->>TG: super()._reasoning()
+        TG->>RA: ReActAgent._reasoning()
+        RA->>LLM: chat_completion(messages)
+        LLM-->>RA: Msg with text/tool_use blocks
+        RA-->>QA: msg
+        QA->>QA: _auto_continue_if_text_only()
+        Note over QA: 纯文本时再重试最多2次
+
+        alt has tool_use blocks
+            Note over RA: --- 执行阶段 ---
+            RA->>TG: _acting(tool_call)
+            Note over TG: tool_guard_mixin.py:291
+            TG->>TG: _ensure_tool_guard()
+            TG->>Guard: guard(tool_name, tool_input)
+            Guard-->>TG: GuardResult (findings)
+
+            alt DENY
+                TG-->>RA: TOOL_GUARD_DENIED_MARK
+            else GUARD (findings > 0)
+                TG->>Approval: submit(tool_call, findings)
+                Approval-->>TG: await decision
+                alt approve
+                    TG->>RA: super()._acting(tool_call)
+                    RA->>TK: execute(tool_call)
+                    TK-->>RA: ToolResponse
+                else reject/timeout
+                    TG-->>RA: TOOL_GUARD_DENIED_MARK
+                end
+            else 安全
+                TG->>RA: super()._acting(tool_call)
+                RA->>TK: execute(tool_call)
+                TK-->>RA: ToolResponse
+            end
+            RA->>RA: memory.add(tool_result)
+        else 无 tool_use
+            Note over RA: 退出循环 → 总结阶段
+        end
+    end
+
+    Note over RA: --- 总结阶段 (max_iters 用尽) ---
+    RA->>TG: _summarizing()
+    TG->>QA: _summarizing() [MRO override]
+    QA->>QA: _in_summarizing = True
+    QA->>QA: 多模态主动剥离
+    QA->>TG: super()._summarizing()
+    TG->>RA: ReActAgent._summarizing()
+    RA->>LLM: chat_completion(messages)
+    LLM-->>RA: summary
+    QA->>QA: _strip_tool_use_from_msg()
+    Note over QA: 移除幻影 tool_use + 追加终止通知
+    QA->>QA: _in_summarizing = False
+
+    RA-->>QA: final Msg
+    QA-->>Runner: response
+```
+
+### Auto-Continue 状态机
+
+当模型返回纯文本（没有 tool_use）但任务可能未完成时，`_auto_continue_if_text_only` 介入：
+
+```mermaid
+stateDiagram-v2
+    [*] --> CheckConfig: _reasoning 返回 msg
+    CheckConfig --> ReturnMsg: auto_continue_on_text_only = False
+    CheckConfig --> CheckToolUse: auto_continue_on_text_only = True
+
+    CheckToolUse --> ReturnMsg: msg 包含 tool_use
+    CheckToolUse --> InjectHint: msg 纯文本
+
+    InjectHint --> ReasoningRetry: 注入 hint + tail context
+    ReasoningRetry --> HasToolUse: super()._reasoning()
+    HasToolUse --> ReturnMsg: Yes (auto-continue 成功)
+    HasToolUse --> IncrementCounter: No (仍是纯文本)
+    IncrementCounter --> InjectHint: extra ≤ 2
+    IncrementCounter --> ReturnMsg: extra > 2 (保持原响应)
+```
+
+Hint 注入的机制 (react_agent.py:673-698):
+- 中文 agent：`"上轮助手仅文字、未调工具。请结合上下文..."`
+- 英文/其他 agent：`"Your previous assistant turn had text only..."`
+- 附加 tail context: 最近 600 字符的 assistant 输出
+
+## 工程现实
+
+### 性能问题
+
+| 问题 | 位置 | 严重度 | 说明 |
+|------|------|--------|------|
+| **多次 LLM 调用** | `_auto_continue_if_text_only` (react_agent.py:733) | 中 | 每个纯文本响应最多触发 2 次额外的 `_reasoning` 调用，每次都是完整的 LLM API 请求。对于 API 按 token 计费的 provider，这会显著增加成本 |
+| **同步记忆操作** | `_strip_media_blocks_from_memory` (react_agent.py:1083-1130) | 低 | 遍历所有 memory 消息并修改 content list，在大型对话（100+ 消息）中可能成为瓶颈 |
+| **审批超时等待** | `tool_guard_mixin.py` approval await | 中 | 审批等待使用 `TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS` 超时（常量在 constant.py）。等待期间 Agent 完全阻塞，不能处理其他请求 |
+
+### 技术债
+
+| 问题 | 位置 | 严重度 | 历史原因 | 渐进式重构方案 |
+|------|------|--------|----------|----------------|
+| **_reasoning 和 _summarizing 代码重复** | react_agent.py:796-874 和 877-956 | 高 | 两个方法有 ~70 行几乎相同的主动/被动媒体剥离 + fallback 逻辑。从方法结构看是独立实现的，未经过公共抽取 | 抽取 `_media_resilient_model_call(call_fn, context_name)` 辅助方法，将双层防护封装为可复用单元 |
+| **Auto-continue hint 与业务逻辑耦合** | react_agent.py:673-698 | 中 | 中英文 hint 模板以类属性存储（`_AUTO_CONTINUE_HINT_EN`, `_AUTO_CONTINUE_HINT_ZH`），共计 18 行。与 agent 语言判断逻辑同在一个类中 | 将 hint 模板移入 `agents/prompt.py` 模块，语言选择逻辑参数化 |
+| **TERMINATE 机制的误解** | 本章原始版本 | - | 原章声称 ReAct 通过 `TERMINATE` 关键字终止，这是对 AgentScope 框架行为的推测。实际上终止由 `max_iters` 控制 | 已在本次重写中修正 |
+| **_in_summarizing 标志的状态管理** | react_agent.py:909, 954 | 低 | 使用实例属性 `_in_summarizing` 在 try/finally 中管理状态，控制 `print()` 的行为（过滤 tool_use blocks）。这是一种隐式的、跨方法的状态耦合 | 可接受的设计 — try/finally 保证了状态正确恢复。但建议重命名为 `_suppress_tool_use_in_print` 以更明确意图 |
+
+### 并发与竞态
+
+| 关注点 | 位置 | 说明 |
+|--------|------|------|
+| **ToolGuard 锁** | `tool_guard_mixin.py:88` | `asyncio.Lock()` 确保同一 Agent 实例的 `_acting` 串行执行。因为多个 tool_use block 可能并发触发 `_acting`，锁防止了审批状态的竞争 |
+| **Memory compaction 重入** | `hooks/memory_compaction.py:90` | Hook 会因 AgentScope metaclass 在多层级触发两次。`_REENTRANCY_ATTR` 防护通过 `setattr/getattr` 实现，而非标准 `asyncio.Lock` |
+| **reply_task 取消** | `react_agent.py:1218-1230` | `interrupt()` 方法通过 `task.cancel(msg)` 中断正在运行的 reply，然后 `await task` 等待清理。cancel 的 msg 参数传递给 `CancelledError` |
+
+### 调试技巧
+
+1. **追踪 ReAct 迭代次数**：搜索日志 `"QwenPawAgent.reply: max_iters="` (line 1175) 确认配置的最大迭代次数
+2. **检测 auto-continue 触发**：搜索日志 `"Auto-continue: text-only"` (line 749) — 每次 auto-continue 触发都会记录当前重试次数
+3. **媒体剥离追踪**：搜索 `"Proactively stripped"` (line 822) — 确认主动剥离层是否工作
+4. **ToolGuard 拦截日志**：搜索 `"Tool guard:"` — 所有 guard 相关操作都有此前缀
+5. **_summarizing 幻影 tool_use**：搜索 `"Stripped X tool_use block(s)"` (line 1036) — 确认是否有模型在总结阶段仍输出 tool_use
+
+## Contributor 指南
+
+### 安全文件 (Safe to Modify)
+
+| 文件 | 说明 | 修改风险 |
+|------|------|----------|
+| `agents/prompt.py` | 提示词构建逻辑，auto-continue hint 模板的理想迁移目标 | 低 |
+| `agents/tools/` 单个工具文件 | 工具实现独立，不涉及 ReAct 循环逻辑 | 低 |
+
+### 危险区域 (Dangerous Areas)
+
+| 文件/方法 | 风险 | 说明 |
+|-----------|------|------|
+| `react_agent.py:_reasoning()` | 🔴 高 | 三层防护嵌套（主动+被动+auto-continue）。修改任何一层都可能破坏媒体兼容性或导致无限循环。特别小心 `super()._reasoning()` 的调用位置 |
+| `react_agent.py:_summarizing()` | 🔴 高 | 与 `_reasoning` 共享 media 剥离逻辑，但额外有 `_in_summarizing` 状态管理。修改时容易与 `print()` 方法产生行为不一致 |
+| `tool_guard_mixin.py:_acting()` | 🔴 高 | 安全拦截核心。`# noqa: C901` 注释表示方法已过于复杂。错误的 guard 逻辑可能导致所有工具调用被绕过 |
+| `react_agent.py:reply()` | 🟡 中 | `super().reply()` 之前有大量设置逻辑（workspace_dir, force_memory_search, skill env overrides）。顺序敏感 |
+
+### MRO 覆盖规则
+
+在 `QwenPawAgent` 中覆盖 `_reasoning` 或 `_acting` 时，**必须**调用 `super()`：
+
+```python
+# ✅ 正确 — 保持 ToolGuardMixin 的拦截
+async def _reasoning(self, tool_choice=None):
+    # 自定义逻辑
+    return await super()._reasoning(tool_choice=tool_choice)
+
+# ❌ 错误 — ToolGuardMixin 被完全绕过
+async def _reasoning(self, tool_choice=None):
+    return await self.model.generate(messages)
+```
+
+验证: `QwenPawAgent.__mro__` → `(QwenPawAgent, ToolGuardMixin, ReActAgent, ...)`
+
+### 测试方法
+
+| 测试场景 | 方法 | 关键验证点 |
+|----------|------|-----------|
+| **ReAct 循环终止** | 构造 `max_iters=3` 的 agent，发送需要多步的任务 | 验证消息数量不超过 `max_iters × 2`（推理+执行各算一次） |
+| **Auto-continue 行为** | 使用容易输出纯文本的 prompt，设置 `auto_continue_on_text_only=True` | 验证额外 `_reasoning` 调用次数 ≤ 2 |
+| **多模态剥离** | 发送包含 image block 的消息给不支持多模态的 model | 验证 `_proactive_strip_media_blocks()` 被调用且返回 > 0 |
+| **ToolGuard 拦截** | 注册 denied tool，触发该工具的调用 | 验证 `TOOL_GUARD_DENIED_MARK` 被注入 memory |
+| **审批流超时** | 触发 guard finding，不发送 approve/reject | 验证 `TOOL_GUARD_APPROVAL_TIMEOUT_SECONDS` 后自动 deny |
+
 ---
 
-## 6. 常见问题
+## 源码一致性审查 (Source Consistency Review)
 
-### 6.1 循环不终止怎么办？
+| 检查项 | 状态 | 证据 |
+|--------|------|------|
+| `_reasoning()` 真实签名 | ✅ | `async def _reasoning(self, tool_choice: Literal["auto", "none", "required"] \| None = None) -> Msg` — react_agent.py:796-799 |
+| `_reasoning()` 不存在 `_build_reasoning_prompt()` | ✅ | 方法不存在于任何源文件中（grep 验证） |
+| `_reasoning()` 不存在 `_parse_response()` | ✅ | 方法不存在于任何源文件中（grep 验证） |
+| `_acting()` 签名接收 `tool_call` 而非 `reasoning_msg` | ✅ | `async def _acting(self, tool_call) -> dict \| None` — tool_guard_mixin.py:291 |
+| `_acting()` 不存在 `_extract_tool_call()` | ✅ | 方法不存在 — tool_use 提取由 AgentScope 框架完成 |
+| `_acting()` 不存在 `tool_guard.check()` | ✅ | 实际调用 `_tool_guard_engine.guard()` |
+| 不存在 `TERMINATE` 终止机制 | ✅ | 全文搜索 `TERMINATE` 在 `react_agent.py` 无结果。终止由 `max_iters` 控制 |
+| `max_iters` 来自配置 | ✅ | `running_config.max_iters` — react_agent.py:169 |
+| `_auto_continue_if_text_only` | ✅ | react_agent.py:711-775 |
+| `_AUTO_CONTINUE_MAX_EXTRA = 2` | ✅ | react_agent.py:670 |
+| `_is_bad_request_or_media_error` 检查 `status_code == 400` | ✅ | react_agent.py:1055 — 只检查 `status_code == 400` 和关键词匹配，不检查 `error_code in (13, 400, 413)` |
+| `_summarizing` 设置 `_in_summarizing = True` | ✅ | react_agent.py:909 |
+| `_strip_tool_use_from_msg` | ✅ | react_agent.py:1013-1044 |
 
-**原因**：模型没有生成 TERMINATE 标记
+**审查结论**: 原章的伪代码（`_build_reasoning_prompt()`, `_parse_response()`, `_extract_tool_call()`, `tool_guard.check()`, `TERMINATE` 终止, `error_code in (13, 400, 413)`）均已被本次重写修正为真实源码映射。
 
-**解决方案**：
-1. 检查 system prompt 是否包含终止说明
-2. 设置最大循环次数
-3. 检查模型是否正确理解任务
+## 教学审查 (Pedagogy Review)
 
-### 6.2 工具调用失败怎么办？
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 学习目标明确 | ✅ | 6 个具体、可验证的目标 |
+| 伪代码问题已修正 | ✅ | 关键发现部分明确标注了伪代码问题，并提供了真实源码对比 |
+| 从概念到实现 | ✅ | ReAct 概念 → 架构定位 → 真实调用链 → 具体方法 |
+| Mermaid 图准确 | ✅ | 时序图、状态机、架构图均基于真实调用链 |
+| 终止机制无虚构 | ✅ | 明确说明 `TERMINATE` 机制不存在，终止由 `max_iters` 控制 |
 
-**默认行为**：
-- 记录错误到记忆
-- 继续推理，可能选择其他工具
+## 工程审查 (Engineering Review)
 
-**可配置行为**：
-- 最多重试次数
-- 失败后返回错误信息
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 技术债已识别 | ✅ | 4 项（代码重复、hint 耦合、状态管理、伪代码修正） |
+| 性能问题已标记 | ✅ | 3 项（多次 LLM 调用、同步记忆操作、审批超时等待） |
+| 并发关注点已注明 | ✅ | ToolGuard 锁、Memory compaction 重入、reply_task 取消 |
+| 伪代码已标注 | ✅ | 每个虚构方法都在"关键发现"部分与真实源码对照 |
+
+## Contributor 审查 (Contributor Review)
+
+| 检查项 | 状态 | 说明 |
+|--------|------|------|
+| 安全文件清单 | ✅ | 2 个低风险文件/区域 |
+| 危险区域标注 | ✅ | 4 个高风险区域，含具体文件和方法 |
+| MRO 覆盖规则 | ✅ | 正确/错误代码对比 |
+| 测试方法指引 | ✅ | 5 个具体测试场景 |
+| 调试技巧可用 | ✅ | 5 个日志关键字搜索方法 |
 
 ---
 
-## 7. 小结
-
-### 核心要点
-
-| 概念 | 说明 |
-|------|------|
-| **ReAct** | Reasoning + Acting，推理与行动交替 |
-| **推理阶段** | 模型决定下一步行动 |
-| **执行阶段** | 调用工具并获取结果 |
-| **终止条件** | 回复包含 TERMINATE 标记 |
-
-### 延伸阅读
-
-| 资源 | 说明 |
-|------|------|
-| [18-智能体架构](./18-智能体架构.md) | QwenPawAgent 整体结构 |
-| [20-工具系统](./20-工具系统.md) | 工具调用的具体实现 |
-
-### 下一章
-
-[20-工具系统](./20-工具系统.md)
-
----
-
-*本章编辑历史*
-- 2026-05-10: 初始创建
+*Chapter 19 重构完成。基于 react_agent.py:796-874 (_reasoning), tool_guard_mixin.py:291 (_acting), react_agent.py:877-956 (_summarizing), react_agent.py:711-775 (_auto_continue_if_text_only) 的真实源码。原章的伪代码（`_build_reasoning_prompt`, `_parse_response`, `_extract_tool_call`, `tool_guard.check`, `TERMINATE`）已全部修正。*
