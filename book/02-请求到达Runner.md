@@ -387,6 +387,42 @@ Session 生命周期：
 
 另外，文件名用到了 `sanitize_filename` 函数，把 Windows 不允许的字符（`: * ? " < > |`）替换成 `--`。这样同一个代码在 Windows、macOS、Linux 上都能正常运行。
 
+### 补充：query_handler 的 12 阶段管道
+
+前面用伪代码展示了 `query_handler` 的主干逻辑（审批、命令或对话三岔路口），但实际的请求处理要精细得多——它分为 12 个阶段：
+
+| 阶段 | 名称 | 要点 |
+|------|------|------|
+| 1 | 工具守卫审批 | 检查是否有待审批的工具调用，超时自动拒绝 |
+| 2 | 命令路由 | `_is_command()` 检测 `/` 开头的消息 |
+| 3 | Agent 上下文 | 通过 contextvars 设置 agent_id、session_id |
+| 4 | Agent 构建 | 加载配置、MCP 客户端、环境上下文 |
+| 5 | Mission 检测 | 检查 `/mission` 命令或活跃的 mission phase |
+| 6 | Agent 实例化 | **每次请求新建 QwenPawAgent**（保证热重载即时生效） |
+| 7 | 聊天注册 | ChatManager 自动创建/更新会话记录 |
+| 8 | 技能注入 | `/<skill_name>` 格式解析，合并技能体到用户消息 |
+| 9 | Session 加载 | 从 JSON 文件恢复历史，然后 `rebuild_sys_prompt()` |
+| 10 | 执行 | 标准 ReAct 循环或 Mission 分阶段执行 |
+| 11 | 错误处理 | 异常分类转换，写入 error dump 文件 |
+| 12 | 清理 | finally 块保存 Session、更新 chat 时间戳 |
+
+阶段 6 是一个关键的设计决策：每次请求都创建新的 Agent 实例，而不是复用。这看起来有开销，但保证了配置变更（系统提示词、工具集、MCP 客户端）的即时生效——不需要重启或重建实例。会话状态通过 SafeJSONSession 持久化，不依赖 Agent 实例的生命周期。
+
+### 补充：ServiceManager 优先级启动
+
+前面提到的 Workspace 包含 Runner、ChannelManager、MemoryManager 等多个组件。这些组件不是随意启动的——Workspace 内部的 `ServiceManager` 按优先级分组管理启动顺序：
+
+| 优先级 | 服务 | 说明 |
+|--------|------|------|
+| 10 | Runner | AgentRunner，请求处理核心 |
+| 20 | MemoryManager、MCPManager、ChatManager | 可并发启动，支持热重载复用 |
+| 25 | Runner 启动 | 依赖 P20 的服务就绪后才能开始处理 |
+| 30 | ChannelManager | 消息渠道管理 |
+| 40 | CronManager | 定时任务（依赖 Runner 和 Channel） |
+| 50-51 | 配置监听器 | Agent 和 MCP 配置变更监控 |
+
+同优先级的服务并发启动（用 `asyncio.gather`），不同优先级串行等待。这保证了 Runner 在 MemoryManager 之前就绪，而 CronManager 在 Runner 和 ChannelManager 之后才启动——因为定时任务的执行依赖它们。
+
 ### 第九步：TaskTracker——并发请求的调度员
 
 最后让我们看看 `TaskTracker`（`src/qwenpaw/app/runner/task_tracker.py` 第 34 行）。它的职责是管理"正在运行的任务"。

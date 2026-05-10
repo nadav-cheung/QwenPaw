@@ -310,7 +310,26 @@ _BUILTIN_SPECS = {
 
 一个字典，把平台的字符串标识映射到模块名和类名。`get_channel_registry()` 加载所有内置 Channel，再加上从 `custom_channels/` 目录发现的用户自定义 Channel。
 
-当配置文件写了 `channels.telegram.enabled = true` 时，ChannelManager 做的就是：
+#### 内置 Channel 速查表
+
+| Channel 标识 | 类名 | 消息接收方式 | 特色能力 |
+|-------------|------|------------|---------|
+| `console` | ConsoleChannel | HTTP 路由 | 最简实现，200 行 |
+| `telegram` | TelegramChannel | 长轮询 | 打字指示器、HTML 格式化、自动重连 |
+| `dingtalk` | DingTalkChannel | Webhook | OAuth 回调、会话 Webhook |
+| `feishu` | FeishuChannel | Webhook | 事件订阅、卡片消息 |
+| `discord` | DiscordChannel | Gateway WebSocket | 富文本 Embed、Slash 命令 |
+| `qq` | QQChannel | WebSocket | QQ 频道协议适配 |
+| `imessage` | IMessageChannel | 本地数据库 | macOS iMessage 桥接 |
+| `wechat_mp` | WechatMPChannel | Webhook | 微信公众号消息 |
+| `slack` | SlackChannel | WebSocket | Block Kit 格式化 |
+| `http_api` | HttpApiChannel | HTTP POST | 通用 REST 接入 |
+| `mqtt` | MqttChannel | MQTT 订阅 | IoT 场景、低带宽 |
+| `grpc` | GrpcChannel | gRPC 流 | 高性能 RPC 场景 |
+
+（实际内置数量更多，以上为主要的 12 种。）
+
+每个 Channel 在注册后还需要 `from_config()` 工厂方法创建实例。以 Telegram 为例，配置中写了 `channels.telegram.enabled = true` 时，ChannelManager 做的就是：
 
 1. 从注册表查到 `"telegram"` 对应 `TelegramChannel` 类
 2. 调用 `TelegramChannel.from_config(process, config)` 创建实例
