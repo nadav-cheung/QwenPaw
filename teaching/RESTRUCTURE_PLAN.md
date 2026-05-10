@@ -200,7 +200,7 @@ teaching/
 | A | A-环境变量速查.md | book-published/appendix/A1-项目介绍.md (整合) |
 | B | B-CLI命令参考.md | book-published/appendix/A2-快速开始.md (整合) |
 | C | C-源码结构速查.md | book-published/appendix/A3-项目架构.md |
-| D | D-Python速查表.md | book-published/appendix/A4-技能系统.md |
+| D | D-技能系统.md | book-published/appendix/A4-技能系统.md |
 | E | E-错误代码速查.md | book-published/appendix/A5-消息渠道.md |
 
 ---
@@ -256,19 +256,24 @@ Intro    Python基础  QwenPaw     Agent核心   应用系统    模型安全   
 - [x] 迁移 Level 8 (44-46)
 - [x] 迁移附录 (A-E)
 
-### Phase 3: 链接更新 ✅ (部分完成)
+### Phase 3: 链接更新 ✅
 - [x] 修复章节标题编号与文件名一致
 - [x] 修复 level-0 目录内的相对路径
-- [ ] 批量检查并修复跨级引用
-- [ ] 更新所有"前置知识"引用
-- [ ] 更新所有"下一章预告"引用
+- [x] 批量检查并修复跨级引用
+- [x] 更新所有"前置知识"引用
+- [x] 更新所有"下一章预告"引用
+- [x] 修复 obsolete chapter references (64-消息系统详解.md, 77-跨渠道消息路由.md)
+- [x] 修复 level-1 chapter number references (01→03, 02→04, etc.)
 
-### Phase 4: 质量审查
+### Phase 4: 质量审查 (进行中)
 - [ ] 源码一致性检查
 - [ ] 教学路径检查
 - [ ] 术语统一检查
+- [ ] 验证 Mermaid 图表正确性
+- [ ] 检查每个 Chapter 的 8 个必需部分
 
 ---
 
 *重构方案创建时间：2026-05-10*
-*状态：准备实施*
+*最后更新：2026-05-10*
+*状态：Phase 4 质量审查进行中*
