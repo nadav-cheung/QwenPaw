@@ -62,7 +62,7 @@ classDiagram
 
     QwenPawAgent --|> ToolGuardMixin : 继承
     QwenPawAgent --|> ReActAgent : 继承
-    ToolGuardMixin ..|> ReActAgent : MRO 链接
+    ToolGuardMixin --|> ReActAgent
 
     note for QwenPawAgent "第一层：业务定制\n多媒体处理、命令处理"
     note for ToolGuardMixin "第二层：安全拦截\n工具调用检查与批准"
@@ -596,4 +596,4 @@ Worker 和 LoggingMixin 的代码一行都没改，TimeoutMixin 就自动插进�
 
 **但 Mixin 有代价**。调用链不直观，调试时需要跟踪更深的栈，Mixin 多了以后 MRO 链会变得复杂。QwenPaw 目前只用了一个 Mixin，复杂度还在可控范围内。
 
-到这里，你已经理解了 QwenPaw 最核心的架构决策之一。下一章，我们将把目光从 Agent 的"身世"转向它的"记忆"——看看当对话越来越长、memory 里的消息越来越多时，QwenPaw 是怎么压缩记忆的。
+到这里，你已经理解了 QwenPaw 最核心的架构决策之一。下一章，我们将把目光从 Agent 的"身世"转向它的"大脑"——看看 QwenPaw 是如何用策略模式来支持 OpenAI、Anthropic、Ollama 等多种大模型服务商的。
