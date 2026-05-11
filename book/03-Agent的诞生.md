@@ -1,423 +1,205 @@
-# 第三章 Agent 的诞生
+# 第 3 章：Agent 的诞生
 
 ```
-浏览器 ─→ HTTP ─→ Runner ─→ [Agent 实例化] ─→ Prompt ─→ ReAct ─→ LLM ─→ Tool ─→ 响应
-                                 |
-                              你在这里
+Browser -> HTTP -> FastAPI -> Runner -> [Agent] -> Prompt -> ReAct -> LLM -> Tool -> Response
+                                      ^
+                                  you are here
 ```
 
-## 问题：Agent 是什么？它是怎么被创建出来的？
-
-上一章，我们跟着一条请求穿过了 Runner 的调度，看到了 `MultiAgentManager` 如何找到正确的 Workspace。在 Workspace 启动的过程中，有一个关键的步骤：创建一个 `QwenPawAgent` 实例。
-
-但"创建一个 Agent"到底意味着什么？当我们说"一个 Agent 被启动了"，屏幕后面到底发生了什么事？为什么需要把"创建模型"这件事交给一个"工厂"来做？为什么 18 个内置工具不是一个一个硬编码进去的？一个 Agent 从无到有，到底经历了几步？
-
-这一章，我们就来回答这些问题。我们要打开 `react_agent.py`，亲眼看着一个 Agent 从零开始，一步步装备好模型、工具、记忆和技能，最终变成那个能跟你对话的"Friday"。
+上一章我们看到 `AgentRunner` 在每次请求时都会创建一个全新的 `QwenPawAgent`。这一章，我们走进这个"诞生"过程——一个 Agent 对象是怎么从无到有被创建出来的？它继承了谁？有哪些能力被"注入"了？工厂模式在这里起了什么作用？
 
 ---
+
+## 问题
+
+Agent 是什么？它不是一个文件、不是一个进程——它是一个 Python 对象。那这个对象是怎么被创建出来的？为什么它的类声明里有 `ToolGuardMixin`？18 个内置工具是怎么注册上去的？
 
 ## 术语其实很简单
 
 > **术语：Agent（智能体）**
-> Agent 是整个系统的"大脑"。你发给它的每一条消息，都是它在处理：它要理解你的意思、决定用哪些工具、执行操作、组织回答。你可以把它想象成一个全能的私人助理——它会思考（调用大模型），也会动手（执行工具）。QwenPaw 里这个助理的名字叫"Friday"。
+> 想象一个能听懂指令、会思考、能动手的助手。Agent 就是这样一个 Python 对象——它能接收消息、调用大模型"思考"、执行工具"行动"，然后把结果告诉你。
 
-> **术语：类与实例**
-> 类（Class）是一张蓝图，实例（Instance）是按蓝图造出来的实体。就像"汽车设计图纸"是类，"你停在车库里的那辆车"是实例。代码里 `class QwenPawAgent` 是蓝图，`agent = QwenPawAgent(config)` 就是用蓝图造出了一辆真车。同一个蓝图可以造出很多辆车（多个实例），每辆车有自己独立的油箱和里程（各自独立的记忆和状态）。
+> **术语：类与实例（Class and Instance）**
+> 想象饼干模具和饼干的关系。类（Class）是模具——定义了形状和配方。实例（Instance）是用模具压出来的饼干。`QwenPawAgent` 是模具，每次请求创建的那个对象是饼干。
 
 > **术语：工厂模式（Factory Pattern）**
-> 想象你去买蛋糕——你不需要知道烤箱怎么用、面粉从哪进货，你只需要跟柜台说"我要一个草莓蛋糕"。柜台后面的师傅（工厂）会根据你的订单选择配方、准备材料、烤好蛋糕，然后递给你。代码里的"工厂模式"也是这样：你不需要知道模型怎么创建、格式化器怎么匹配，你只要调用 `create_model_and_formatter()`，工厂会帮你搞定一切。
+> 想象你去蛋糕店说"要一个巧克力蛋糕"——你不用关心蛋糕是怎么做的，厨房帮你搞定。工厂模式就是这种"你说要什么，我帮你造"的设计。`create_model_and_formatter()` 就是一个工厂函数——你说要用什么模型，它帮你创建好。
 
-> **术语：Mixin**
-> Mixin 是一种"混入"技术——就像给手机套上不同的保护壳。手机本身能打电话（核心功能），保护壳能防摔（附加功能）。你不需要重新设计一款新手机，只需要把壳套上去就行。在代码里，`ToolGuardMixin` 就是这样一个"壳"：`ReActAgent` 是核心推理能力，`ToolGuardMixin` 混入后给推理加上了安全检查。把壳套上，手机就既能打电话又防摔了。
+> **术语：Mixin（混入）**
+> 想象给手机装壳——手机本身能打电话，装上保护壳就多了防摔能力。Mixin 就是这种"给类加能力"的技术——不改变继承关系，但混入新功能。`ToolGuardMixin` 就是给 Agent 混入了"安全检查"能力。
 
----
+## 探索
 
-## 探索：Agent 的诞生全过程
+### Agent 的"族谱"
 
-### 第一步：看一眼继承链——Agent 的"家族谱"
-
-打开 `src/qwenpaw/agents/react_agent.py`，第 76 行：
+打开 `src/qwenpaw/agents/react_agent.py`，找到类声明：
 
 ```python
 class QwenPawAgent(ToolGuardMixin, ReActAgent):
+    ...
 ```
 
-这一行代码定义了 `QwenPawAgent` 类。括号里的 `ToolGuardMixin` 和 `ReActAgent` 是它的"父母"——用面向对象编程的术语来说，叫"父类"或"基类"。`QwenPawAgent` 继承了它们的能力。
+Agent 的继承链是这样的：
 
-什么意思？想象你在填一份简历。你有两项技能：一项是从学校里学来的（ReActAgent），一项是从培训班学的（ToolGuardMixin）。你把两项技能都写在简历上，用人单位就认为两样你都会。Python 的继承也是这样——`QwenPawAgent` 写明了它继承自 `ToolGuardMixin` 和 `ReActAgent`，所以它同时拥有两者的全部能力。
-
-但这里有一个微妙的问题：如果"学校"和"培训班"都教了同一门课（比如都定义了 `_acting` 方法），到底听谁的？Python 有一套明确的规则来回答这个问题，叫做**方法解析顺序**（Method Resolution Order，简称 MRO）。
-
-下面这张图展示了完整的继承链和 MRO 顺序：
-
-```mermaid
-classDiagram
-    class ReActAgent {
-        +_reasoning()
-        +_acting()
-        +reply()
-    }
-    class ToolGuardMixin {
-        +_acting()
-        +_reasoning()
-    }
-    class QwenPawAgent {
-        +__init__()
-        -_create_toolkit()
-        -_register_skills()
-        -_build_sys_prompt()
-        -_setup_memory_manager()
-        -_register_hooks()
-        +reply()
-    }
-
-    ToolGuardMixin <|-- QwenPawAgent
-    ReActAgent <|-- QwenPawAgent
-
-    note for QwenPawAgent "MRO 顺序：\nQwenPawAgent → ToolGuardMixin → ReActAgent\nToolGuardMixin 的方法优先"
+```
+QwenPawAgent          # QwenPaw 自己的 Agent，加了工具注册、记忆、技能
+    |-- ToolGuardMixin # 安全拦截：在工具执行前检查是否安全
+    +-- ReActAgent     # agentscope 的推理-行动循环（"思考->行动->观察->再思考"）
 ```
 
-MRO 顺序是：`QwenPawAgent` → `ToolGuardMixin` → `ReActAgent`。也就是说，当调用 `_acting()` 或 `_reasoning()` 时，Python 会先看 `QwenPawAgent` 自己有没有定义，再看 `ToolGuardMixin`，最后才看 `ReActAgent`。`ToolGuardMixin` 正好重写了 `_acting` 和 `_reasoning`——所以每次推理和执行时，安全检查都会先介入。
+Python 的 MRO（方法解析顺序）决定了调用 `self._reasoning()` 时先找 `QwenPawAgent`，再找 `ToolGuardMixin`，最后找 `ReActAgent`。这意味着 `ToolGuardMixin` 可以在推理过程中插入安全检查——如果 Agent 想执行 `rm -rf /`，Mixin 会在 `ReActAgent` 真正执行之前拦住它。第 5 章和第 10 章我们会深入 MRO。
 
-源码里的注释也特别提醒了这一点（第 87-93 行）：
+### Agent 的诞生过程
+
+`QwenPawAgent.__init__()` 是一个精心编排的初始化序列。用伪代码展示核心流程：
 
 ```python
-# MRO note
-# ToolGuardMixin overrides _acting and _reasoning via Python's MRO:
-# QwenPawAgent → ToolGuardMixin → ReActAgent.
-# If you add a _acting or _reasoning override in this class,
-# you MUST call super()._acting(...) / super()._reasoning(...)
-# so the guard interception remains active.
+def __init__(self, agent_config, env_context=None, mcp_clients=None, ...):
+    # 1. 创建工具包，注册 18 个内置工具
+    toolkit = self._create_toolkit()
+    # 2. 加载工作目录下的技能（Skill）
+    self._register_skills(toolkit)
+    # 3. 拼装系统提示词
+    sys_prompt = self._build_sys_prompt()
+    # 4. 通过工厂函数创建 LLM 模型和格式化器
+    model, formatter = create_model_and_formatter(agent_id=...)
+    # 5. 调用父类初始化（ReActAgent）
+    super().__init__(name="Friday", model=model, sys_prompt=sys_prompt,
+                     toolkit=toolkit, ...)
+    # 6. 设置记忆管理器
+    self._setup_memory_manager(...)
+    # 7. 注册钩子（首次引导、记忆压缩）
+    self._register_hooks()
 ```
 
-这段注释翻译过来就是："如果将来有人在 `QwenPawAgent` 里也重写了 `_acting` 或 `_reasoning`，一定要记得调用 `super()`，否则 ToolGuardMixin 的安全拦截就失效了。"这是一个非常重要的工程约束——继承链越复杂，这种提醒就越必要。
+七步，每一步都在为 Agent 装配一种能力。让我们逐一看。
 
-### 第二步：__init__——Agent 诞生的六道工序
+### 第 1 步：创建工具包
 
-找到了类定义，下一步就是看 `__init__` 方法。这是 Python 里每个实例被创建时自动调用的初始化方法——蓝图变成实车的那一刻。
+`_create_toolkit()` 创建一个 `Toolkit` 对象，然后根据配置注册 18 个内置工具。这些工具分为几类：
 
-`__init__` 从第 96 行开始，接收一批参数：
+```
+文件操作：read_file, write_file, edit_file
+搜索：   grep_search, glob_search
+Shell：  execute_shell_command
+浏览器： browser_use, desktop_screenshot
+多媒体： view_image, view_video, send_file_to_user
+时间：   get_current_time, set_user_timezone
+Agent：  delegate_external_agent, list_agents, chat_with_agent, ...
+监控：   get_token_usage
+```
+
+不是所有工具都会被注册。`agent_config.tools.builtin_tools` 控制着哪些工具启用、哪些禁用。
+
+### 第 2 步：加载技能
+
+`_register_skills(toolkit)` 从工作目录的 `skills/` 文件夹加载用户自定义的技能。技能和工具的区别我们会在第 16 章详细讲。现在只需要知道：技能也被注册到 `Toolkit` 里，Agent 可以像调用内置工具一样调用它们。
+
+### 第 3 步：拼装系统提示词
+
+`_build_sys_prompt()` 从工作目录读取多个 Markdown 文件（`AGENTS.md`、`SOUL.md`、`PROFILE.md`），按顺序拼装成一段完整的系统提示词。第 4 章我们会深入这个过程。
+
+### 第 4 步：创建 LLM 模型——工厂模式
+
+`create_model_and_formatter()` 是一个工厂函数，负责创建 Agent 的"大脑"。它的流程（伪代码）：
 
 ```python
-def __init__(
-    self,
-    agent_config: "AgentProfileConfig",
-    env_context: Optional[str] = None,
-    enable_memory_manager: bool = True,
-    mcp_clients: Optional[List[Any]] = None,
-    memory_manager: "BaseMemoryManager | None" = None,
-    request_context: Optional[dict[str, str]] = None,
-    namesake_strategy: NamesakeStrategy = "skip",
-    workspace_dir: Path | None = None,
-    task_tracker: Any | None = None,
-):
+def create_model_and_formatter(agent_id=None):
+    # 1. 加载配置，确定用哪个 Provider 和哪个模型
+    provider_id, model_name = load_agent_config(agent_id).model_slot
+    # 2. 从 Provider 获取原始模型实例
+    raw_model = ProviderManager.get_provider(provider_id).get_chat_model_instance(model_name)
+    # 3. 包装第一层：Token 用量记录
+    wrapped = TokenRecordingModelWrapper(provider_id, raw_model)
+    # 4. 包装第二层：重试和限流
+    final_model = RetryChatModel(wrapped, retry_config=..., rate_limit_config=...)
+    # 5. 创建格式化器
+    formatter = _create_formatter_instance(raw_model.__class__)
+    return final_model, formatter
 ```
 
-参数不少，但别被吓到。最核心的就两个：`agent_config` 是这个 Agent 的全部配置信息（名字叫什么、用哪个模型、启用哪些工具等），`workspace_dir` 是它的工作目录。其余的都是可选的增强功能。
-
-方法的主体（第 128-188 行）按固定顺序执行六道工序。让我用一张流程图来展示整个过程：
+模型被包装了两层，像套娃：
 
 ```
-QwenPawAgent.__init__()  ——  Agent 诞生的六道工序
-
-  ┌─────────────────────────────────────────────────────────┐
-  │ 工序 1: 保存配置                                         │
-  │ agent_config, env_context, request_context 等存入 self   │
-  └────────────────────────┬────────────────────────────────┘
-                           │
-  ┌────────────────────────▼────────────────────────────────┐
-  │ 工序 2: 创建工具箱                                       │
-  │ toolkit = _create_toolkit()                              │
-  │ 把 18 个内置工具逐个注册进 toolkit                        │
-  └────────────────────────┬────────────────────────────────┘
-                           │
-  ┌────────────────────────▼────────────────────────────────┐
-  │ 工序 3: 加载技能                                         │
-  │ _register_skills(toolkit)                                │
-  │ 从工作目录的 skills/ 文件夹加载外部技能                    │
-  └────────────────────────┬────────────────────────────────┘
-                           │
-  ┌────────────────────────▼────────────────────────────────┐
-  │ 工序 4: 构建系统提示词                                    │
-  │ sys_prompt = _build_sys_prompt()                         │
-  │ 从 AGENTS.md / SOUL.md 等文件拼装出完整的提示词           │
-  └────────────────────────┬────────────────────────────────┘
-                           │
-  ┌────────────────────────▼────────────────────────────────┐
-  │ 工序 5: 通过工厂创建模型                                  │
-  │ model, formatter = create_model_and_formatter()          │
-  │ 工厂根据配置选择正确的 LLM 和格式化器                      │
-  └────────────────────────┬────────────────────────────────┘
-                           │
-  ┌────────────────────────▼────────────────────────────────┐
-  │ 工序 6: 初始化父类 + 注册钩子                             │
-  │ super().__init__(name="Friday", model, sys_prompt, ...)  │
-  │ 然后设置记忆管理器和命令处理器                             │
-  │ 最后注册 bootstrap 和记忆压缩钩子                          │
-  └─────────────────────────────────────────────────────────┘
+RetryChatModel                    # 最外层：自动重试 + 限流
+  |-- TokenRecordingModelWrapper  # 第二层：记录用了多少 Token
+       +-- RawModel               # 最内层：实际的 API 调用
 ```
 
-这六道工序的顺序不是随意的。工具箱必须先创建（工序 2），因为技能也要注册到工具箱里（工序 3）。系统提示词必须在模型之前构建（工序 4 先于工序 5），因为提示词要传给父类。父类初始化必须放在最后（工序 6），因为在那之前所有东西都得准备好。
+每一层只做一件事——重试逻辑不关心 Token 统计，Token 统计不关心具体的 API 调用。组合起来就是完整的功能。
 
-接下来，我们深入其中几道关键工序。
+### 第 5 步：调用父类初始化
 
-### 第三步：工厂模式——工序 5 的内幕
-
-工序 5 调用了 `create_model_and_formatter()`（第 150 行）：
-
-```python
-model, formatter = create_model_and_formatter(
-    agent_id=agent_config.id,
-)
-```
-
-一行代码，但背后是 `model_factory.py` 里整整一百多行的逻辑。为什么要搞得这么复杂？让我们打开 `src/qwenpaw/agents/model_factory.py`，看看这个"工厂"做了什么。
-
-工厂的核心逻辑从第 930 行开始，分三个阶段：
-
-**阶段一：确定用哪个模型。** 先尝试从 Agent 的专属配置中读取模型信息。如果这个 Agent 配了自己的模型（比如指定了用 GPT-4），就用专属的。如果没有配，就退回到全局默认模型。这就像你去餐厅——如果你提前点了菜，就上你点的；如果没有特殊要求，就上今日推荐。
-
-```python
-# 尝试获取 Agent 专属模型
-if model_slot and model_slot.provider_id and model_slot.model:
-    # 用专属的
-    provider = manager.get_provider(model_slot.provider_id)
-    model = provider.get_chat_model_instance(model_slot.model)
-else:
-    # 退回到全局默认
-    model = ProviderManager.get_active_chat_model()
-```
-
-**阶段二：创建对应的格式化器。** 不同的模型厂商（OpenAI、Anthropic、Google）对消息格式的要求不同——就像不同国家的信件格式不一样。格式化器（Formatter）负责把统一的内部格式翻译成每个模型能理解的语言。
-
-```python
-# 根据模型的真实类来创建格式化器
-formatter = _create_formatter_instance(model.__class__)
-```
-
-工厂会根据模型的实际类型（OpenAI 的？Anthropic 的？Gemini 的？）自动选择对应的格式化器。你不需要关心这些细节——工厂帮你匹配好了。
-
-**阶段三：包装上重试和限流。** 网络请求可能会失败，API 可能会有速率限制。工厂在返回之前，会用 `TokenRecordingModelWrapper`（记录 token 用量）和 `RetryChatModel`（自动重试 + 限流）把原始模型包起来。
-
-```python
-wrapped_model = TokenRecordingModelWrapper(provider_id, model)
-wrapped_model = RetryChatModel(
-    wrapped_model,
-    retry_config=retry_config,
-    rate_limit_config=rate_limit_config,
-)
-return wrapped_model, formatter
-```
-
-这就像寄快递：模型是包裹本身，`TokenRecordingModelWrapper` 是贴上的"签收单"（记录用量），`RetryChatModel` 是"保价服务"（失败了自动重试）。层层包装之后，你拿到的就是一个既可靠又可追踪的模型实例。
-
-工厂返回的是一个元组 `(wrapped_model, formatter)`，刚好对应调用处的 `model, formatter = create_model_and_formatter(...)`。
-
-### 第四步：18 个内置工具——工序 2 的细节
-
-回到 `react_agent.py`，工序 2 调用 `_create_toolkit()`（第 190 行）。这个方法负责创建一个空的工具箱，然后往里面注册 QwenPaw 的 18 个内置工具。
-
-首先创建一个空的 `Toolkit` 实例：
-
-```python
-toolkit = Toolkit()
-```
-
-然后，方法定义了一个字典，把工具名映射到实际的工具函数（第 233-253 行）：
-
-```python
-tool_functions = {
-    "execute_shell_command": execute_shell_command,
-    "read_file": read_file,
-    "write_file": write_file,
-    "edit_file": edit_file,
-    "grep_search": grep_search,
-    "glob_search": glob_search,
-    "browser_use": browser_use,
-    "desktop_screenshot": desktop_screenshot,
-    "view_image": view_image,
-    "view_video": view_video,
-    "send_file_to_user": send_file_to_user,
-    "get_current_time": get_current_time,
-    "set_user_timezone": set_user_timezone,
-    "get_token_usage": get_token_usage,
-    "delegate_external_agent": delegate_external_agent,
-    "list_agents": list_agents,
-    "chat_with_agent": chat_with_agent,
-    "submit_to_agent": submit_to_agent,
-    "check_agent_task": check_agent_task,
-}
-```
-
-数一数，正好 18 个。它们大致可以分为四类：
-
-```
-文件操作类                系统信息类
-├── read_file            ├── get_current_time
-├── write_file           ├── set_user_timezone
-├── edit_file            └── get_token_usage
-├── grep_search
-├── glob_search          多媒体类
-                         ├── view_image
-Shell 执行类             ├── view_video
-├── execute_shell_command├── desktop_screenshot
-                         └── send_file_to_user
-Agent 协作类
-├── delegate_external_agent
-├── list_agents
-├── chat_with_agent
-├── submit_to_agent
-└── check_agent_task
-```
-
-注册时不是无脑全部加进去——方法会先检查 Agent 的配置，看每个工具是否被启用：
-
-```python
-for tool_name, tool_func in tool_functions.items():
-    # 如果配置中明确禁用了这个工具，跳过
-    if not enabled_tools.get(tool_name, True):
-        logger.debug("Skipped disabled tool: %s", tool_name)
-        continue
-
-    toolkit.register_tool_function(
-        tool_func,
-        namesake_strategy=namesake_strategy,
-        async_execution=async_exec,
-    )
-```
-
-这里有一个设计细节值得注意：`enabled_tools.get(tool_name, True)` 的默认值是 `True`。意思是，如果配置里没有提到某个工具，默认启用它。这是一种**向后兼容**的设计——旧版本的配置文件没有这个字段，但系统不会因此崩掉，而是用默认值兜底。
-
-还有一个有趣的逻辑：如果任何一个工具启用了异步执行（目前只有 `execute_shell_command` 支持），系统会自动额外注册三个任务管理工具（`view_task`、`wait_task`、`cancel_task`），让 Agent 能够管理后台任务。这就像你如果开了"后台下载"功能，系统就会自动给你加一个"下载管理器"。
-
-### 第五步：技能加载——工序 3 的灵活性
-
-内置工具是"出厂标配"，技能（Skill）则是"用户自选"。`_register_skills()` 方法（第 309 行）从工作目录的 `skills/` 文件夹里加载用户自定义的技能：
-
-```python
-def _register_skills(self, toolkit: Toolkit) -> None:
-    workspace_dir = self._workspace_dir or WORKING_DIR
-    ensure_skills_initialized(workspace_dir)
-
-    # 根据渠道（console / web / api）决定加载哪些技能
-    channel_name = request_context.get("channel", "console")
-    effective_skills = resolve_effective_skills(
-        workspace_dir,
-        channel_name,
-    )
-```
-
-注意 `resolve_effective_skills` 接收了 `channel_name` 参数——这意味着同一个 Agent 在不同渠道下可以加载不同的技能。比如你在终端里用它，可能加载的是命令行相关的技能；在 Web 界面里用它，可能加载的是网页交互相关的技能。
-
-加载过程也很优雅：
-
-```python
-for skill_name in effective_skills:
-    skill_dir = working_skills_dir / skill_name
-    if skill_dir.exists():
-        try:
-            toolkit.register_agent_skill(str(skill_dir))
-        except Exception as e:
-            logger.error("Failed to register skill '%s': %s", ...)
-```
-
-遍历技能列表，检查目录是否存在，存在就注册，不存在就跳过，注册失败也只是记个日志而不是直接崩溃。这种**容错设计**保证了即使某个技能文件损坏或缺失，Agent 仍然能正常启动——只是少了那个技能而已。
-
-### 第六步：记忆与钩子——工序 6 的收尾
-
-工具和技能都准备好了，最后是两项"基础设施"。
-
-**记忆管理器**（`_setup_memory_manager`，第 393 行）：如果启用了记忆功能，会把 `memory_search` 工具注册到工具箱里，这样 Agent 就能搜索以前的对话记录。它还会检查一个环境变量 `ENABLE_MEMORY_MANAGER`——运维人员可以在不修改配置的情况下，通过环境变量直接关闭记忆功能。
-
-**钩子注册**（`_register_hooks`，第 428 行）：注册两个"钩子"（Hook），它们会在特定时机自动触发：
-
-```
-钩子名称              触发时机           作用
-─────────────────────────────────────────────────────
-bootstrap_hook        推理前（首轮）      检查 BOOTSTRAP.md，
-                                      首次对话时加载引导信息
-
-memory_compact_hook   推理前（每轮）      检查上下文长度，
-                                      超过阈值自动压缩记忆
-```
-
-钩子就像电路里的继电器——它们串联在正常的推理流程前面，不影响主逻辑，但能在关键时刻自动介入。比如 `memory_compact_hook` 会在每次推理前检查记忆是否太长了，如果太长就自动做一次压缩，防止把大模型的上下文窗口撑爆。
-
-### 第七步：调用父类——Agent 真正"活"了过来
-
-所有组件准备就绪后，`__init__` 的最后一步是调用 `super().__init__()`（第 162 行）：
+前四步准备好了"配料"，第 5 步把它们交给 `ReActAgent`（agentscope 的基类）：
 
 ```python
 super().__init__(
-    name="Friday",
-    model=model,
-    sys_prompt=sys_prompt,
-    toolkit=toolkit,
-    memory=InMemoryMemory(),
-    formatter=formatter,
-    max_iters=running_config.max_iters,
+    name="Friday",          # Agent 的名字
+    model=model,            # 包装好的 LLM 模型
+    sys_prompt=sys_prompt,  # 系统提示词
+    toolkit=toolkit,        # 工具包
+    memory=InMemoryMemory(),# 短期记忆
+    max_iters=...,          # ReAct 循环最大迭代次数
 )
 ```
 
-这一行把所有东西汇总，传给父类 `ReActAgent` 的初始化方法。`ReActAgent` 会存储这些参数，建立起内部的推理循环框架。从这一刻起，Agent 有了名字（"Friday"）、有了大脑（model）、有了人设（sys_prompt）、有了工具（toolkit）、有了记忆（memory）——它正式"活"了过来，准备好接收你的第一条消息。
+`ReActAgent` 初始化之后，Agent 就具备了完整的"思考->行动->观察->再思考"循环能力。
 
-注意 `name="Friday"` 是硬编码的。每一个 `QwenPawAgent` 实例都叫"Friday"——这个名字来自《鲁滨逊漂流记》里鲁滨逊的仆人星期五。一个 AI 助手叫"星期五"，暗示它永远在你身边，随时待命。
+### 第 6-7 步：记忆和钩子
 
----
+`_setup_memory_manager()` 配置长期记忆——如果启用了，Agent 能"记住"跨会话的对话内容，还会注册一个 `memory_search` 工具让 Agent 主动搜索过去的记忆。
 
-## 实验：在 IDE 中找到 Agent 的创建代码
+`_register_hooks()` 注册两个钩子：
+- **BootstrapHook**：首次交互时检查 `BOOTSTRAP.md`，给 Agent 提供初始指导
+- **MemoryCompactionHook**：对话太长时自动压缩记忆，避免超出模型的上下文窗口
 
-打开你的 IDE，按照以下步骤来实地观察：
+## 实验
 
-1. 打开文件 `src/qwenpaw/agents/react_agent.py`
-2. 跳转到第 96 行，你会看到 `def __init__` 的定义
-3. 在 `__init__` 内部，找到第 162 行的 `super().__init__()`——这是 Agent 真正初始化的一行
-4. 按住 Command（macOS）或 Ctrl（Windows/Linux）点击 `create_model_and_formatter`，跳转到 `model_factory.py`
-5. 在 `model_factory.py` 里，观察第 983-1006 行的分支逻辑——你能清楚地看到"先找专属模型，没有就用全局"的策略
+在源码中找到 Agent 创建的位置：
 
-试着在 `__init__` 里打个断点（如果你会用调试器的话），然后发送一条消息触发 Agent 创建。你会看到六个步骤依次执行，最后 Agent 活了过来。
+1. 打开 `src/qwenpaw/agents/react_agent.py`
+2. 搜索 `class QwenPawAgent`
+3. 搜索 `__init__` 方法，浏览初始化步骤
+4. 搜索 `_create_toolkit` 方法，看看工具函数名列表
 
----
+预期结果：能看到 `__init__` 按顺序调用了 `_create_toolkit` → `_register_skills` → `_build_sys_prompt` → `create_model_and_formatter` → `super().__init__` → `_setup_memory_manager` → `_register_hooks`。
 
 ## 工程权衡
 
 ### 为什么用工厂模式创建模型？
 
-`create_model_and_formatter()` 做的事情看起来不复杂——根据配置选择模型、创建格式化器。那为什么不直接在 `__init__` 里写呢？
+如果直接在 `__init__` 里写 `model = OpenAIChatModel(api_key=...)`，那换一个模型就要改 Agent 的代码。工厂模式把"创建模型"抽出来——Agent 只说"我要一个模型"，工厂根据配置决定给你 OpenAI 还是 Qwen 还是 Ollama。切换模型只需改配置，不用改代码。
 
-答案是**解耦**。模型的创建逻辑涉及配置读取、多厂商适配、重试包装、限流控制——如果把这些全部塞进 `__init__`，那个方法会膨胀到几百行，而且每次新增一个模型厂商都得改 `__init__`。用工厂模式把这些逻辑抽出去后，`__init__` 只需要一行调用就能拿到模型，模型怎么创建的它完全不用关心。
+### 为什么工具是注册的而不是硬编码的？
 
-这就像你装修房子——你不需要自己学会接水管和拉电线，你只需要叫专业师傅来干。水管工（工厂）负责水管，电工（另一个工厂）负责电路。你（`__init__`）只负责说"我要一个能用的厨房"。
+如果工具名直接写死在代码里，想加一个新工具就要改 `react_agent.py`。注册机制让工具列表变成可配置的——你可以在配置里禁用 `browser_use`，也可以通过 Skill 机制添加新工具。这种"注册表"模式在 QwenPaw 里到处都是（Provider、Channel、Skill 都用注册机制）。
 
-### 为什么工具注册是动态的？
+## 常见误区
 
-看 `_create_toolkit` 里的 `tool_functions` 字典——18 个工具排得整整齐齐。有人可能会问：为什么不直接在类里写 18 个方法？
+> **误区：Agent 是一个一直运行的进程？**
+>
+> 有人以为 Agent 是一个后台常驻的服务进程，不断监听消息。实际上 Agent 只是一个普通的 Python 对象——有属性（模型、工具包、记忆）、有方法（`reply()`、`interrupt()`）。它在每次请求时被创建，请求结束后被垃圾回收。状态的连续性靠 Session 文件维持，不靠进程常驻。
 
-第一，**配置灵活**。用户可以通过配置文件启用或禁用任何一个工具。如果工具是硬编码的方法，要实现这个功能就得多写一堆 if-else。用字典 + 循环注册的方式，天然支持"遍历 + 过滤"。
+## 动手环节
 
-第二，**重名处理**。`namesake_strategy` 参数允许你控制"工具重名时怎么办"——覆盖、跳过、报错、还是自动改名。这个需求在 MCP（Model Context Protocol）外部工具接入时尤其重要，因为外部工具的名字不受你控制。字典 + 注册的设计让这个问题迎刃而解。
+**任务**：在源码中找到 Agent 的创建位置和工具列表。
 
-第三，**可扩展**。工具可以来自三个渠道：内置的（18 个）、用户技能（skills/）、MCP 外部工具。它们全部注册到同一个 `Toolkit` 实例里，用同一套机制管理。这种"统一入口"的设计让新增工具变得极其简单——写个函数，调一下 `register_tool_function`，就完了。
+**步骤**：
+1. 在 IDE 中打开 `src/qwenpaw/agents/react_agent.py`
+2. 搜索 `__init__` 方法
+3. 搜索 `_create_toolkit` 方法，数一数有多少个工具函数名
+4. 搜索 `create_model_and_formatter`，看工厂函数的调用方式
+
+**预期输出**：
+- `__init__` 中能看到七步初始化序列
+- `_create_toolkit` 中能看到 18 个工具函数的字典
+- `create_model_and_formatter` 的调用能看到 `agent_id` 参数
+
+**自检**：
+- [ ] 找到了 `QwenPawAgent(ToolGuardMixin, ReActAgent)` 的类声明
+- [ ] 理解了七步初始化序列的顺序
+- [ ] 知道工厂模式在哪里被使用（`create_model_and_formatter`）
 
 ---
 
-## 动手：在 IDE 中浏览 Agent 的初始化代码
-
-这是第三章的动手环节。你不需要写代码，只需要打开文件看一看。
-
-**目标**：亲眼看到 `__init__` 的六道工序。
-
-**步骤**：
-
-1. 用你喜欢的编辑器打开 `src/qwenpaw/agents/react_agent.py`
-2. 跳到第 96 行附近，找到 `def __init__`
-3. 从第 128 行开始，往下慢慢读。每一行左边应该有行号
-4. 找到第 141 行——这是 `toolkit = self._create_toolkit(...)`
-5. 找到第 144 行——这是 `self._register_skills(toolkit)`
-6. 找到第 147 行——这是 `sys_prompt = self._build_sys_prompt()`
-7. 找到第 150 行——这是 `model, formatter = create_model_and_formatter()`
-8. 找到第 162 行——这是 `super().__init__(name="Friday", ...)`
-
-这六行就是六道工序的入口。如果你想深入某一工序，按住 Command/Ctrl 点击对应的方法名，就能跳到它的实现。
-
-**加分挑战**：数一数 `tool_functions` 字典里到底有多少个键值对。然后打开 `src/qwenpaw/agents/tools/` 目录，看看这些工具函数分别定义在哪些文件里。你会对"模块化"有更直观的感受。
+Agent 诞生了——模型、工具、技能、提示词、记忆全都就位。但它怎么知道自己是"谁"？系统提示词是怎么从一堆 Markdown 文件变成一段完整文本的？下一章我们走进提示词的拼装车间。
