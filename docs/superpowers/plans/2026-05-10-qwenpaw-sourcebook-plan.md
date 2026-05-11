@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 写一本 25万字+ 的源码分析书，从零开始（替换现有 `book/` 内容），26 章 + 4 附录。
+**Goal:** 写一本 25万字+ 的源码分析书，从零开始（替换现有 `book/` 内容），26 章 + 5 附录。
 
-**Architecture:** 单请求贯穿式叙事。每章包含：导航标记、问题、术语栏、探索、实验、工程权衡、动手环节。代码展示不超过 15 行，伪代码优先。简单图用 ASCII，复杂类图/时序图用 Mermaid。
+**Architecture:** 单请求贯穿式叙事。每章包含：导航标记、问题、术语栏、探索、实验、工程权衡、常见误区、动手环节（含预期输出和自检清单）。代码展示不超过 15 行，伪代码优先。不写精确行号，用函数名+类名引用。段落内联小图用纯 ASCII（不混中文），架构级图解用 Mermaid。
 
 **Tech Stack:** Markdown, ASCII art, Mermaid diagrams
 
@@ -37,7 +37,7 @@ Read `init_cmd.py` 确认 `qwenpaw init --defaults` 的实际行为。Read `app_
 
 - [ ] **Step 3: 验证准确性**
 
-确认文中提到的每个 CLI 命令、文件路径、端口号都能在源码中找到对应。
+确认文中提到的每个 CLI 命令、文件路径、端口号都能在源码中找到对应。验证方法：grep 文中提到的每个函数名/命令名，确认在源码中存在。
 
 - [ ] **Step 4: 提交**
 
@@ -57,16 +57,16 @@ git commit -m "docs: rewrite prologue with accurate CLI commands and updated cha
 - [ ] **Step 1: 读源码，提取关键信息**
 
 从 `_app.py` 提取：
-- `DynamicMultiAgentRunner` 类（line 71）：理解它如何通过 `X-Agent-Id` 头路由请求
-- 中间件注册顺序（lines 518-533）：`AgentContextMiddleware` → `AuthMiddleware` → `CORSMiddleware`
-- 路由注册（lines 610-628）：`api_router`、`agent_scoped_router`、`agent_app.router`
-- `lifespan()` 函数（line 218）：理解启动流程
-- `app = FastAPI(...)` （line 511）：最终应用构造
+- `DynamicMultiAgentRunner` 类：理解它如何通过 `X-Agent-Id` 头路由请求
+- 中间件注册顺序：`AgentContextMiddleware` → `AuthMiddleware` → `CORSMiddleware`
+- 路由注册：`api_router`、`agent_scoped_router`、`agent_app.router`
+- `lifespan()` 函数：理解启动流程
+- `app = FastAPI(...)` ：最终应用构造
 
 从 `routers/console.py` 提取：
-- `post_console_chat()` （line 104）：主聊天端点，返回 `StreamingResponse`
-- `_extract_session_and_payload()` （line 34）：如何解析请求体
-- `event_generator()` （line 156）：SSE 事件生成
+- `post_console_chat()` ：主聊天端点，返回 `StreamingResponse`
+- `_extract_session_and_payload()` ：如何解析请求体
+- `event_generator()` ：SSE 事件生成
 
 从 `auth.py` 提取：认证中间件如何检查请求。
 
@@ -84,7 +84,8 @@ git commit -m "docs: rewrite prologue with accurate CLI commands and updated cha
    - 请求如何到达 `post_console_chat()` 处理函数
 5. **实验**：用 `curl` 发送一条请求，观察 FastAPI 日志
 6. **工程权衡**：为什么用 SSE 而非 WebSocket？为什么中间件是洋葱模型？
-7. **动手环节**（观察级）：用 `curl` 发请求，观察日志
+7. **常见误区**：为什么不把认证逻辑直接写在路由函数里？（引出中间件的价值）
+8. **动手环节**（观察级）：用 `curl` 发请求，观察日志。预期输出：看到 SSE 事件流。自检：能找到请求对应的端点函数名。
 
 **图解**：
 - ASCII：请求从浏览器到 FastAPI 的路径图
@@ -94,7 +95,7 @@ git commit -m "docs: rewrite prologue with accurate CLI commands and updated cha
 
 - [ ] **Step 3: 验证准确性**
 
-确认所有函数名、行号、参数与源码一致。确认 curl 命令可执行。
+确认所有函数名与源码一致。验证方法：grep 文中提到的每个函数名，确认在源码中存在。确认 curl 命令可执行。
 
 - [ ] **Step 4: 提交**
 
@@ -114,14 +115,14 @@ git commit -m "docs: write chapter 1 - HTTP request reaches FastAPI"
 - [ ] **Step 1: 读源码，提取关键信息**
 
 从 `runner.py` 提取：
-- `AgentRunner(Runner)` 类（line 130）
-- `query_handler()` （line 408）：主分发方法
-- `_parse_skill_query()` （line 173）：`/<skill>` 命令解析
-- `init_handler()` （line 875）：Session 初始化
+- `AgentRunner(Runner)` 类
+- `query_handler()` ：主分发方法
+- `_parse_skill_query()` ：`/<skill>` 命令解析
+- `init_handler()` ：Session 初始化
 
 从 `multi_agent_manager.py` 提取：
-- `get_agent()` （line 42）：延迟加载 Agent 的逻辑
-- `reload_agent()` （line 255）：零停机重载
+- `get_agent()` ：延迟加载 Agent 的逻辑
+- `reload_agent()` ：零停机重载
 
 从 `task_tracker.py` 提取：
 - `TaskTracker` 类：如何管理后台运行状态
@@ -165,17 +166,17 @@ git commit -m "docs: write chapter 2 - Runner dispatches to Agent"
 - [ ] **Step 1: 读源码**
 
 从 `react_agent.py` 提取：
-- `QwenPawAgent(ToolGuardMixin, ReActAgent)` 类声明（line 76）和 MRO
-- `__init__()` （line 96）：初始化流程
-- `_create_toolkit()` （line 190）：18 个内置工具的注册
-- `_register_skills()` （line 309）：技能加载
-- `_build_sys_prompt()` （line 345）：系统提示词构建
-- `_setup_memory_manager()` （line 393）：记忆系统设置
-- `_register_hooks()` （line 428）：钩子注册
+- `QwenPawAgent(ToolGuardMixin, ReActAgent)` 类声明和 MRO
+- `__init__()` ：初始化流程
+- `_create_toolkit()` ：18 个内置工具的注册
+- `_register_skills()` ：技能加载
+- `_build_sys_prompt()` ：系统提示词构建
+- `_setup_memory_manager()` ：记忆系统设置
+- `_register_hooks()` ：钩子注册
 
 从 `model_factory.py` 提取：
-- `create_model_and_formatter()` （line 930）：工厂入口
-- `_create_formatter_instance()` （line 1022）：格式化器创建
+- `create_model_and_formatter()` ：工厂入口
+- `_create_formatter_instance()` ：格式化器创建
 
 - [ ] **Step 2: 写章节内容**
 
@@ -214,14 +215,14 @@ git commit -m "docs: write chapter 3 - Agent creation and initialization"
 - [ ] **Step 1: 读源码**
 
 从 `prompt.py` 提取：
-- `PromptConfig` （line 29）：`DEFAULT_FILES = ["AGENTS.md", "SOUL.md", "PROFILE.md"]`
-- `PromptBuilder` 类（line 41）：Builder 模式
-- `_load_file()` （line 78）：加载文件并剥离 YAML frontmatter
-- `_process_heartbeat_section()` （line 136）：心跳块过滤
-- `_process_memory_section()` （line 163）：记忆块过滤
-- `build()` （line 187）：最终拼装
-- `build_system_prompt_from_working_dir()` （line 222）：顶层函数
-- `build_multimodal_hint()` （line 435）：多模态提示
+- `PromptConfig` ：`DEFAULT_FILES = ["AGENTS.md", "SOUL.md", "PROFILE.md"]`
+- `PromptBuilder` 类：Builder 模式
+- `_load_file()` ：加载文件并剥离 YAML frontmatter
+- `_process_heartbeat_section()` ：心跳块过滤
+- `_process_memory_section()` ：记忆块过滤
+- `build()` ：最终拼装
+- `build_system_prompt_from_working_dir()` ：顶层函数
+- `build_multimodal_hint()` ：多模态提示
 
 - [ ] **Step 2: 写章节内容**
 
@@ -260,13 +261,13 @@ git commit -m "docs: write chapter 4 - system prompt assembly"
 - [ ] **Step 1: 读源码**
 
 从 `react_agent.py` 提取：
-- `reply()` （line 1132）：入口点
-- `_reasoning()` （line 796）：推理重写（媒体过滤）
-- `_auto_continue_if_text_only()` （line 711）：自动续推
+- `reply()` ：入口点
+- `_reasoning()` ：推理重写（媒体过滤）
+- `_auto_continue_if_text_only()` ：自动续推
 
 从 `tool_guard_mixin.py` 提取：
-- `_reasoning()` （line 662）：安全拦截推理
-- `_acting()` （line 291）：安全拦截工具执行
+- `_reasoning()` ：安全拦截推理
+- `_acting()` ：安全拦截工具执行
 
 理解 MRO 调用链：`reply()` → `_reasoning()` → ToolGuardMixin._reasoning() → QwenPawAgent._reasoning() → super()._reasoning()
 
@@ -306,7 +307,7 @@ git commit -m "docs: write chapter 5 - ReAct reasoning loop"
 - [ ] **Step 1: 读源码**
 
 从 `provider.py` 提取：
-- `Provider(ProviderInfo, ABC)` 抽象基类（line 147）
+- `Provider(ProviderInfo, ABC)` 抽象基类
 - 抽象方法列表：`check_connection()`、`fetch_models()`、`check_model_connection()`、`get_chat_model_instance()`
 
 从 `openai_provider.py` 提取：
@@ -314,8 +315,8 @@ git commit -m "docs: write chapter 5 - ReAct reasoning loop"
 - `get_chat_model_instance()` 如何创建 OpenAI 客户端
 
 从 `provider_manager.py` 提取：
-- `get_provider()` （line 823）：Provider 查找逻辑
-- `activate_model()` （line 987）：激活模型
+- `get_provider()` ：Provider 查找逻辑
+- `activate_model()` ：激活模型
 
 从 `model_factory.py` 提取：
 - `create_model_and_formatter()` 包装链：Provider → TokenRecording → RetryChatModel
@@ -360,8 +361,8 @@ git commit -m "docs: write chapter 6 - LLM provider call chain"
 从 `tools/file_io.py` 提取：`read_file`、`write_file` 函数签名。
 从 `tools/get_current_time.py` 提取：最简单的工具参考实现。
 从 `tool_guard_mixin.py` 提取：
-- `_acting()` （line 291）：工具执行拦截
-- `_decide_guard_action()` （line 346）：决定操作（auto_denied / preapproved / needs_approval）
+- `_acting()` ：工具执行拦截
+- `_decide_guard_action()` ：决定操作（auto_denied / preapproved / needs_approval）
 
 - [ ] **Step 2: 写章节内容**
 
@@ -400,11 +401,11 @@ git commit -m "docs: write chapter 7 - tool execution and security guard"
 - [ ] **Step 1: 读源码**
 
 从 `runner.py` 提取：
-- `_stream_printing_messages_interruptible()` （line 79）：消息队列 + 流式输出
-- `_PRINT_END_SIGNAL` （line 61）：流终止信号
+- `_stream_printing_messages_interruptible()` ：消息队列 + 流式输出
+- `_PRINT_END_SIGNAL` ：流终止信号
 
 从 `console.py` 提取：
-- `event_generator()` （line 156）：SSE 事件格式化
+- `event_generator()` ：SSE 事件格式化
 
 从 `task_tracker.py` 提取：
 - `TaskTracker` 如何管理多个订阅者的队列
@@ -447,7 +448,7 @@ git commit -m "docs: write chapter 8 - response streaming back to browser"
 
 重写 `book/README.md`，反映新的设计：
 - 更新全书结构表（序章 + 4 卷 + 附录）
-- 更新章节列表（26 章 + 4 附录）
+- 更新章节列表（26 章 + 5 附录）
 - 保留"阅读方式"、"你需要的准备"、"源码权威"等通用部分
 
 - [ ] **Step 2: Review 卷一全部章节**
@@ -601,6 +602,10 @@ git commit -m "docs: write chapter 10 - Mixin pattern and MRO"
 
 - [ ] **Step 1: 读源码**
 - [ ] **Step 2: 写章节内容**（插件架构、Skill 生命周期、热插拔、Markdown 即代码）
+- [ ] **Step 2b: 添加卷二→卷三过渡桥段**
+
+在第 14 章末尾添加半引导式过渡练习："你已经看懂了 Skill 的插件架构。如果让你给 Skill 加一个'执行前确认'功能，你会改哪个文件？不用写代码，只需在源码中找到你会修改的位置，用一句话描述你的思路。"让读者心理上准备好从"看"切换到"做"。
+
 - [ ] **Step 3: 验证准确性**
 - [ ] **Step 4: 提交**
 
@@ -612,7 +617,7 @@ git commit -m "docs: write chapter 10 - Mixin pattern and MRO"
 
 **Files:**
 - Create: `book/15-造一把新工具.md`
-- Read: `src/qwenpaw/agents/tools/get_current_time.py`（最简单参考）、`src/qwenpaw/agents/tools/shell.py`（复杂参考）、`src/qwenpaw/agents/react_agent.py` lines 190-307（工具注册）
+- Read: `src/qwenpaw/agents/tools/get_current_time.py`（最简单参考）、`src/qwenpaw/agents/tools/shell.py`（复杂参考）、`src/qwenpaw/agents/react_agent.py`（重点：`_create_toolkit()` 方法中的工具注册）
 
 - [ ] **Step 1: 读源码**
 - [ ] **Step 2: 写章节内容**（Tool 接口规范、注册流程、Function Calling 端到端）
@@ -744,7 +749,7 @@ git commit -m "docs: write chapter 10 - Mixin pattern and MRO"
 
 **Files:**
 - Create: `book/25-命令行与部署.md`
-- Read: `src/qwenpaw/cli/main.py`、`src/qwenpaw/cli/app_cmd.py`、`docker-compose.yml`
+- Read: `src/qwenpaw/cli/main.py`、`src/qwenpaw/cli/app_cmd.py`、`docker-compose.yml`、`Dockerfile`（如存在）
 
 - [ ] **Step 1: 读源码**
 - [ ] **Step 2: 写章节内容**（Click 懒加载、启动流程、Docker 部署）
@@ -768,13 +773,11 @@ git commit -m "docs: write chapter 10 - Mixin pattern and MRO"
 
 ## Phase 5: 附录
 
-### Task 29: 附录 A-D
+### Task 29: 附录 A+B（环境变量 + CLI 命令速查）
 
 **Files:**
 - Create: `book/附录A-环境变量速查.md`
 - Create: `book/附录B-CLI命令速查.md`
-- Create: `book/附录C-源码结构总览.md`
-- Create: `book/附录D-错误代码速查.md`
 
 - [ ] **Step 1: 从源码提取环境变量清单**
 
@@ -786,48 +789,98 @@ Read `src/qwenpaw/cli/` 目录下所有命令文件，列出所有 CLI 命令、
 
 - [ ] **Step 3: 写附录 A 和 B**
 
-- [ ] **Step 4: 写附录 C**
+- [ ] **Step 4: 验证准确性**
+
+grep 附录中提到的每个环境变量名和命令名，确认在源码中存在。
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add book/附录A-环境变量速查.md book/附录B-CLI命令速查.md
+git commit -m "docs: write appendices A-B (env vars, CLI commands)"
+```
+
+---
+
+### Task 29b: 附录 C+D+E（源码结构 + 错误代码 + 术语索引）
+
+**Files:**
+- Create: `book/附录C-源码结构总览.md`
+- Create: `book/附录D-错误代码速查.md`
+- Create: `book/附录E-术语索引.md`
+
+- [ ] **Step 1: 写附录 C**
 
 列出 `src/qwenpaw/` 下每个目录的一句话说明。
 
-- [ ] **Step 5: 写附录 D**
+- [ ] **Step 2: 写附录 D**
 
 从源码中提取错误代码和错误消息。
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 3: 写附录 E（术语索引）**
+
+汇总全书各章"术语其实很简单"栏目，按拼音排序，标注首次出现的章节号。
+
+- [ ] **Step 4: 验证准确性**
+
+- [ ] **Step 5: 提交**
 
 ```bash
-git add book/附录*.md
-git commit -m "docs: write appendices A-D (env vars, CLI, source structure, error codes)"
+git add book/附录C-源码结构总览.md book/附录D-错误代码速查.md book/附录E-术语索引.md
+git commit -m "docs: write appendices C-E (source structure, error codes, terminology index)"
 ```
 
 ---
 
 ## Phase 6: 最终 Review
 
-### Task 30: 全书 Review + 清理
+### Task 30: 章节间衔接 + 叙事连贯性检查
 
 - [ ] **Step 1: 检查章节间衔接**
 
-确认每章末尾自然过渡到下一章。确认卷间过渡（特别是卷一→卷二）流畅。
+确认每章末尾自然过渡到下一章。确认卷间过渡（卷一→卷二、卷二→卷三、卷三→卷四）流畅。重点检查第 9 章"回顾与鸟瞰"的过渡效果，以及第 14 章末尾的半引导式桥段。
 
-- [ ] **Step 2: 检查术语一致性**
-
-确认同一概念在不同章节使用相同术语。整理术语索引。
-
-- [ ] **Step 3: 检查代码引用准确性**
-
-抽查每章的关键代码引用，确认函数名、行号、参数名与源码一致。
-
-- [ ] **Step 4: 检查图解清晰度**
-
-确认所有 ASCII 图在等宽字体下对齐。确认 Mermaid 语法正确。
-
-- [ ] **Step 5: 更新 README 确保与实际内容一致**
-
-- [ ] **Step 6: 提交**
+- [ ] **Step 2: 提交**
 
 ```bash
 git add book/
-git commit -m "docs: final review and polish of complete sourcebook"
+git commit -m "docs: review chapter transitions and narrative continuity"
+```
+
+---
+
+### Task 31: 术语一致性 + 代码引用准确性
+
+- [ ] **Step 1: 检查术语一致性**
+
+确认同一概念在不同章节使用相同术语。检查要点：Agent vs agent、Provider vs provider、Session vs 会话 等大小写/中英文混用的一致性。
+
+- [ ] **Step 2: 检查代码引用准确性**
+
+抽查每章的关键代码引用，验证方法：grep 文中提到的每个函数名/类名，确认在源码中存在且描述匹配。**不检查行号**（行号随版本变化是预期的）。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add book/
+git commit -m "docs: review terminology consistency and code reference accuracy"
+```
+
+---
+
+### Task 32: 图解清晰度 + README 更新
+
+- [ ] **Step 1: 检查图解清晰度**
+
+确认所有 ASCII 图仅使用纯 ASCII 字符（无中文、无全角符号）。确认 Mermaid 语法在 GitHub 上可正确渲染。抽查每章至少一个图解的渲染效果。
+
+- [ ] **Step 2: 更新 README 确保与实际内容一致**
+
+更新 `book/README.md`：版本锚定声明、推荐阅读路径、26 章 + 5 附录结构表。
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add book/
+git commit -m "docs: final review - diagrams, README, and polish"
 ```
