@@ -169,7 +169,7 @@ class _QuoteState:
 
 关键设计：`_extract_outside_single_quotes()` 函数剥离单引号内容但保留双引号内容——因为 Shell 会在双引号内展开变量和命令替换，单引号内不会。
 
-### SecretStore——Fernet 加密存储
+### secret_store 模块——Fernet 加密存储
 
 API Key 等敏感信息用 Fernet 对称加密存储在磁盘上：
 
@@ -293,7 +293,7 @@ Shell 命令中的引号和转义是上下文相关的——`"rm"` 在双引号�
 >
 > 每次工具调用都运行三个 Guardian，看起来开销大。但实际上 Guardian 的检查都是字符串匹配和正则搜索——对于单条命令或路径，耗时在微秒级。只有 `ShellEvasionGuardian` 的字符级状态机稍慢，但也只在 `execute_shell_command` 时触发。整体开销可以忽略。
 
-> **误区：SecretStore 的 Fernet 加密绝对安全？**
+> **误区：`secret_store` 的 Fernet 加密绝对安全？**
 >
 > Fernet 是对称加密——安全性取决于主密钥的保管。如果攻击者拿到了 `~/.qwenpaw.secret/.master_key` 文件，就能解密所有密钥。QwenPaw 优先使用 OS 密钥环（macOS Keychain、Linux Secret Service），文件只是降级方案。在共享服务器上，建议配置密钥环存储。
 
@@ -316,7 +316,7 @@ Shell 命令中的引号和转义是上下文相关的——`"rm"` 在双引号�
 - [ ] 理解了 ToolGuardEngine 调度三个 Guardian 的方式
 - [ ] 知道 YAML 规则的格式和匹配流程
 - [ ] 知道 ShellEvasionGuardian 用引号状态机检测混淆
-- [ ] 知道 SecretStore 用 Fernet 加密，优先用 OS 密钥环
+- [ ] 知道 `secret_store` 模块用 Fernet 加密，优先用 OS 密钥环
 
 ---
 
