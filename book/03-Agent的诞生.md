@@ -47,7 +47,7 @@ QwenPawAgent          # QwenPaw 自己的 Agent，加了工具注册、记忆、
     +-- ReActAgent     # agentscope 的推理-行动循环（"思考->行动->观察->再思考"）
 ```
 
-Python 的 MRO（方法解析顺序）决定了调用 `self._reasoning()` 时先找 `QwenPawAgent`，再找 `ToolGuardMixin`，最后找 `ReActAgent`。这意味着 `ToolGuardMixin` 可以在推理过程中插入安全检查——如果 Agent 想执行 `rm -rf /`，Mixin 会在 `ReActAgent` 真正执行之前拦住它。第 5 章和第 10 章我们会深入 MRO。
+Python 的 MRO（方法解析顺序）决定了调用 `self._reasoning()` 时先找 `QwenPawAgent`，再找 `ToolGuardMixin`，最后找 `ReActAgent`。这意味着 `ToolGuardMixin` 可以在推理过程中插入安全检查——如果 Agent 想执行 `rm -rf /`，Mixin 会在 `ReActAgent` 真正执行之前拦住它。**MRO 的具体工作机制见第 5 章（ReAct 循环实操）和第 10 章（Mixin 设计原理）。现在先记住：ToolGuardMixin 夹在中间，能抢先拦截工具调用。**
 
 ### Agent 的诞生过程
 

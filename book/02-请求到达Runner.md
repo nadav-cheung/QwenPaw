@@ -1,10 +1,13 @@
 # 第 2 章：请求到达 Runner
 
 ```
-Browser -> HTTP -> FastAPI -> [Runner] -> Agent -> Prompt -> ReAct -> LLM -> Tool -> Response
-                              ^
-                          you are here
+Browser -> HTTP -> FastAPI -> [Channel] -> [Runner] -> Agent -> Prompt -> ReAct -> LLM -> Tool -> Response
+                              ^           ^
+                         第1章覆盖    第12章覆盖
+                                    you are here (Runner)
 ```
+
+> 注意：FastAPI 和 Runner 之间还有一个"频道适配层"（Channel）——它负责把不同平台的消息格式统一转成 QwenPaw 内部格式。这一章我们先看 Runner 调度，Channel 的设计在第 12 章单独讲。阅读本卷时，你只需知道"消息经过了 Channel 转换"就行。
 
 上一章我们跟请求走到了 `post_console_chat()`——它做了六步准备工作，其中最关键的一步是 `get_agent_for_request(request)`，根据请求找到对应的 Agent 工作空间。这一章，我们跟着这条路往里走，看看"找 Agent"这件事到底有多复杂——涉及 Runner 调度、工作空间管理、命令分发、会话持久化。
 

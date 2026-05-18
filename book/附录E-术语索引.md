@@ -30,8 +30,8 @@
 | Wrapper Chain（装饰器链） | Wrapper Chain | 第 6 章 | 一层套一层的函数包装——每层加一个功能（重试、记录、限流），像俄罗斯套娃 |
 | YAML Rules（YAML 规则） | YAML Rules | 第 13 章 | 用 YAML 格式写的安全规则——描述"什么工具在什么条件下需要什么权限" |
 | 命令分发 | Command Dispatch | 第 2 章 | 把 `/skill`、`/reset` 等命令路由到对应的处理函数 |
-| 工作目录 | Working Directory | 序章 | Agent 的"办公桌"——所有配置、记忆、技能文件都在这个目录下 |
-| 工作区 | Workspace | 第 4 章 | 一个 Agent 运行时的完整环境——包含配置、文件、工具集等 |
+| 工作目录 | Working Directory | 序章 | QwenPaw 的根目录 `~/.qwenpaw/`——就像一栋房子，所有 Agent 的配置、记忆、技能都住在里面 |
+| 工作区 | Workspace | 第 4 章 | 单 Agent 的运行时环境（`~/.qwenpaw/workspaces/<id>/`）——就像房子里一个 Agent 的专属房间，包含该 Agent 的身份文件、技能、配置 |
 | 工厂模式 | Factory Pattern | 第 3 章 | 不直接 `new` 对象，而是通过工厂函数创建——方便统一管理创建过程 |
 | 多态反序列化 | Polymorphic Deserialization | 第 11 章 | JSON 数据反序列化时，根据类型字段选择对应的类来构造——同一份数据变成不同的对象 |
 | 限流器 | Rate Limiter | 第 6 章 | 控制请求频率的阀门——防止调用太频繁被 API 服务器拒绝 |
@@ -42,3 +42,48 @@
 | 流适配器 | Stream Adapter | 第 8 章 | 把一种流式数据格式转换成另一种——像不同语言之间的同声传译 |
 | 依赖图 | Dependency Graph | 第 9 章 | 模块之间"谁依赖谁"的关系图——像组织架构图，但画的是代码关系 |
 | 入口点 | Entry Point | 第 9 章 | 程序开始执行的地方——像大楼的正门，所有访问都从这里开始 |
+
+---
+
+## 英文索引（Alphabetical Index）
+
+按英文首字母排序，方便英文关键词反向查找。
+
+| 英文 | 中文 | 章节 |
+|------|------|------|
+| Adapter Pattern | 适配器模式 | 第 12 章 |
+| Agent | 智能体 | 第 3 章 |
+| AgentConfig | Agent 配置 | 第 10 章 |
+| Class and Instance | 类与实例 | 第 3 章 |
+| Command Dispatch | 命令分发 | 第 2 章 |
+| Dependency Graph | 依赖图 | 第 9 章 |
+| Entry Point | 入口点 | 第 9 章 |
+| Factory Pattern | 工厂模式 | 第 3 章 |
+| FastAPI | Web 框架 | 第 1 章 |
+| Guardian | 守卫 | 第 7 章 |
+| HTTP | 超文本传输协议 | 第 1 章 |
+| Message Queue | 消息队列 | 第 5 章 |
+| Middleware | 中间件 | 第 1 章 |
+| Mixin | 混入 | 第 3 章 |
+| MRO | 方法解析顺序 | 第 10 章 |
+| Polymorphic Deserialization | 多态反序列化 | 第 11 章 |
+| ProcessHandler | 处理器 | 第 12 章 |
+| Producer-Consumer Pattern | 生产者-消费者模型 | 第 8 章 |
+| Provider | 模型供应商 | 序章 |
+| Rate Limiter | 限流器 | 第 6 章 |
+| ReAct | 推理与行动 | 第 5 章 |
+| Runner | 运行器 | 第 2 章 |
+| SSE | 服务器推送事件 | 第 1 章 |
+| Session | 会话 | 第 2 章 |
+| Skill | 技能 | 第 14 章 |
+| Skill Pool | 技能池 | 第 14 章 |
+| Strategy Pattern | 策略模式 | 第 11 章 |
+| Stream Adapter | 流适配器 | 第 8 章 |
+| System Prompt | 系统提示词 | 第 4 章 |
+| Template Assembly | 模板拼装 | 第 4 章 |
+| Tool Call | 工具调用 | 第 7 章 |
+| ToolResponse | 工具响应 | 第 7 章 |
+| Working Directory | 工作目录 | 序章 |
+| Workspace | 工作区 | 第 4 章 |
+| Wrapper Chain | 装饰器链 | 第 6 章 |
+| YAML Rules | YAML 规则 | 第 13 章 |

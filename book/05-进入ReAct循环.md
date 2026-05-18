@@ -73,6 +73,24 @@ def reply(self, msg):
 
 这就是"思考->行动->观察->再思考"。不是所有消息都需要循环——如果用户只是说"你好"，LLM 第一轮就生成文字回复，循环立刻结束。
 
+**并行工具调用**：上面的例子是一次只调一个工具。但实际上 LLM 可以在一次响应中请求多个独立的工具调用——比如同时读两个文件。此时 Agent 通过 `asyncio.gather()` 并行执行它们，缩短总耗时：
+
+```
+思考：LLM 生成 -> "调用 get_current_time + get_weather(city=Shanghai)"
+  |
+  +--> 行动：get_current_time()  --+
+  |                                 |---> asyncio.gather() 并行执行
+  +--> 行动：get_weather(SH)    --+
+  |
+  v
+观察：两个工具结果都记入记忆
+  |
+  v
+思考：LLM 看到两个结果 -> "现在是10:30，上海天气晴，25°C。"
+```
+
+安全检查（`_decide_guard_action`）在并行调用时加了 `_tool_guard_lock` 锁，确保多个工具调用不会同时绕过安全检查。第 7 章会详细展开这一步。
+
 ### MRO 如何让 ToolGuardMixin 插入安全检查
 
 上一章提到 Agent 的继承链是 `QwenPawAgent -> ToolGuardMixin -> ReActAgent`。Python 的 MRO 决定了方法调用顺序：
